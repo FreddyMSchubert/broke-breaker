@@ -1,10 +1,3 @@
-//
-//  Broke_BreakerApp.swift
-//  Broke Breaker
-//
-//  Created by Frederick Schubert on 27.01.26.
-//
-
 import SwiftUI
 import SwiftData
 
@@ -25,7 +18,7 @@ struct Broke_BreakerApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            RootTabView()
         }
         .modelContainer(sharedModelContainer)
     }
