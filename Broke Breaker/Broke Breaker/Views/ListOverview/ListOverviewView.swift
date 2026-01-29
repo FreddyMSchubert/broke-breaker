@@ -21,33 +21,37 @@ struct ListOverviewView: View {
             }
             
             // The calander
-            LazyVGrid(columns: colums) {
+            HStack{
                 let days: [Date] = (0..<7).compactMap {
                     Calendar.current.date(byAdding: .day, value: $0, to: weekStart)
                 }
                 let daysLetters = ["M", "T", "W", "T", "F", "S", "S"]
-                ForEach(daysLetters.indices, id: \.self) { index in
-                    Text(daysLetters[index].capitalized)
-                        .foregroundStyle(.secondary)
-                        .font(Font.caption.bold())
-                }
-                ForEach(days, id: \.timeIntervalSince1970) { day in
-                    Text(day.formatted(.dateTime.day()))
-                        .fontWeight(.bold)
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, minHeight: 40)
-                        .background(
-                            Circle()
-                                .foregroundStyle(
-                                    Calendar.current.isDate(day, inSameDayAs: date)
-                                    ? Color.orange
-                                    : color.opacity(0.3)
-                                )
-                        )
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            date = day
-                        }
+                ForEach(days.indices, id: \.self) { index in
+                    let day = days[index]
+                    VStack(spacing: 6) {
+                        // The week letter
+                        Text(daysLetters[index])
+                            .foregroundStyle(.secondary)
+                            .font(.caption.bold())
+                        // The day number
+                        Text(day.formatted(.dateTime.day()))
+                            .fontWeight(.bold)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, minHeight: 40)
+                            .background(
+                                Circle()
+                                    .foregroundStyle(
+                                        Calendar.current.isDate(day, inSameDayAs: date)
+                                        ? Color.orange
+                                        : color.opacity(0.3)
+                                    )
+                            )
+                    }
+                    .frame(maxWidth: .infinity)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        date = day
+                    }
                 }
             }
             
