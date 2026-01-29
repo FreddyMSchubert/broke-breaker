@@ -44,7 +44,7 @@ struct ListOverviewView: View {
                                     : color.opacity(0.3)
                                 )
                         )
-                        .contentShape(Rectangle()) // make the whole frame tappable
+                        .contentShape(Rectangle())
                         .onTapGesture {
                             date = day
                         }
