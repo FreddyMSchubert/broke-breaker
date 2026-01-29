@@ -104,6 +104,4 @@ struct ListOverviewView: View {
         }
     }
 }
-
 // Text("This is where Calum will be putting a list of all of the incomes & expenses on a given day with the ability to select the day that's being viewed at the top and the total at the bottom.");
-
