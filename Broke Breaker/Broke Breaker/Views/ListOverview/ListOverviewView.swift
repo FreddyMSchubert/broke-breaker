@@ -25,6 +25,12 @@ struct ListOverviewView: View {
                 let days: [Date] = (0..<7).compactMap {
                     Calendar.current.date(byAdding: .day, value: $0, to: weekStart)
                 }
+                let daysLetters = ["M", "T", "W", "T", "F", "S", "S"]
+                ForEach(daysLetters.indices, id: \.self) { index in
+                    Text(daysLetters[index].capitalized)
+                        .foregroundStyle(.secondary)
+                        .font(Font.caption.bold())
+                }
                 ForEach(days, id: \.timeIntervalSince1970) { day in
                     Text(day.formatted(.dateTime.day()))
                         .fontWeight(.bold)
@@ -100,3 +106,4 @@ struct ListOverviewView: View {
 }
 
 // Text("This is where Calum will be putting a list of all of the incomes & expenses on a given day with the ability to select the day that's being viewed at the top and the total at the bottom.");
+
