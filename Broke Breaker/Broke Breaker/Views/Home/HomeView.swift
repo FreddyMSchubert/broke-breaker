@@ -1,5 +1,5 @@
 //
-//  ContentView.swift
+//  HomeView.swift
 //  practice
 //
 //  Created by Faith Oyemike on 27/01/2026.
@@ -7,28 +7,30 @@
 
 import SwiftUI
 
-struct ContentView: View {
-    // Defines a screen in SwiftUI — every screen is a struct that conforms to View
-
-    // MARK: - UI MOCK DATA (FAKE DATA JUST FOR DESIGN PREVIEW)
-
+struct HomeView: View {
+    // Defines a screen in SwiftUI
+    
+    //------Declare Data Variables----------------
+ 
     let dailyBudget: Double = 20
     // Pretend daily budget — backend will replace this later
 
     let dailySpendings: [Double] = [18, 22, 15, 19, 25]
-    // Fake spending data for different days to design the UI layout
+    //  spending data for different days to design the UI layout
 
     let days: [String] = ["Mon", "Tue", "Wed", "Thu", "Fri"]
     // Labels for each day shown on the interface
 
     var body: some View {
+       
+        let todaySpending = dailySpendings.last ?? 0
+
         ScrollView {
             // Allows scrolling if screen content becomes too tall
-
             VStack(spacing: 30) {
                 // Vertically stacks UI sections with space between them
 
-                // MARK: - PAGE TITLE
+    //---------MARK: - PAGE TITLE
                 Text("Spending Overview")
                     .font(.largeTitle)
                     .fontWeight(.bold)
@@ -41,9 +43,6 @@ struct ContentView: View {
                     Text("Today's Spending")
                         .font(.headline)
                         // Section heading
-
-                    let todaySpending = dailySpendings.last ?? 0
-                    // Gets the most recent day’s spending (UI mock)
 
                     Text("£\(todaySpending, specifier: "%.2f")")
                         .font(.system(size: 36, weight: .bold))
@@ -83,9 +82,11 @@ struct ContentView: View {
     }
 }
 
+// ✅ Correct Preview
 #Preview {
-    ContentView()
+    HomeView()
 }
+
 //📈 FLOW CHART (UI-ONLY — NO BACKEND)
 struct FlowAreaChart: View {
     // A reusable visual component that draws a flowing spending chart
