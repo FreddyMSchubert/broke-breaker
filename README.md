@@ -1,3 +1,3 @@
 # Broke Breaker
 
-> the saviour for broke folk.
+> a stroke of hope for the broke.
