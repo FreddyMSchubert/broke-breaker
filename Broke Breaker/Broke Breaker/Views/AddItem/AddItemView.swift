@@ -174,14 +174,18 @@ struct AddItemView: View {
                     .transition(.opacity.combined(with: .move(edge: .top)))
                 }
 
-                if let errorMessage {
-                    Text(errorMessage)
-                        .foregroundStyle(.red)
-                        .font(.footnote)
-                } else if didCreateFlash {
-                    Text("Created ✅")
-                        .foregroundStyle(.secondary)
-                        .font(.footnote)
+                HStack {
+                    Spacer()
+                    if let errorMessage {
+                        Text(errorMessage)
+                            .foregroundStyle(.red)
+                            .font(.footnote)
+                    } else if didCreateFlash {
+                        Text("Created ✅")
+                            .foregroundStyle(.secondary)
+                            .font(.footnote)
+                    }
+                    Spacer()
                 }
 
                 Button(action: create) {
