@@ -26,39 +26,38 @@ struct ListOverviewView: View {
             
             // The calander
             HStack{
-                let days: [Date] = (0..<7).compactMap {
-                    Calendar.current.date(byAdding: .day, value: $0, to: weekStart)
+            let days: [Date] = (0..<7).compactMap {
+                Calendar.current.date(byAdding: .day, value: $0, to: weekStart)
+            }
+            let daysLetters = ["M", "T", "W", "T", "F", "S", "S"]
+            ForEach(days.indices, id: \.self) { index in
+                let day = days[index]
+                VStack(spacing: 6) {
+                    // The week letter
+                    Text(daysLetters[index])
+                        .foregroundStyle(.secondary)
+                        .font(.caption.bold())
+                    // The day number
+                    Text(day.formatted(.dateTime.day()))
+                        .fontWeight(.bold)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, minHeight: 40)
+                        .background(
+                            Circle()
+                                .foregroundStyle(
+                                    Calendar.current.isDate(day, inSameDayAs: date)
+                                    ? Color.orange
+                                    : color.opacity(0.3)
+                                )
+                        )
                 }
-                let daysLetters = ["M", "T", "W", "T", "F", "S", "S"]
-                ForEach(days.indices, id: \.self) { index in
-                    let day = days[index]
-                    VStack(spacing: 6) {
-                        // The week letter
-                        Text(daysLetters[index])
-                            .foregroundStyle(.secondary)
-                            .font(.caption.bold())
-                        // The day number
-                        Text(day.formatted(.dateTime.day()))
-                            .fontWeight(.bold)
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity, minHeight: 40)
-                            .background(
-                                Circle()
-                                    .foregroundStyle(
-                                        Calendar.current.isDate(day, inSameDayAs: date)
-                                        ? Color.orange
-                                        : color.opacity(0.3)
-                                    )
-                            )
-                    }
-                    .frame(maxWidth: .infinity)
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        date = day
-                    }
+                .frame(maxWidth: .infinity)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    date = day
                 }
             }
-            
+        }
             // The list
             if itemsForSelectedDay.isEmpty {
                 ContentUnavailableView("No items for this date", systemImage: "tray")
