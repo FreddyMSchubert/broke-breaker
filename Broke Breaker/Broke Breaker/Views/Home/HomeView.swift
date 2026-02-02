@@ -11,7 +11,8 @@ struct HomeView: View {
     // Defines a screen in SwiftUI
     
     //------Declare Data Variables----------------
- 
+    let accountBalance: Double = 1250.50   // long-term money display
+    
     let dailyBudget: Double = 20
     // Pretend daily budget — backend will replace this later
 
@@ -24,20 +25,47 @@ struct HomeView: View {
     var body: some View {
        
         let todaySpending = dailySpendings.last ?? 0
+        // Gets today’s spending amount
+        
+        let dailyDifference = dailyBudget - todaySpending
+        // Positive = under budget, Negative = over budget
 
         ScrollView {
             // Allows scrolling if screen content becomes too tall
             VStack(spacing: 30) {
                 // Vertically stacks UI sections with space between them
 
-    //---------MARK: - PAGE TITLE
+       //---------MARK: - PAGE TITLE-------------
                 Text("Spending Overview")
                     .font(.largeTitle)
                     .fontWeight(.bold)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     // Makes the title large and aligned to the left like a dashboard
+                
+                // --------------ACCOUNT BALANCE CARD-------------
+                VStack(alignment: .leading, spacing: 12) {
 
-                // MARK: - TODAY SUMMARY CARD
+                        Text("Total Money in your Account")
+                            .font(.headline)
+
+                        Text("£\(accountBalance, specifier: "%.2f")")
+                            .font(.system(size: 38, weight: .bold))
+                            .foregroundColor(.green)
+
+                        Text("Remember to budget")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        }
+                
+                .padding()
+                    .frame(maxWidth: .infinity)
+                    .background(.ultraThinMaterial)
+                    .cornerRadius(20)
+                    .shadow(radius: 4)
+                
+                
+
+        //-------- -----TODAY SUMMARY CARD------------------
                 VStack(alignment: .leading, spacing: 12) {
 
                     Text("Today's Spending")
@@ -59,7 +87,67 @@ struct HomeView: View {
                 .background(.ultraThinMaterial)
                 .cornerRadius(20)
                 .shadow(radius: 4)
-                // Creates a soft card-style container
+              
+
+    // 🔵 NEW CODE START — DAILY BUDGET DIFFERENCE CARD
+            VStack(alignment: .leading, spacing: 12) {
+
+                Text("Today's Budget Performance")
+                    .font(.headline)
+
+                    HStack {
+                      VStack(alignment: .leading) {
+                          Text("Budget")
+                              .font(.caption)
+                              .foregroundColor(.secondary)
+                          
+                          Text("£\(dailyBudget, specifier: "%.2f")")
+                              .font(.title3)
+                              .fontWeight(.bold)
+                                        }
+
+                          Spacer()
+
+                       VStack(alignment: .leading) {
+                          Text("Spent")
+                               .font(.caption)
+                               .foregroundColor(.secondary)
+                           
+                          Text("£\(todaySpending, specifier: "%.2f")")
+                               .font(.title3)
+                               .fontWeight(.bold)
+                            }
+
+                                        
+                        Spacer()
+
+                        VStack(alignment: .leading) {
+                           Text("Difference")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            
+                            Text("£\(abs(dailyDifference), specifier: "%.2f")")
+                                .font(.title3)
+                                .fontWeight(.bold)
+                                .foregroundColor(dailyDifference >= 0 ? .green : .red)
+                            
+                            }
+                                    }
+
+                            Text(dailyDifference >= 0
+                                ? "Great discipline! Save today or spend tomorrow wisely 🌱"
+                                : "Please stick to budget — the future rewards discipline. Let’s work together, friend 💪")
+                                        .font(.subheadline)
+                                        .foregroundColor(dailyDifference >= 0 ? .green : .red)
+
+                                }
+                                .padding()
+                                .frame(maxWidth: .infinity)
+                                .background(.ultraThinMaterial)
+                                .cornerRadius(20)
+                                .shadow(radius: 4)
+                               //END 
+
 
                 // MARK: - WEEKLY FLOW CHART SECTION
                 VStack(alignment: .leading, spacing: 16) {
