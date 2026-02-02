@@ -95,7 +95,7 @@ struct AddItemView: View {
                 
                 HStack(alignment: .center) {
                     Spacer()
-                    // Date / Start date (always present)
+                    // Date Picker
                     VStack(alignment: .leading, spacing: 8) {
                         Text(txType == .oneTime ? "Date" : "Start date")
                             .font(.title3.weight(.semibold))
@@ -131,7 +131,6 @@ struct AddItemView: View {
                     Spacer()
                 }
 
-                // Repeating controls
                 if txType == .repeating {
                     HStack {
                         Spacer()
@@ -167,7 +166,6 @@ struct AddItemView: View {
                                 .clipShape(RoundedRectangle(cornerRadius: 12))
                             }
                         }
-                        .frame(maxWidth: 360, alignment: .leading)
 
                         Spacer()
                     }
@@ -211,7 +209,7 @@ struct AddItemView: View {
         .onTapGesture { focusedField = nil }
     }
 
-    // MARK: - Bindings that sanitize input
+    // MARK: - Input sanitization
 
     /// Decimal input that rejects letters and keeps only one decimal separator.
     private var amountBinding: Binding<String> {
