@@ -14,10 +14,14 @@ struct ListOverviewView: View {
             Text("Welcome. This is the list overview page.")
                 .foregroundStyle(.secondary)
             
-            // The date picker
-            LabeledContent("Date") {
+            HStack (){
+                // the date picker
                 DatePicker("", selection: $date, displayedComponents: .date)
-                    .labelsHidden()
+                // today button
+                Button(action: today) {
+                    Text("Today")
+                        .foregroundColor(.black)
+                } .buttonStyle(.bordered)
             }
             
             // The calander
@@ -107,5 +111,10 @@ struct ListOverviewView: View {
             itemsForSelectedDay = []
         }
     }
+    
+    private func today() {
+        date = Date.now
+    }
 }
 // Text("This is where Calum will be putting a list of all of the incomes & expenses on a given day with the ability to select the day that's being viewed at the top and the total at the bottom.");
+
