@@ -11,6 +11,9 @@ struct HomeView: View {
     // Defines a screen in SwiftUI
     
     //------Declare Data Variables----------------
+    @AppStorage("isDarkMode") private var isDarkMode = false
+    // Light/Dark mode storage
+    
     let accountBalance: Double = 1250.50   // long-term money display
     
     let dailyBudget: Double = 20
@@ -34,8 +37,20 @@ struct HomeView: View {
             // Allows scrolling if screen content becomes too tall
             VStack(spacing: 30) {
                 // Vertically stacks UI sections with space between them
+                
+                
 
-       //---------MARK: - PAGE TITLE-------------
+       //---------MARK: - PAGE TITLE--------------------
+                // Theme toggle (for swtiching between modes)
+                        Toggle(isOn: $isDarkMode) {
+                            Image(systemName: isDarkMode ? "moon.fill" : "sun.max.fill")
+                                    }
+                            .toggleStyle(.switch)
+                            //END
+                
+                
+                
+                
                 Text("Spending Overview")
                     .font(.largeTitle)
                     .fontWeight(.bold)
@@ -146,7 +161,7 @@ struct HomeView: View {
                                 .background(.ultraThinMaterial)
                                 .cornerRadius(20)
                                 .shadow(radius: 4)
-                               //END 
+                               //END
 
 
                 // MARK: - WEEKLY FLOW CHART SECTION
@@ -167,15 +182,20 @@ struct HomeView: View {
             .padding()
             // Adds space from screen edges
         }
+        
+        // ----------Apply theme--------
+            //if true then dark if fales the light 
+                .preferredColorScheme(isDarkMode ? .dark : .light)
+                //END
     }
 }
 
-// ✅ Correct Preview
+
 #Preview {
     HomeView()
 }
 
-//📈 FLOW CHART (UI-ONLY — NO BACKEND)
+// FLOW CHART
 struct FlowAreaChart: View {
     // A reusable visual component that draws a flowing spending chart
 
