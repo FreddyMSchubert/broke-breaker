@@ -40,9 +40,34 @@ struct AddItemView: View {
     @State private var everyNText: String = "1"
     @State private var unit: RecurrenceUnitUI = .days
 
-    // Feedback
-    @State private var errorMessage: String?
-    @State private var didCreateFlash: Bool = false
+    // MARK: - Alerts
+    private enum AlertState: Identifiable {
+        case error(String)
+        case success(String)
+
+        var id: String {
+            switch self {
+            case .error(let msg): return "error:\(msg)"
+            case .success(let msg): return "success:\(msg)"
+            }
+        }
+
+        var title: String {
+            switch self {
+            case .error: return "❌ Couldn’t Create Transaction"
+            case .success: return "✅ Transaction logged."
+            }
+        }
+
+        var message: String {
+            switch self {
+            case .error(let msg): return msg
+            case .success(let msg): return msg
+            }
+        }
+    }
+
+    @State private var alert: AlertState?
 
     var body: some View {
         ScrollView {
@@ -92,9 +117,10 @@ struct AddItemView: View {
                         .frame(maxWidth: .infinity)
                     }
                 }
-                
+
                 HStack(alignment: .center) {
                     Spacer()
+
                     // Date Picker
                     VStack(alignment: .leading, spacing: 8) {
                         Text(txType == .oneTime ? "Date" : "Start date")
@@ -111,8 +137,10 @@ struct AddItemView: View {
                         .background(.ultraThinMaterial)
                         .clipShape(RoundedRectangle(cornerRadius: 14))
                     }
+
                     Spacer()
                     Spacer()
+
                     // Type picker
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Type")
@@ -128,6 +156,7 @@ struct AddItemView: View {
                         .background(.ultraThinMaterial)
                         .clipShape(RoundedRectangle(cornerRadius: 14))
                     }
+
                     Spacer()
                 }
 
@@ -172,20 +201,6 @@ struct AddItemView: View {
                     .transition(.opacity.combined(with: .move(edge: .top)))
                 }
 
-                HStack {
-                    Spacer()
-                    if let errorMessage {
-                        Text(errorMessage)
-                            .foregroundStyle(.red)
-                            .font(.footnote)
-                    } else if didCreateFlash {
-                        Text("Created ✅")
-                            .foregroundStyle(.secondary)
-                            .font(.footnote)
-                    }
-                    Spacer()
-                }
-
                 Button(action: create) {
                     Text(createButtonTitle)
                         .font(.headline)
@@ -207,11 +222,17 @@ struct AddItemView: View {
         }
         .navigationTitle("New Transaction")
         .onTapGesture { focusedField = nil }
+        .alert(item: $alert) { state in
+            Alert(
+                title: Text(state.title),
+                message: Text(state.message),
+                dismissButton: .default(Text("OK"))
+            )
+        }
     }
 
     // MARK: - Input sanitization
 
-    /// Decimal input that rejects letters and keeps only one decimal separator.
     private var amountBinding: Binding<String> {
         Binding(
             get: { amountText },
@@ -221,7 +242,6 @@ struct AddItemView: View {
         )
     }
 
-    /// Integer input for recurrence (no letters, no decimals, never empty).
     private var everyBinding: Binding<String> {
         Binding(
             get: { everyNText },
@@ -233,7 +253,6 @@ struct AddItemView: View {
     }
 
     private func sanitizeDecimal(_ raw: String) -> String {
-        // Allow digits + one "." (we’ll normalize commas to ".")
         let normalized = raw.replacingOccurrences(of: ",", with: ".")
         var out = ""
         var dotUsed = false
@@ -244,20 +263,15 @@ struct AddItemView: View {
             } else if ch == "." && !dotUsed {
                 dotUsed = true
                 out.append(ch)
-            } else {
-                // ignore everything else (letters, currency, spaces, etc.)
             }
         }
 
-        // avoid leading "." -> "0."
         if out == "." { out = "0." }
-
         return out
     }
 
     private func sanitizeInt(_ raw: String) -> String {
         let digitsOnly = raw.filter { $0.isNumber }
-        // trim leading zeros but keep at least one digit
         let trimmed = digitsOnly.drop(while: { $0 == "0" })
         return trimmed.isEmpty ? (digitsOnly.isEmpty ? "" : "0") : String(trimmed)
     }
@@ -280,11 +294,14 @@ struct AddItemView: View {
                 .stroke(Color(.separator), lineWidth: active ? 0 : 1)
         )
     }
-    
-    private var createButtonTitle: String {
+
+    private var createTransactionName: String {
         let typeText = (txType == .oneTime) ? "one-time" : "repeating"
         let signText = isPositive ? "income" : "expense"
-        return "Create \(typeText) \(signText)"
+        return "\(typeText) \(signText)"
+    }
+    private var createButtonTitle: String {
+        return "Create \(createTransactionName)"
     }
 
     private var createButtonColor: Color { isPositive ? .blue : .red }
@@ -307,11 +324,8 @@ struct AddItemView: View {
     // MARK: - Create
 
     private func create() {
-        errorMessage = nil
-        didCreateFlash = false
-
         guard let magnitude = parsedAmountMagnitude, magnitude > 0 else {
-            errorMessage = "Enter a valid amount greater than 0."
+            alert = .error("Enter a valid amount greater than 0.")
             return
         }
 
@@ -343,6 +357,9 @@ struct AddItemView: View {
                     recurrence: recurrence
                 )
             }
+            
+            // success feedback
+            alert = .success(createTransactionName.capitalized + " saved.")
 
             // Reset
             title = ""
@@ -352,16 +369,15 @@ struct AddItemView: View {
             everyNText = "1"
             unit = .days
             txType = .oneTime
-
-            didCreateFlash = true
             focusedField = nil
+
         } catch {
-            errorMessage = "Could not create transaction: \(error.localizedDescription)"
+            alert = .error("Could not create transaction: \(error.localizedDescription)")
         }
     }
 }
 
 #Preview {
-    NavigationStack { AddItemView() }
-        .modelContainer(for: [OneTimeTransaction.self, RecurringRule.self, DailyCacheEntry.self], inMemory: true)
+    RootTabView()
 }
+
