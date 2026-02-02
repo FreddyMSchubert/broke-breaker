@@ -5,7 +5,6 @@ struct ListOverviewView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var color: Color = .blue
     @State private var date = Date.now
-    @State private var itemsForSelectedDay: [Item] = []
     @State private var weekStart: Date = Calendar.current.date(from: Calendar.current.dateComponents([.yearForWeekOfYear, .weekOfYear], from: Date()))!
     let colums = Array(repeating: GridItem(.flexible()), count: 7)
     
@@ -54,22 +53,6 @@ struct ListOverviewView: View {
                     }
                 }
             }
-            
-            // The list
-            if itemsForSelectedDay.isEmpty {
-                ContentUnavailableView("No items for this date", systemImage: "tray")
-            } else {
-                List(itemsForSelectedDay, id: \.self) { item in
-                    HStack {
-                        Text(item.timestamp, style: .time)
-                            .foregroundStyle(.secondary)
-                        Spacer()
-                        Text(item.timestamp.formatted(date: .abbreviated, time: .shortened))
-                    }
-                }
-                .listStyle(.plain)
-                .frame(maxHeight: 250)
-            }
         }
         .padding()
         .navigationTitle("List Overview")
@@ -79,7 +62,6 @@ struct ListOverviewView: View {
             weekStart = Calendar.current.date(from:
                 Calendar.current.dateComponents([.yearForWeekOfYear, .weekOfYear], from: date)
             ) ?? weekStart
-            fetchItems()
         }
         
         // When the week is changed in the date picker
@@ -87,24 +69,6 @@ struct ListOverviewView: View {
             weekStart = Calendar.current.date(from:
                 Calendar.current.dateComponents([.yearForWeekOfYear, .weekOfYear], from: newValue)
             ) ?? weekStart
-            fetchItems()
-        }
-    }
-
-    private func fetchItems() {
-        let start = Calendar.current.startOfDay(for: date)
-        let end = Calendar.current.date(byAdding: .day, value: 1, to: start)!
-
-        let predicate = #Predicate<Item> { item in
-            item.timestamp >= start && item.timestamp < end
-        }
-
-        let descriptor = FetchDescriptor<Item>(predicate: predicate,
-                                                 sortBy: [SortDescriptor<Item>(\.timestamp, order: .forward)])
-        do {
-            itemsForSelectedDay = try modelContext.fetch(descriptor)
-        } catch {
-            itemsForSelectedDay = []
         }
     }
 }
