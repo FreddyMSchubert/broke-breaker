@@ -152,6 +152,7 @@ struct AddItemView: View {
                             }
                         }
                         .pickerStyle(.menu)
+                        .tint(.primary)
                         .padding(12)
                         .background(.ultraThinMaterial)
                         .clipShape(RoundedRectangle(cornerRadius: 14))
@@ -190,6 +191,7 @@ struct AddItemView: View {
                                 }
                                 .pickerStyle(.menu)
                                 .padding(.horizontal, 12)
+                                .tint(.primary)
                                 .padding(.vertical, 10)
                                 .background(.ultraThinMaterial)
                                 .clipShape(RoundedRectangle(cornerRadius: 12))
