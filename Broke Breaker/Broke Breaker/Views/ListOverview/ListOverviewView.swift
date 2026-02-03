@@ -206,7 +206,6 @@ struct ListOverviewView: View {
         }
     }
 
-
     private var currencyFormatter: NumberFormatter {
         let f = NumberFormatter()
         f.numberStyle = .currency
