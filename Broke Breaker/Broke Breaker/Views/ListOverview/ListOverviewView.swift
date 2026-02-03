@@ -8,6 +8,8 @@ struct ListOverviewView: View {
     @State private var weekStart: Date = Calendar.current.date(from: Calendar.current.dateComponents([.yearForWeekOfYear, .weekOfYear], from: Date()))!
     @State private var dayOverview: DayOverview?
     @State private var loadError: String?
+    @State private var weeklyOverview: [Date: DayOverview] = [:]
+
     
     let colums = Array(repeating: GridItem(.flexible()), count: 7)
     
@@ -46,7 +48,9 @@ struct ListOverviewView: View {
                                     .foregroundStyle(
                                         Calendar.current.isDate(day, inSameDayAs: date)
                                         ? Color.orange
-                                        : color.opacity(0.3)
+                                        : (weeklyOverview[day]?.netTotal ?? 0) >= 0
+                                            ? Color.blue
+                                            : Color.red
                                     )
                             )
                     }
@@ -57,6 +61,18 @@ struct ListOverviewView: View {
                     }
                 }
             }
+            .gesture(
+                DragGesture(minimumDistance: 20)
+                    .onEnded { value in
+                        if value.translation.width < -50 {
+                            // Swiped left → next week
+                            changeWeek(by: 1)
+                        } else if value.translation.width > 50 {
+                            // Swiped right → previous week
+                            changeWeek(by: -1)
+                        }
+                    }
+            )
             
             // Items for selected day
             VStack(alignment: .leading, spacing: 8) {
@@ -157,6 +173,15 @@ struct ListOverviewView: View {
             loadError = error.localizedDescription
             dayOverview = nil
         }
+        
+        weeklyOverview.removeAll()
+        for i in 0..<7 {
+            if let day = Calendar.current.date(byAdding: .day, value: i, to: weekStart) {
+                if let overview = try? ledger.dayOverview(for: day) {
+                    weeklyOverview[day] = overview
+                }
+            }
+        }
     }
 
     private func delete(item: DayLineItem) {
@@ -175,6 +200,15 @@ struct ListOverviewView: View {
             loadOverview()
         } catch {
             loadError = error.localizedDescription
+        }
+    }
+    
+    private func changeWeek(by offset: Int) {
+        if let newWeekStart = Calendar.current.date(byAdding: .weekOfYear, value: offset, to: weekStart) {
+            weekStart = newWeekStart
+            // Update the currently selected date as well
+            date = newWeekStart
+            loadOverview()
         }
     }
 
