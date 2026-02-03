@@ -13,13 +13,10 @@ struct ListOverviewView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Welcome. This is the list overview page.")
-                .foregroundStyle(.secondary)
             
+            // date picker and today button
             HStack (){
-                // the date picker
                 DatePicker("", selection: $date, displayedComponents: .date)
-                // today button
                 Button(action: today) {
                     Text("Today")
                         .foregroundColor(.black)
@@ -64,26 +61,23 @@ struct ListOverviewView: View {
             // Items for selected day
             VStack(alignment: .leading, spacing: 8) {
                 Spacer()
-                Text("Items on \(date.formatted(date: .abbreviated, time: .omitted))")
-                    .font(.headline)
-                Spacer()
-                if let err = loadError {
-                    Text("Couldn’t load items: \(err)")
-                        .foregroundStyle(.red)
-                        .font(.footnote)
-                }
+                Divider()
 
                 if let overview = dayOverview {
                     if overview.items.isEmpty {
+                        Spacer()
                         Label("No Items", systemImage: "tray")
                             .font(.title)
                             .imageScale(.large)
-                            .fontWeight(.bold)
                             .frame(maxWidth: .infinity)
                             .multilineTextAlignment(.center)
                         List{}
                     }
                     else {
+                        Text("Transactions:")
+                            .font(.title2)
+                        Divider()
+                        
                         let sortedItems = overview.items.sorted { lhs, rhs in
                             if lhs.amount == rhs.amount { return lhs.title < rhs.title }
                             return lhs.amount > rhs.amount
@@ -147,6 +141,7 @@ struct ListOverviewView: View {
         }
     }
 
+    
     // functions
 
     private func today() {
