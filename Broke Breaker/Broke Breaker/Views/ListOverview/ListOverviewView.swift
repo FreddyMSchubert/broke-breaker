@@ -63,9 +63,10 @@ struct ListOverviewView: View {
             
             // Items for selected day
             VStack(alignment: .leading, spacing: 8) {
+                Spacer()
                 Text("Items on \(date.formatted(date: .abbreviated, time: .omitted))")
                     .font(.headline)
-
+                Spacer()
                 if let err = loadError {
                     Text("Couldn’t load items: \(err)")
                         .foregroundStyle(.red)
@@ -74,29 +75,39 @@ struct ListOverviewView: View {
 
                 if let overview = dayOverview {
                     if overview.items.isEmpty {
-                        Text("No items for this day.")
-                            .foregroundStyle(.secondary)
-                    } else {
+                        Label("No Items", systemImage: "tray")
+                            .font(.title)
+                            .imageScale(.large)
+                            .fontWeight(.bold)
+                            .frame(maxWidth: .infinity)
+                            .multilineTextAlignment(.center)
+                        List{}
+                    }
+                    else {
                         let sortedItems = overview.items.sorted { lhs, rhs in
                             if lhs.amount == rhs.amount { return lhs.title < rhs.title }
                             return lhs.amount > rhs.amount
                         }
-                        ForEach(sortedItems) { item in
-                            HStack {
-                                Text(item.title)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                Text(item.amount as NSNumber, formatter: currencyFormatter)
-                                    .foregroundStyle(item.amount >= 0 ? .blue : .red)
-                            }
-                            .padding(.vertical, 6)
-                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                Button(role: .destructive) {
-                                    delete(item: item)
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
+                        List {
+                            ForEach(sortedItems) { item in
+                                HStack {
+                                    Text(item.title)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                    Text(item.amount as NSNumber, formatter: currencyFormatter)
+                                        .foregroundStyle(item.amount >= 0 ? .blue : .red)
+                                }
+                                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                    Button(role: .destructive) {
+                                        delete(item: item)
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
                                 }
                             }
                         }
+                        .listStyle(.plain)
+                        .frame(minHeight: 0, maxHeight: .infinity)
+
 
                         Divider()
                         HStack {
@@ -108,7 +119,8 @@ struct ListOverviewView: View {
                                 .foregroundStyle(overview.netTotal >= 0 ? .blue : .red)
                         }
                     }
-                } else {
+                }
+                else {
                     // initial state before load completes
                     Text("No items for this day.")
                         .foregroundStyle(.secondary)
@@ -135,7 +147,7 @@ struct ListOverviewView: View {
         }
     }
 
-    // MARK: - functions
+    // functions
 
     private func today() {
         date = Date.now
@@ -157,11 +169,11 @@ struct ListOverviewView: View {
         do {
             switch item.source {
             case .oneTime(let id):
-                if let tx = try modelContext.model(for: id) as? OneTimeTransaction {
+                if let tx = modelContext.model(for: id) as? OneTimeTransaction {
                     try ledger.deleteOneTime(tx)
                 }
             case .recurring(let id):
-                if let rule = try modelContext.model(for: id) as? RecurringRule {
+                if let rule = modelContext.model(for: id) as? RecurringRule {
                     try ledger.deleteRecurring(rule)
                 }
             }
@@ -171,10 +183,10 @@ struct ListOverviewView: View {
         }
     }
 
+
     private var currencyFormatter: NumberFormatter {
         let f = NumberFormatter()
         f.numberStyle = .currency
         return f
     }
 }
-
