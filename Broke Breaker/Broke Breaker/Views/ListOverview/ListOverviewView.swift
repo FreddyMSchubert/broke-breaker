@@ -131,7 +131,6 @@ struct ListOverviewView: View {
                     }
                 }
                 else {
-                    // initial state before load completes
                     Text("No items for this day.")
                         .foregroundStyle(.secondary)
                 }
@@ -140,7 +139,6 @@ struct ListOverviewView: View {
         .padding()
         .navigationTitle("List Overview")
         
-        // When is first loaded
         .onAppear {
             weekStart = Calendar.current.date(from:
                 Calendar.current.dateComponents([.yearForWeekOfYear, .weekOfYear], from: date)
@@ -148,7 +146,6 @@ struct ListOverviewView: View {
             loadOverview()
         }
         
-        // When the week is changed in the date picker
         .onChange(of: date) { _, newValue in
             weekStart = Calendar.current.date(from:
                 Calendar.current.dateComponents([.yearForWeekOfYear, .weekOfYear], from: newValue)
@@ -159,7 +156,6 @@ struct ListOverviewView: View {
 
     
     // functions
-
     private func today() {
         date = Date.now
     }
@@ -205,7 +201,6 @@ struct ListOverviewView: View {
     private func changeWeek(by offset: Int) {
         if let newWeekStart = Calendar.current.date(byAdding: .weekOfYear, value: offset, to: weekStart) {
             weekStart = newWeekStart
-            // Update the currently selected date as well
             date = newWeekStart
             loadOverview()
         }
