@@ -168,7 +168,6 @@ struct ListOverviewView: View {
         let ledger = LedgerService(context: modelContext)
         do {
             dayOverview = try ledger.dayOverview(for: date)
-            loadError = nil
         } catch {
             loadError = error.localizedDescription
             dayOverview = nil
