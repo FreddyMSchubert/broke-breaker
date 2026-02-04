@@ -11,7 +11,7 @@ struct AddItemView: View {
 
     // MARK: - UI State
     @State private var title: String = ""
-    @State private var amountText: String = ""
+    @State private var amountDigits: String = ""
     @State private var isPositive: Bool = false
     @State private var selectedDate: Date = Date()
 
@@ -101,9 +101,9 @@ struct AddItemView: View {
                         .frame(width: 56)
 
                         VStack(alignment: .leading, spacing: 6) {
-                            TextField("0", text: amountBinding)
+                            TextField("0", text: amountCentsBinding)
                                 .font(.system(size: 28, weight: .semibold, design: .rounded))
-                                .keyboardType(.decimalPad)
+                                .keyboardType(.numberPad)
                                 .focused($focusedField, equals: .amount)
                                 .padding(.horizontal, 14)
                                 .padding(.vertical, 14)
@@ -235,13 +235,32 @@ struct AddItemView: View {
 
     // MARK: - Input sanitization
 
-    private var amountBinding: Binding<String> {
+    private var amountCents: Int {
+        Int(amountDigits) ?? 0
+    }
+
+    private var parsedAmountMagnitude: Decimal? {
+        Decimal(amountCents) / 100
+    }
+
+    private var amountCentsBinding: Binding<String> {
         Binding(
-            get: { amountText },
+            get: { formatCents(amountCents) },
             set: { newValue in
-                amountText = sanitizeDecimal(newValue)
+                let digitsOnly = newValue.filter { $0.isNumber }
+                let capped = String(digitsOnly.prefix(12))
+
+                let trimmed = capped.drop(while: { $0 == "0" })
+                amountDigits = trimmed.isEmpty ? (capped.isEmpty ? "" : "0") : String(trimmed)
             }
         )
+    }
+
+    private func formatCents(_ cents: Int) -> String {
+        let absCents = abs(cents)
+        let major = absCents / 100
+        let minor = absCents % 100
+        return "\(major),\(String(format: "%02d", minor))"
     }
 
     private var everyBinding: Binding<String> {
@@ -252,24 +271,6 @@ struct AddItemView: View {
                 everyNText = cleaned.isEmpty ? "1" : cleaned
             }
         )
-    }
-
-    private func sanitizeDecimal(_ raw: String) -> String {
-        let normalized = raw.replacingOccurrences(of: ",", with: ".")
-        var out = ""
-        var dotUsed = false
-
-        for ch in normalized {
-            if ch.isNumber {
-                out.append(ch)
-            } else if ch == "." && !dotUsed {
-                dotUsed = true
-                out.append(ch)
-            }
-        }
-
-        if out == "." { out = "0." }
-        return out
     }
 
     private func sanitizeInt(_ raw: String) -> String {
@@ -312,14 +313,9 @@ struct AddItemView: View {
         max(1, Int(everyNText) ?? 1)
     }
 
-    private var parsedAmountMagnitude: Decimal? {
-        let cleaned = amountText.trimmingCharacters(in: .whitespacesAndNewlines)
-        return Decimal(string: cleaned)
-    }
-
     private var canCreate: Bool {
         !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        && (parsedAmountMagnitude ?? 0) > 0
+        && amountCents > 0
         && (txType == .oneTime || everyN >= 1)
     }
 
@@ -330,7 +326,6 @@ struct AddItemView: View {
             alert = .error("Enter a valid amount greater than 0.")
             return
         }
-
         let finalAmount = isPositive ? magnitude : -magnitude
         let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
         let ledger = LedgerService(context: modelContext)
@@ -365,7 +360,7 @@ struct AddItemView: View {
 
             // Reset
             title = ""
-            amountText = ""
+            amountDigits = ""
             isPositive = false
             selectedDate = Date()
             everyNText = "1"
