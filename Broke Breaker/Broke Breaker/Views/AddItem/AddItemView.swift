@@ -101,14 +101,26 @@ struct AddItemView: View {
                         .frame(width: 56)
 
                         VStack(alignment: .leading, spacing: 6) {
-                            TextField("0", text: amountCentsBinding)
-                                .font(.system(size: 28, weight: .semibold, design: .rounded))
-                                .keyboardType(.numberPad)
-                                .focused($focusedField, equals: .amount)
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 14)
-                                .background(.ultraThinMaterial)
-                                .clipShape(RoundedRectangle(cornerRadius: 16))
+                            ZStack(alignment: .leading) {
+                                // Visible formatted value
+                                Text(formattedUKFromDigits(amountDigits))
+                                    .font(.system(size: 28, weight: .semibold, design: .rounded))
+                                    .monospacedDigit()
+                                    .padding(.horizontal, 14)
+
+                                // Invisible editor
+                                TextField("", text: amountDigitsBinding)
+                                    .font(.system(size: 28, weight: .semibold, design: .rounded))
+                                    .keyboardType(.numberPad)
+                                    .focused($focusedField, equals: .amount)
+                                    .foregroundStyle(.clear) // hide digits
+                                    .tint(.clear) // hide caret
+                                    .textSelection(.disabled) // hide selection
+                                    .padding(.horizontal, 14)
+                            }
+                            .padding(.vertical, 14)
+                            .background(.ultraThinMaterial)
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
 
                             Text(isPositive ? "Income (positive)" : "Expense (negative)")
                                 .font(.footnote)
@@ -243,11 +255,11 @@ struct AddItemView: View {
         Decimal(amountCents) / 100
     }
 
-    private var amountCentsBinding: Binding<String> {
+    private var amountDigitsBinding: Binding<String> {
         Binding(
-            get: { formatCents(amountCents) },
+            get: { amountDigits },
             set: { newValue in
-                let digitsOnly = newValue.filter { $0.isNumber }
+                let digitsOnly = newValue.filter(\.isNumber)
                 let capped = String(digitsOnly.prefix(12))
 
                 let trimmed = capped.drop(while: { $0 == "0" })
@@ -256,11 +268,17 @@ struct AddItemView: View {
         )
     }
 
-    private func formatCents(_ cents: Int) -> String {
-        let absCents = abs(cents)
-        let major = absCents / 100
-        let minor = absCents % 100
-        return "\(major),\(String(format: "%02d", minor))"
+    private func formattedUKFromDigits(_ digits: String) -> String {
+        let cents = Int(digits) ?? 0
+        let pounds = Decimal(cents) / 100
+
+        let nf = NumberFormatter()
+        nf.locale = Locale(identifier: "en_GB")
+        nf.numberStyle = .decimal
+        nf.minimumFractionDigits = 2
+        nf.maximumFractionDigits = 2
+
+        return nf.string(from: pounds as NSDecimalNumber) ?? "0.00"
     }
 
     private var everyBinding: Binding<String> {
