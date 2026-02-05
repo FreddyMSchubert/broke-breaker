@@ -9,7 +9,7 @@ struct ListOverviewView: View {
     @State private var dayOverview: DayOverview?
     @State private var loadError: String?
     @State private var weeklyOverview: [Date: DayOverview] = [:]
-
+    @State private var selectedItem: DayLineItem?
     
     let colums = Array(repeating: GridItem(.flexible()), count: 7)
     
@@ -106,13 +106,14 @@ struct ListOverviewView: View {
                                     Text(item.amount as NSNumber, formatter: currencyFormatter)
                                         .foregroundStyle(item.amount >= 0 ? .blue : .red)
                                 }
-                                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                    Button(role: .destructive) {
-                                        delete(item: item)
-                                    } label: {
-                                        Label("Delete", systemImage: "trash")
-                                    }
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    selectedItem = item
                                 }
+                            }
+                            .sheet(item: $selectedItem) { item in
+                                ItemEditorView(item: item)
+                                    .presentationDetents([.medium, .height(200), .large])
                             }
                         }
                         .listStyle(.plain)
@@ -135,9 +136,24 @@ struct ListOverviewView: View {
                         .foregroundStyle(.secondary)
                 }
             }
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 20)
+                    .onEnded { value in
+                        if value.translation.width < -50 {
+                            // Swipe left → next day
+                            changeDay(by: 1)
+                        } else if value.translation.width > 50 {
+                            // Swipe right → previous day
+                            changeDay(by: -1)
+                        }
+                    }
+            )
+
         }
         .padding()
         .navigationTitle("List Overview")
+        
         
         .onAppear {
             weekStart = Calendar.current.date(from:
@@ -159,6 +175,13 @@ struct ListOverviewView: View {
     private func today() {
         date = Date.now
     }
+    
+    private func changeDay(by offset: Int) {
+        if let newDate = Calendar.current.date(byAdding: .day, value: offset, to: date) {
+            date = newDate
+        }
+    }
+
 
     private func loadOverview() {
         let ledger = LedgerService(context: modelContext)
@@ -176,25 +199,6 @@ struct ListOverviewView: View {
                     weeklyOverview[day] = overview
                 }
             }
-        }
-    }
-
-    private func delete(item: DayLineItem) {
-        let ledger = LedgerService(context: modelContext)
-        do {
-            switch item.source {
-            case .oneTime(let id):
-                if let tx = modelContext.model(for: id) as? OneTimeTransaction {
-                    try ledger.deleteOneTime(tx)
-                }
-            case .recurring(let id):
-                if let rule = modelContext.model(for: id) as? RecurringRule {
-                    try ledger.deleteRecurring(rule)
-                }
-            }
-            loadOverview()
-        } catch {
-            loadError = error.localizedDescription
         }
     }
     
