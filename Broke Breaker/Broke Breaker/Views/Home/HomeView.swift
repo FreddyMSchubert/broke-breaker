@@ -1,21 +1,32 @@
-
-
+//
+//  HomeView.swift
+//  practice
+//
+//  Created by Faith Oyemike on 27/01/2026.
+//
 
 import SwiftUI
 import SwiftData
 
 
 struct HomeView: View {
-    
+    // Defines a screen in SwiftUI
     
     //------Declare Data Variables----------------
+    @AppStorage("isDarkMode") private var isDarkMode = false
+    // Light/Dark mode storage
+    
+  
     
     let dailyBudget: Double = 20
-    
-    let dailySpendings: [Double] = [18, 22, 15, 19, 10, 4, 7 ]
-    
-    let days: [String] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun" ]
-    
+    // Pretend daily budget — backend will replace this later
+
+    let dailySpendings: [Double] = [18, 22, 15, 19, 10]
+    //  spending data for different days to design the UI layout
+
+    let days: [String] = ["Mon", "Tue", "Wed", "Thu", "Fri"]
+    // Labels for each day shown on the interface
+
     var body: some View {
         
         let todaySpending = dailySpendings.last ?? 0
@@ -26,45 +37,57 @@ struct HomeView: View {
         
         
         
-//---------------------THE SCROLLVIEW-------------------
+        //--------THE SCROLLVIEW-------------------
         
         ZStack{
             (todaySpending <= dailyBudget ? Color.blue.opacity(0.45)
              : Color(.sRGB, red: 0.45, green: 0.0, blue: 0.0, opacity: 1.0))//burgundy red
+            
             .ignoresSafeArea()
             
-            
-            
-            
-            ScrollView {     // Allows scrolling if screen content becomes too tall
+            ScrollView {
+                // Allows scrolling if screen content becomes too tall
+                
                 VStack(spacing: 30) {
+                    // Vertically stacks UI sections with space between them
                     
                     
                     
-//---------------------- PAGE TITLE--------------------
+                    //---------- PAGE TITLE--------------------
+                    // Theme toggle (for swtiching between modes)
+                    Toggle(isOn: $isDarkMode) {
+                        Image(systemName: isDarkMode ? "moon.fill" : "sun.max.fill")
+                    }
+                    .toggleStyle(.switch)
+                    //END
+                    
+                    
+                    
                     
                     Text("Spending Overview")
                         .font(.largeTitle)
                         .fontWeight(.bold)
                         .frame(maxWidth: .infinity, alignment: .leading)
+                    // Makes the title large and aligned to the left like a dashboard
                     
-//--------------TODAY SUMMARY CARD------------------
+                    
+                    //-------- -----TODAY SUMMARY CARD------------------
                     VStack(alignment: .leading, spacing: 12) {
+                        
                         Text("Today's Spending")
                             .font(.headline)
+                        // Section heading
                         
                         Text("£\(todaySpending, specifier: "%.2f")")
                             .font(.system(size: 36, weight: .bold))
-                        
-                        // Green if under budget, red if over budget
                             .foregroundColor(todaySpending <= dailyBudget ? .green : .red)
-                        
+                        // Green if under budget, red if over budget
                         
                         Text(todaySpending <= dailyBudget
                              ? "You're within budget today ✅"
                              : "You've exceeded today's budget ")
-                        
-                    }//END
+                        // Text feedback based purely on UI condition
+                    }
                     .padding()
                     .frame(maxWidth: .infinity)
                     .background(.ultraThinMaterial)
@@ -72,12 +95,11 @@ struct HomeView: View {
                     .shadow(radius: 4)
                     
                     
-//------------------- DAILY BUDGET DIFFERENCE CARD ------------------------
+                    // DAILY BUDGET DIFFERENCE CARD
                     VStack(alignment: .leading, spacing: 12) {
                         
                         Text("Today's Budget Performance")
                             .font(.headline)
-// -------------------------------------------------
                         
                         HStack {
                             VStack(alignment: .leading) {
@@ -88,12 +110,10 @@ struct HomeView: View {
                                 Text("£\(dailyBudget, specifier: "%.2f")")
                                     .font(.title3)
                                     .fontWeight(.bold)
-                            }//End
-                            
+                            }
                             
                             Spacer()
                             
-// -------------------------------------------------
                             VStack(alignment: .leading) {
                                 Text("Spent")
                                     .font(.caption)
@@ -102,11 +122,10 @@ struct HomeView: View {
                                 Text("£\(todaySpending, specifier: "%.2f")")
                                     .font(.title3)
                                     .fontWeight(.bold)
-                            }//End
+                            }
                             
                             
                             Spacer()
-// ----------------------------------------------------
                             
                             VStack(alignment: .leading) {
                                 Text("Difference")
@@ -118,10 +137,9 @@ struct HomeView: View {
                                     .fontWeight(.bold)
                                     .foregroundColor(dailyDifference >= 0 ? .green : .red)
                                 
-                            }//END
+                            }
                         }
                         
-// -------------------------------------------------
                         Text(dailyDifference >= 0
                              ? "Great discipline! Save today and spend tomorrow wisely 🌱"
                              : "Please stick to budget — the future rewards discipline. Let’s work together, friend 💪")
@@ -134,10 +152,10 @@ struct HomeView: View {
                     .background(.ultraThinMaterial)
                     .cornerRadius(20)
                     .shadow(radius: 4)
+                    //END
                     
                     
-                    
-// -------------- WEEKLY FLOW CHART SECTION---------------
+                    // -------------- WEEKLY FLOW CHART SECTION---------------
                     HStack{
                         ForEach(days.indices, id:\.self) {index in
                             VStack(spacing: 6) {
@@ -149,94 +167,96 @@ struct HomeView: View {
                                 Text("£\(dailySpendings[index], specifier: "%.0f")")
                                     .font(.subheadline)
                                     .fontWeight(.bold)
+                                    
                                 
                             }
                             .frame(maxWidth: .infinity)
                         }
-                    }//END
-                    
-// -------------------------------------------------
-                    VStack(alignment: .leading, spacing: 16) {
-                        Text("Daily Spending Trend")
-                            .font(.headline)
-                        FlowAreaChart(values: dailySpendings, budget: dailyBudget)
-                            .frame(height: 200) // Fixed height so chart looks balanced
-                        
                     }
                     
-                    Spacer()  // Push everything upward for clean spacing
+                    VStack(alignment: .leading, spacing: 16) {
+                        
+                        Text("Daily Spending Trend")
+                            .font(.headline)
+                        // Explains what the chart represents
+                        
+                        FlowAreaChart(values: dailySpendings, budget: dailyBudget)
+                            .frame(height: 200)
+                        // Fixed height so chart looks balanced
+                    }
                     
+                    Spacer()
+                    // Pushes everything upward for clean spacing
                 }
-                .padding() // Adds space from screen edges
-                
-                
-            }//Close ScrollView
+                .padding()
+                // Adds space from screen edges
             
-            
-        }//Close ZStack
+        }
         
-        
+       
     }
-    
-    
-}//Close HomeView
+        .preferredColorScheme(isDarkMode ? .dark : .light)
+                //END
+    }
+}
     
 
-// -------------------------------------------------
 
 #Preview {
-        HomeView()
-    }
-// -------------------------------------------------
+    HomeView()
+}
 
-
-
-
-// -------------------FLOW CHART---------------------------
+// ----------FLOW CHART
 struct FlowAreaChart: View {
-   
+    // A reusable visual component that draws a flowing spending chart
+    
     let values: [Double]
+    // Array of spending amounts for each day (UI mock data)
+    
     let budget: Double
+    // Daily budget used only for visual comparison
     
     var body: some View {
         
         GeometryReader { geo in
-            let maxValue = max(values.max() ?? 1, budget) // Finds the highest value between spending and budget
+            // Gives access to available width and height so chart scales properly
             
+            let maxValue = max(values.max() ?? 1, budget)
+            // Finds the highest value between spending and budget
+            // Used to scale the chart vertically
             
-//---------------FILLED SPENDING AREA---------------------
-
             ZStack {
                 
+                // MARK: - FILLED SPENDING AREA
                 Path { path in
                     
-                    for index in values.indices { // Loops through every day’s spending value
+                    for index in values.indices {
+                        // Loops through every day’s spending value
                         
-                        // Spreads points evenly across the width of the chart
                         let x = geo.size.width / CGFloat(values.count - 1) * CGFloat(index)
+                        // Spreads points evenly across the width of the chart
                         
+                        let y = geo.size.height - (geo.size.height * CGFloat(values[index] / maxValue))
                         // Converts spending amount into vertical screen position
                         // Bigger spending = higher point on chart
-                        let y = geo.size.height - (geo.size.height * CGFloat(values[index] / maxValue))
-                       
+                        
                         if index == 0 {
-                            // Starts the drawing path at the first data point
                             path.move(to: CGPoint(x: x, y: y))
-                            
+                            // Starts the drawing path at the first data point
                         } else {
-                            // Draws straight lines connecting points
                             path.addLine(to: CGPoint(x: x, y: y))
+                            // Draws straight lines connecting points
                         }
                     }
                     
-                    // Drop line down to bottom-right corner
                     path.addLine(to: CGPoint(x: geo.size.width, y: geo.size.height))
+                    // Drops line down to bottom-right corner
                     
-                    // Draws line to bottom-left corner
                     path.addLine(to: CGPoint(x: 0, y: geo.size.height))
+                    // Draws line to bottom-left corner
                     
-                    // Closes shape so it can be filled
                     path.closeSubpath()
+                    // Closes shape so it can be filled
                 }
                 .fill(
                     LinearGradient(
@@ -245,8 +265,9 @@ struct FlowAreaChart: View {
                         endPoint: .bottom
                     )
                 )
+                // Applies a soft vertical gradient fill
                 
-// ----------------SPENDING LINE-------------------------
+                // MARK: - SPENDING LINE
                 Path { path in
                     
                     for index in values.indices {
@@ -262,6 +283,7 @@ struct FlowAreaChart: View {
                     }
                 }
                 .stroke(.blue, lineWidth: 3)
+                // Draws the top trend line
             }
         }
     }
