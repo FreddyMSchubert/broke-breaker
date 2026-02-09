@@ -15,6 +15,10 @@ struct ListOverviewView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
+            Text("List Overview")
+                .font(.largeTitle.bold())
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 8)
             
             // date picker and today button
             HStack (){
@@ -136,9 +140,9 @@ struct ListOverviewView: View {
                 }
             }
         }
-        .padding()
-        .navigationTitle("List Overview")
+        .padding(.horizontal)
         
+
         .onAppear {
             weekStart = Calendar.current.date(from:
                 Calendar.current.dateComponents([.yearForWeekOfYear, .weekOfYear], from: date)
@@ -212,3 +216,4 @@ struct ListOverviewView: View {
         return f
     }
 }
+

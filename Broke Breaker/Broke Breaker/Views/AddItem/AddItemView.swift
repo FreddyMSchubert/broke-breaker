@@ -72,6 +72,10 @@ struct AddItemView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
+                Text("New Transaction")
+                    .font(.largeTitle.bold())
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, 8)
 
                 // Title
                 VStack(alignment: .leading, spacing: 8) {
@@ -178,6 +182,7 @@ struct AddItemView: View {
                         Spacer()
 
                         VStack(alignment: .leading, spacing: 10) {
+                            
                             Text("Schedule")
                                 .font(.title3.weight(.semibold))
 
@@ -234,7 +239,6 @@ struct AddItemView: View {
             .padding()
             .animation(.spring(response: 0.35, dampingFraction: 0.85), value: txType)
         }
-        .navigationTitle("New Transaction")
         .onTapGesture { focusedField = nil }
         .alert(item: $alert) { state in
             Alert(
