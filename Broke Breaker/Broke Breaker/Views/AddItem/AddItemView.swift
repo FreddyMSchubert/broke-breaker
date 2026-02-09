@@ -102,11 +102,16 @@ struct AddItemView: View {
 
                         VStack(alignment: .leading, spacing: 6) {
                             ZStack(alignment: .leading) {
-                                // Visible formatted value
-                                Text(formattedUKFromDigits(amountDigits))
-                                    .font(.system(size: 28, weight: .semibold, design: .rounded))
-                                    .monospacedDigit()
-                                    .padding(.horizontal, 14)
+                                HStack(spacing: 0) {
+                                    Text(formattedUKFromDigits(amountDigits))
+                                        .font(.system(size: 28, weight: .semibold, design: .rounded))
+                                        .monospacedDigit()
+
+                                    if focusedField == .amount {
+                                        FakeCaret(height: 28)
+                                    }
+                                }
+                                .padding(.horizontal, 14)
 
                                 // Invisible editor
                                 TextField("", text: amountDigitsBinding)
