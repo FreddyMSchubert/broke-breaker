@@ -13,10 +13,14 @@ struct ListOverviewView: View {
     @State private var dragOffset: CGFloat = 0
 
     var body: some View {
-        VStack(spacing: 12) {
-
-            // date and today
-            HStack {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("List Overview")
+                .font(.largeTitle.bold())
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 8)
+            
+            // date picker and today button
+            HStack (){
                 DatePicker("", selection: $date, displayedComponents: .date)
                 Button("Today") { date = .now }
                     .buttonStyle(.bordered)
@@ -72,8 +76,9 @@ struct ListOverviewView: View {
             }
             .frame(maxHeight: .infinity)
         }
-        .padding()
-        .navigationTitle("List Overview")
+        .padding(.horizontal)
+        
+
         .onAppear {
             updateWeek()
             loadWeeklyOverview()
@@ -243,3 +248,4 @@ extension ListOverviewView {
         return f
     }
 }
+
