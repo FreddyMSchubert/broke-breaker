@@ -1,9 +1,7 @@
-//
+
 //  HomeView.swift
-//  practice
-//
 //  Created by Faith Oyemike on 27/01/2026.
-//
+
 
 import SwiftUI
 import SwiftData
@@ -144,24 +142,24 @@ struct HomeView: View {
                     .shadow(radius: 4)
                     
                     
-                    
-// -------------- WEEKLY FLOW CHART SECTION---------------
-                    HStack{
-                        ForEach(days.indices, id:\.self) {index in
-                            VStack(spacing: 6) {
-                                Text(days[index])
-                                    .font(.caption)
-                                    .foregroundColor(.black)
-                                    .fontWeight(.bold)
-                                
-                                Text("£\(dailySpendings[index], specifier: "%.0f")")
-                                    .font(.subheadline)
-                                    .fontWeight(.bold)
-                                
-                            }
-                            .frame(maxWidth: .infinity)
-                        }
-                    }//END
+//                    
+//// -------------- WEEKLY FLOW CHART SECTION---------------
+//                    HStack{
+//                        ForEach(days.indices, id:\.self) {index in
+//                            VStack(spacing: 6) {
+//                                Text(days[index])
+//                                    .font(.caption)
+//                                    .foregroundColor(.black)
+//                                    .fontWeight(.bold)
+//                                
+//                                Text("£\(dailySpendings[index], specifier: "%.0f")")
+//                                    .font(.subheadline)
+//                                    .fontWeight(.bold)
+//                                
+//                            }
+//                            .frame(maxWidth: .infinity)
+//                        }
+//                    }//END
                     
 // -------------------------------------------------
                     VStack(alignment: .leading, spacing: 16) {
