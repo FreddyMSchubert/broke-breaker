@@ -1,7 +1,4 @@
 
-//  HomeView.swift
-//  Created by Faith Oyemike on 27/01/2026.
-
 
 import SwiftUI
 import SwiftData
