@@ -129,18 +129,26 @@ extension ListOverviewView {
             }
         }
         .gesture(
-            DragGesture(minimumDistance: 20)
-                .onEnded { value in
-                if value.translation.width < -50 {
-                    // left
-                    changeDay(by: 7)
-                    updateWeek()
-                } else if value.translation.width > 50 {
-                    // right
-                    changeDay(by: -7)
-                    updateWeek()
+            DragGesture(minimumDistance: 10)
+                .onChanged { value in
+                    guard abs(value.translation.width) >
+                          abs(value.translation.height) else { return }
+
+                    dragOffset = value.translation.width
                 }
-            }
+                .onEnded { value in
+                    let threshold: CGFloat = 60
+
+                    if value.translation.width < -threshold ||
+                       value.predictedEndTranslation.width < -threshold {
+                        changeDay(by: 7)
+                    } else if value.translation.width > threshold ||
+                              value.predictedEndTranslation.width > threshold {
+                        changeDay(by: -7)
+                    }
+
+                    dragOffset = 0
+                }
         )
     }
 }
