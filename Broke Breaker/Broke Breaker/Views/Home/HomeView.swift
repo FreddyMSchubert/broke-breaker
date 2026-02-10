@@ -5,7 +5,9 @@ import SwiftData
 
 
 struct HomeView: View {
-    // Defines a screen in SwiftUI
+    @Environment(\.modelContext) private var modelContext
+    private var ledger: LedgerService { LedgerService(context: modelContext) }
+
     
     //------Declare Data Variables----------------
     @AppStorage("isDarkMode") private var isDarkMode = false
@@ -15,15 +17,16 @@ struct HomeView: View {
     
     let dailyBudget: Double = 20
     
-    let dailySpendings: [Double] = [18, 22, 15, 19, 10, 4, 7 ]
+    @State private var dailySpendings: [Double] = Array(repeating: 0, count: 7)
+    @State private var todaySpending: Double = 0
+    // Gets today’s spending amount
     
+
     let days: [String] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun" ]
     
     var body: some View {
         
-        let todaySpending = dailySpendings.last ?? 0
-        // Gets today’s spending amount
-        
+       
         let dailyDifference = dailyBudget - todaySpending
         // Positive = under budget, Negative = over budget
         
@@ -177,9 +180,33 @@ struct HomeView: View {
             
             
         }//Close ZStack
+        .task { loadRealData() }
         
-        
+    }//close var body
+    private func loadRealData() {
+        do {
+            
+            let totalsToday = try ledger.dayTotals(for: Date())
+            todaySpending = (totalsToday.netTotal as NSDecimalNumber).doubleValue
+
+    //------ Last 7 days totals (oldest - newest)------
+            var values: [Double] = []
+            let cal = Calendar.current
+
+            for offset in stride(from: 6, through: 0, by: -1) {
+                let date = cal.date(byAdding: .day, value: -offset, to: Date())!
+                let totals = try ledger.dayTotals(for: date)
+                values.append((totals.netTotal as NSDecimalNumber).doubleValue)
+            }
+
+            dailySpendings = values
+        } catch {
+            print("HomeView loadRealData error:", error)
+            todaySpending = 0
+            dailySpendings = Array(repeating: 0, count: 7)
+        }
     }
+
     
     
 }//Close HomeView
@@ -188,8 +215,18 @@ struct HomeView: View {
 // -------------------------------------------------
 
 #Preview {
-        HomeView()
-    }
+    let schema = Schema([
+        OneTimeTransaction.self,
+        RecurringRule.self,
+        DailyCacheEntry.self
+    ])
+    let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+    let container = try! ModelContainer(for: schema, configurations: [config])
+
+    return HomeView()
+        .modelContainer(container)
+}
+
 // -------------------------------------------------
 
 
