@@ -5,7 +5,9 @@ import SwiftData
 struct Broke_BreakerApp: App {
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
-            Item.self,
+            OneTimeTransaction.self,
+            RecurringRule.self,
+            DailyCacheEntry.self
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 
