@@ -123,6 +123,20 @@ extension ListOverviewView {
                 .onTapGesture { date = day }
             }
         }
+        .gesture(
+            DragGesture(minimumDistance: 20)
+                .onEnded { value in
+                if value.translation.width < -50 {
+                    // left
+                    changeDay(by: 7)
+                    updateWeek()
+                } else if value.translation.width > 50 {
+                    // right
+                    changeDay(by: -7)
+                    updateWeek()
+                }
+            }
+        )
     }
 }
 
