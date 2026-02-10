@@ -72,6 +72,10 @@ struct AddItemView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
+                Text("New Transaction")
+                    .font(.largeTitle.bold())
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, 8)
 
                 // Title
                 VStack(alignment: .leading, spacing: 8) {
@@ -102,11 +106,16 @@ struct AddItemView: View {
 
                         VStack(alignment: .leading, spacing: 6) {
                             ZStack(alignment: .leading) {
-                                // Visible formatted value
-                                Text(formattedUKFromDigits(amountDigits))
-                                    .font(.system(size: 28, weight: .semibold, design: .rounded))
-                                    .monospacedDigit()
-                                    .padding(.horizontal, 14)
+                                HStack(spacing: 0) {
+                                    Text(formattedUKFromDigits(amountDigits))
+                                        .font(.system(size: 28, weight: .semibold, design: .rounded))
+                                        .monospacedDigit()
+
+                                    if focusedField == .amount {
+                                        FakeCaret(height: 28)
+                                    }
+                                }
+                                .padding(.horizontal, 14)
 
                                 // Invisible editor
                                 TextField("", text: amountDigitsBinding)
@@ -178,6 +187,7 @@ struct AddItemView: View {
                         Spacer()
 
                         VStack(alignment: .leading, spacing: 10) {
+                            
                             Text("Schedule")
                                 .font(.title3.weight(.semibold))
 
@@ -234,7 +244,6 @@ struct AddItemView: View {
             .padding()
             .animation(.spring(response: 0.35, dampingFraction: 0.85), value: txType)
         }
-        .navigationTitle("New Transaction")
         .onTapGesture { focusedField = nil }
         .alert(item: $alert) { state in
             Alert(
