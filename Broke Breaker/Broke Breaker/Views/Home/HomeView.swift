@@ -18,11 +18,11 @@ struct HomeView: View {
     let dailyBudget: Double = 20
     
     @State private var dailySpendings: [Double] = Array(repeating: 0, count: 7)
-    @State private var todaySpending: Double = 0
-    // Gets today’s spending amount
+    @State private var todaySpending: Double = 0     // Gets today’s spending amount
+
     
 
-    let days: [String] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun" ]
+    
     
     var body: some View {
         
