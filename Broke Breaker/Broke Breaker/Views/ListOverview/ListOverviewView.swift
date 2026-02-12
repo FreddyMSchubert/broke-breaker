@@ -10,6 +10,8 @@ struct ListOverviewView: View {
     )!
     @State private var weeklyOverview: [Date: DayOverview] = [:]
     @State private var selectedItem: DayLineItem?
+    @State private var totalIncomings: Double = 0
+    @State private var totalOutgoings: Double = 0
     @State private var dragOffset: CGFloat = 0
 
     var body: some View {
@@ -169,18 +171,30 @@ extension ListOverviewView {
                         .frame(maxWidth: .infinity)
                     Spacer()
                 } else {
+                    let incomingTotal: Double = overview.items
+                        .map { NSDecimalNumber(decimal: $0.amount).doubleValue }
+                        .filter { $0 > 0 }
+                        .reduce(0, +)
+                    let outgoingTotal: Double = overview.items
+                        .map { NSDecimalNumber(decimal: $0.amount).doubleValue }
+                        .filter { $0 < 0 }
+                        .reduce(0, +)
+
                     List {
                         ForEach(
                             overview.items.sorted {
-                                $0.amount == $1.amount
-                                ? $0.title < $1.title
-                                : $0.amount > $1.amount
+                                if $0.amount == $1.amount {
+                                    return $0.title < $1.title
+                                } else {
+                                    return $0.amount > $1.amount
+                                }
                             }
-                        ) { item in
+                        )
+                          { item in
                             HStack {
                                 Text(item.title)
                                 Spacer()
-                                Text(item.amount as NSNumber, formatter: currencyFormatter)
+                                Text(NSDecimalNumber(decimal: item.amount), formatter: currencyFormatter)
                                     .foregroundStyle(item.amount >= 0 ? .blue : .red)
                             }
                             .contentShape(Rectangle())
@@ -192,16 +206,40 @@ extension ListOverviewView {
                     .listStyle(.plain)
 
                     Divider()
-
-                    HStack {
-                        Text("Net total")
-                            .fontWeight(.semibold)
+                    
+                    // incoming total
+                    HStack{
+                        HStack {
+                            VStack (alignment: .trailing) {
+                                Text(incomingTotal as NSNumber, formatter: currencyFormatter)
+                                    .fontWeight(.semibold)
+                                    .foregroundStyle(.blue)
+                                Text(outgoingTotal as NSNumber, formatter: currencyFormatter)
+                                    .fontWeight(.semibold)
+                                    .foregroundStyle(.red)
+                                Divider()
+                                Text(overview.netTotal as NSNumber, formatter: currencyFormatter)
+                                    .fontWeight(.semibold)
+                                    .foregroundStyle(overview.netTotal >= 0 ? .blue : .red)
+                            }
+                            VStack (alignment: .leading ) {
+                                Text("Income")
+                                    .fontWeight(.semibold)
+                                Text("Expense")
+                                    .fontWeight(.semibold)
+                                Divider()
+                                Text("Net total")
+                                    .fontWeight(.semibold)
+                            }
+                        }
                         Spacer()
-                        Text(overview.netTotal as NSNumber, formatter: currencyFormatter)
-                            .fontWeight(.semibold)
-                            .foregroundStyle(overview.netTotal >= 0 ? .blue : .red)
+                        VStack{
+                            HStack{
+                                Text("johnr4ijoueroijijorriohjeijorfrjiogrjiowef")
+                            }
+                        }
                     }
-                    .padding(.horizontal)
+                    .padding()
                 }
             } else {
                 Text("No items for this day.")
