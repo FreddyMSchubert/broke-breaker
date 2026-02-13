@@ -47,31 +47,6 @@ struct ListOverviewView: View {
                         value: dragOffset
                     )
 
-                    // Gesture overlay
-                    Color.clear
-                        .contentShape(Rectangle())
-                        .gesture(
-                            DragGesture(minimumDistance: 10)
-                                .onChanged { value in
-                                    guard abs(value.translation.width) >
-                                          abs(value.translation.height) else { return }
-
-                                    dragOffset = value.translation.width
-                                }
-                                .onEnded { value in
-                                    let threshold: CGFloat = 60
-
-                                    if value.translation.width < -threshold ||
-                                       value.predictedEndTranslation.width < -threshold {
-                                        changeDay(by: 1)
-                                    } else if value.translation.width > threshold ||
-                                              value.predictedEndTranslation.width > threshold {
-                                        changeDay(by: -1)
-                                    }
-
-                                    dragOffset = 0
-                                }
-                        )
                 }
             }
             .frame(maxHeight: .infinity)
@@ -209,8 +184,8 @@ extension ListOverviewView {
             }
         }
         .sheet(item: $selectedItem) { item in
-            ItemEditorView(item: item)
-                .presentationDetents([.medium, .height(200), .large])
+            ItemDetailSheet(item: item)
+                .presentationDetents([.medium, .large])
         }
     }
 }
