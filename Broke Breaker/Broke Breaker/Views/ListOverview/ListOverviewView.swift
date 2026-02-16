@@ -227,6 +227,8 @@ extension ListOverviewView {
                     try ledger.deleteRecurring(rule)
                 }
             }
+            
+            loadWeeklyOverview()
         } catch {
             print("Delete failed:", error)
         }
