@@ -62,7 +62,7 @@ struct ListOverviewView: View {
     }
 }
 
-// MARK: - Calendar & Swipe Logic
+
 extension ListOverviewView {
     
     private var visibleDates: [Date] {
@@ -104,6 +104,7 @@ extension ListOverviewView {
             }
     }
     
+// calander
     private var weekCalendar: some View {
         let days = (0..<7).compactMap {
             Calendar.current.date(byAdding: .day, value: $0, to: weekStart)
@@ -172,7 +173,7 @@ extension ListOverviewView {
     }
 }
 
-// MARK: - Day View & Sheet Handling
+// Day View
 extension ListOverviewView {
     
     private func dayView(for day: Date) -> some View {
@@ -286,7 +287,6 @@ extension ListOverviewView {
     }
 }
 
-// MARK: - Currency Formatter
 extension ListOverviewView {
     private var currencyFormatter: NumberFormatter {
         let formatter = NumberFormatter()
