@@ -23,16 +23,11 @@ struct ItemDetailSheet: View {
         return modelContext.model(for: id) as? RecurringRule
     }
 
-    private var amountText: String {
-        let code = "GBP"
-        return (item.amount as NSDecimalNumber).decimalValue.formatted(.currency(code: code))
-    }
-
     var body: some View {
         VStack(spacing: 16) {
             Spacer(minLength: 12)
             VStack(spacing: 8) {
-                Text(amountText)
+                Text(String(describing: item.amount))
                     .font(.system(size: 44, weight: .heavy, design: .rounded))
                     .monospacedDigit()
                     .foregroundStyle(item.amount >= 0 ? .blue : .red)
