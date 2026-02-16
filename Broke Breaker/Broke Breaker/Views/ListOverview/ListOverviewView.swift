@@ -11,6 +11,9 @@ struct ListOverviewView: View {
     @State private var weeklyOverview: [Date: DayOverview] = [:]
     @State private var selectedItem: DayLineItem?
     @State private var dragOffset: CGFloat = 0
+    
+    // Info set by details popup after its closed (deletion / edits)
+    @State private var pendingDeleteSource: DayLineItem.Source?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -47,31 +50,6 @@ struct ListOverviewView: View {
                         value: dragOffset
                     )
 
-                    // Gesture overlay
-                    Color.clear
-                        .contentShape(Rectangle())
-                        .gesture(
-                            DragGesture(minimumDistance: 10)
-                                .onChanged { value in
-                                    guard abs(value.translation.width) >
-                                          abs(value.translation.height) else { return }
-
-                                    dragOffset = value.translation.width
-                                }
-                                .onEnded { value in
-                                    let threshold: CGFloat = 60
-
-                                    if value.translation.width < -threshold ||
-                                       value.predictedEndTranslation.width < -threshold {
-                                        changeDay(by: 1)
-                                    } else if value.translation.width > threshold ||
-                                              value.predictedEndTranslation.width > threshold {
-                                        changeDay(by: -1)
-                                    }
-
-                                    dragOffset = 0
-                                }
-                        )
                 }
             }
             .frame(maxHeight: .infinity)
@@ -162,55 +140,97 @@ extension ListOverviewView {
 
         return VStack(alignment: .leading, spacing: 8) {
             if let overview {
-                if overview.items.isEmpty {
-                    Spacer()
-                    Label("No Items", systemImage: "tray")
-                        .font(.title)
-                        .frame(maxWidth: .infinity)
-                    Spacer()
-                } else {
-                    List {
-                        ForEach(
-                            overview.items.sorted {
-                                $0.amount == $1.amount
-                                ? $0.title < $1.title
-                                : $0.amount > $1.amount
-                            }
-                        ) { item in
-                            HStack {
-                                Text(item.title)
-                                Spacer()
-                                Text(item.amount as NSNumber, formatter: currencyFormatter)
-                                    .foregroundStyle(item.amount >= 0 ? .blue : .red)
-                            }
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                selectedItem = item
-                            }
-                        }
-                    }
-                    .listStyle(.plain)
-
-                    Divider()
-
-                    HStack {
-                        Text("Net total")
-                            .fontWeight(.semibold)
-                        Spacer()
-                        Text(overview.netTotal as NSNumber, formatter: currencyFormatter)
-                            .fontWeight(.semibold)
-                            .foregroundStyle(overview.netTotal >= 0 ? .blue : .red)
-                    }
-                    .padding(.horizontal)
-                }
+                dayOverviewBody(overview)   // <- extracted
             } else {
                 Text("No items for this day.")
                     .foregroundStyle(.secondary)
             }
         }
-        .sheet(item: $selectedItem) { item in
-            ItemEditorView(item: item)
-                .presentationDetents([.medium, .height(200), .large])
+        .sheet(item: $selectedItem, onDismiss: handleSheetDismiss) { item in
+            ItemDetailSheet(item: item, requestDelete: requestDeleteFromSheet)
+                .presentationDetents([.medium, .large])
+        }
+    }
+
+    @ViewBuilder
+    private func dayOverviewBody(_ overview: DayOverview) -> some View {
+        if overview.items.isEmpty {
+            Spacer()
+            Label("No Items", systemImage: "tray")
+                .font(.title)
+                .frame(maxWidth: .infinity)
+            Spacer()
+        } else {
+            itemsList(overview)            // <- extracted again
+            Divider()
+            netTotalRow(overview)
+                .padding(.horizontal)
+        }
+    }
+
+    private func itemsList(_ overview: DayOverview) -> some View {
+        List {
+            ForEach(sortedItems(from: overview)) { item in
+                row(for: item)
+            }
+        }
+        .listStyle(.plain)
+    }
+
+    private func sortedItems(from overview: DayOverview) -> [DayLineItem] {
+        overview.items.sorted {
+            $0.amount == $1.amount ? $0.title < $1.title : $0.amount > $1.amount
+        }
+    }
+
+    private func row(for item: DayLineItem) -> some View {
+        HStack {
+            Text(item.title)
+            Spacer()
+            Text(item.amount as NSNumber, formatter: currencyFormatter)
+                .foregroundStyle(item.amount >= 0 ? .blue : .red)
+        }
+        .contentShape(Rectangle())
+        .onTapGesture { selectedItem = item }
+    }
+
+    private func netTotalRow(_ overview: DayOverview) -> some View {
+        HStack {
+            Text("Net total").fontWeight(.semibold)
+            Spacer()
+            Text(overview.netTotal as NSNumber, formatter: currencyFormatter)
+                .fontWeight(.semibold)
+                .foregroundStyle(overview.netTotal >= 0 ? .blue : .red)
+        }
+    }
+    
+    
+    
+    private func requestDeleteFromSheet(_ source: DayLineItem.Source) {
+        pendingDeleteSource = source
+        selectedItem = nil
+    }
+
+    private func handleSheetDismiss() {
+        guard let source = pendingDeleteSource else { return }
+        pendingDeleteSource = nil
+
+        let ledger = LedgerService(context: modelContext)
+        do {
+            switch source {
+            case .oneTime(let id):
+                if let tx = modelContext.model(for: id) as? OneTimeTransaction {
+                    try ledger.deleteOneTime(tx)
+                }
+            case .recurring(let id):
+                if let rule = modelContext.model(for: id) as? RecurringRule {
+                    try ledger.deleteRecurring(rule)
+                }
+            }
+            
+            loadWeeklyOverview()
+        } catch {
+            print("Delete failed:", error)
         }
     }
 }

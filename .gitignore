@@ -1,2 +1,17 @@
+Broke Breaker/Broke Breaker.xcodeproj/project.pbxproj
+
+# macOS
 .DS_Store
+
+# Xcode
+DerivedData/
+build/
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+*.xcuserstate
+
+# Swift Package Manager
+.build/
+Packages/
+Package.resolved
 
