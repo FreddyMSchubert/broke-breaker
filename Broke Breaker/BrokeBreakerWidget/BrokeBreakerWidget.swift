@@ -55,7 +55,6 @@ struct BrokeBreakerWidgetEntryView : View {
         ZStack {
             
             // Emojis desorganizados (background)
-            // Emojis desorganizados (background)
             ZStack {
                 
                 Text(isPositive ? "💰" : "💸")
