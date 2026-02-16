@@ -2,12 +2,11 @@ import SwiftUI
 import SwiftData
 
 struct ListOverviewView: View {
+    
     @Environment(\.modelContext) private var modelContext
 
     @State private var date: Date = .now
-    @State private var weekStart: Date = Calendar.current.date(
-        from: Calendar.current.dateComponents([.yearForWeekOfYear, .weekOfYear], from: .now)
-    )!
+    @State private var weekStart: Date = Calendar.current.date(from: Calendar.current.dateComponents([.yearForWeekOfYear, .weekOfYear], from:.now))!
     @State private var weeklyOverview: [Date: DayOverview] = [:]
     @State private var selectedItem: DayLineItem?
     @State private var totalIncomings: Double = 0
@@ -15,25 +14,23 @@ struct ListOverviewView: View {
     @State private var dragOffset: CGFloat = 0
 
     var body: some View {
+        
         VStack(alignment: .leading, spacing: 12) {
             Text("List Overview")
                 .font(.largeTitle.bold())
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.top, 8)
             
-            // date picker and today button
             HStack (){
                 DatePicker("", selection: $date, displayedComponents: .date)
                 Button("Today") { date = .now }
                     .buttonStyle(.bordered)
             }
 
-            // calander
             weekCalendar
-
             Divider()
 
-            // Pager
+            // input reader sheet. Need to redo
             GeometryReader { geo in
                 ZStack {
                     HStack(spacing: 0) {
@@ -49,7 +46,6 @@ struct ListOverviewView: View {
                         value: dragOffset
                     )
 
-                    // Gesture overlay
                     Color.clear
                         .contentShape(Rectangle())
                         .gesture(
@@ -57,12 +53,10 @@ struct ListOverviewView: View {
                                 .onChanged { value in
                                     guard abs(value.translation.width) >
                                           abs(value.translation.height) else { return }
-
                                     dragOffset = value.translation.width
                                 }
                                 .onEnded { value in
                                     let threshold: CGFloat = 60
-
                                     if value.translation.width < -threshold ||
                                        value.predictedEndTranslation.width < -threshold {
                                         changeDay(by: 1)
@@ -70,7 +64,6 @@ struct ListOverviewView: View {
                                               value.predictedEndTranslation.width > threshold {
                                         changeDay(by: -1)
                                     }
-
                                     dragOffset = 0
                                 }
                         )
@@ -79,8 +72,6 @@ struct ListOverviewView: View {
             .frame(maxHeight: .infinity)
         }
         .padding(.horizontal)
-        
-
         .onAppear {
             updateWeek()
             loadWeeklyOverview()
@@ -130,28 +121,6 @@ extension ListOverviewView {
                 .onTapGesture { date = day }
             }
         }
-        .gesture(
-            DragGesture(minimumDistance: 10)
-                .onChanged { value in
-                    guard abs(value.translation.width) >
-                          abs(value.translation.height) else { return }
-
-                    dragOffset = value.translation.width
-                }
-                .onEnded { value in
-                    let threshold: CGFloat = 60
-
-                    if value.translation.width < -threshold ||
-                       value.predictedEndTranslation.width < -threshold {
-                        changeDay(by: 7)
-                    } else if value.translation.width > threshold ||
-                              value.predictedEndTranslation.width > threshold {
-                        changeDay(by: -7)
-                    }
-
-                    dragOffset = 0
-                }
-        )
     }
 }
 
@@ -171,14 +140,6 @@ extension ListOverviewView {
                         .frame(maxWidth: .infinity)
                     Spacer()
                 } else {
-                    let incomingTotal: Double = overview.items
-                        .map { NSDecimalNumber(decimal: $0.amount).doubleValue }
-                        .filter { $0 > 0 }
-                        .reduce(0, +)
-                    let outgoingTotal: Double = overview.items
-                        .map { NSDecimalNumber(decimal: $0.amount).doubleValue }
-                        .filter { $0 < 0 }
-                        .reduce(0, +)
 
                     List {
                         ForEach(
@@ -190,11 +151,13 @@ extension ListOverviewView {
                                 }
                             }
                         )
-                          { item in
+                        {
+                            item in
                             HStack {
                                 Text(item.title)
                                 Spacer()
-                                Text(NSDecimalNumber(decimal: item.amount), formatter: currencyFormatter)
+                                let amountDouble = NSDecimalNumber(decimal: item.amount).doubleValue
+                                Text("\(amountDouble, format: .number.precision(.fractionLength(2)))")
                                     .foregroundStyle(item.amount >= 0 ? .blue : .red)
                             }
                             .contentShape(Rectangle())
@@ -206,40 +169,62 @@ extension ListOverviewView {
                     .listStyle(.plain)
 
                     Divider()
-                    
-                    // incoming total
-                    HStack{
+
+                    // overview bar
+                    HStack {
                         HStack {
                             VStack (alignment: .trailing) {
-                                Text(incomingTotal as NSNumber, formatter: currencyFormatter)
+
+                                // Previous day rollover
+                                let previousDay = Calendar.current.date(byAdding: .day, value: -1, to: day)!
+                                let previousTotals = try? ledger.dayTotals(for: previousDay)
+                                let rollover = previousTotals?.runningBalanceEndOfDay ?? 0
+                                
+                                let incomingTotal: Double = overview.items
+                                    .map { NSDecimalNumber(decimal: $0.amount).doubleValue }
+                                    .filter { $0 > 0 }
+                                    .reduce(0, +)
+
+                                let outgoingTotal: Double = overview.items
+                                    .map { NSDecimalNumber(decimal: $0.amount).doubleValue }
+                                    .filter { $0 < 0 }
+                                    .reduce(0, +)
+
+                                Text("\(rollover, format: .number.precision(.fractionLength(2)))")
+                                    .fontWeight(.semibold)
+                                    .foregroundStyle(rollover >= 0 ? .blue : .red)
+
+                                Text("+\(incomingTotal, format: .number.precision(.fractionLength(2)))")
                                     .fontWeight(.semibold)
                                     .foregroundStyle(.blue)
-                                Text(outgoingTotal as NSNumber, formatter: currencyFormatter)
+
+                                Text("\(outgoingTotal, format: .number.precision(.fractionLength(2)))")
                                     .fontWeight(.semibold)
                                     .foregroundStyle(.red)
-                                Divider()
-                                Text(overview.netTotal as NSNumber, formatter: currencyFormatter)
-                                    .fontWeight(.semibold)
-                                    .foregroundStyle(overview.netTotal >= 0 ? .blue : .red)
                             }
+                            
                             VStack (alignment: .leading ) {
-                                Text("Income")
-                                    .fontWeight(.semibold)
-                                Text("Expense")
-                                    .fontWeight(.semibold)
-                                Divider()
-                                Text("Net total")
-                                    .fontWeight(.semibold)
+                                Text("Rollover").fontWeight(.semibold)
+                                Text("Income").fontWeight(.semibold)
+                                Text("Expense").fontWeight(.semibold)
                             }
                         }
+
                         Spacer()
-                        VStack{
-                            HStack{
-                                Text("johnr4ijoueroijijorriohjeijorfrjiogrjiowef")
+
+                        HStack {
+                            Spacer()
+                            VStack {
+                                let dayTotals = try? ledger.dayTotals(for: day)
+                                let dayNetTotal: Decimal = dayTotals?.netTotal ?? 0
+                                Text("\(dayNetTotal, format: .number.precision(.fractionLength(2)))")
+                                    .fontWeight(.semibold)
+                                    .font(.title)
+                                    .foregroundStyle(dayNetTotal >= 0 ? .blue : .red)
                             }
+                            Spacer()
                         }
                     }
-                    .padding()
                 }
             } else {
                 Text("No items for this day.")
@@ -253,7 +238,7 @@ extension ListOverviewView {
     }
 }
 
-// function
+// functions
 extension ListOverviewView {
 
     private var visibleDates: [Date] {
@@ -287,11 +272,4 @@ extension ListOverviewView {
             }
         }
     }
-
-    private var currencyFormatter: NumberFormatter {
-        let f = NumberFormatter()
-        f.numberStyle = .currency
-        return f
-    }
 }
-
