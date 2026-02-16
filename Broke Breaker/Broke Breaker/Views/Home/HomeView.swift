@@ -36,7 +36,7 @@ struct HomeView: View {
         
         ZStack{
             (todaySpending <= dailyBudget ? Color.blue.opacity(0.45)
-             : Color(.sRGB, red: 0.45, green: 0.0, blue: 0.0, opacity: 1.0))//burgundy red
+             : Color(.sRGB, red: 0.1, green: 0.0, blue: 0.0, opacity: 0.0))//burgundy red
             .ignoresSafeArea()
             
             
@@ -187,7 +187,7 @@ struct HomeView: View {
         do {
             
             let totalsToday = try ledger.dayTotals(for: Date())
-            todaySpending = (totalsToday.netTotal as NSDecimalNumber).doubleValue
+            todaySpending = (totalsToday.runningBalanceEndOfDay as NSDecimalNumber).doubleValue
 
     //------ Last 7 days totals (oldest - newest)------
             var values: [Double] = []
