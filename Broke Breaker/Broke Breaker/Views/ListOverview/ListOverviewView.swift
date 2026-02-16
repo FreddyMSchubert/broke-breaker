@@ -188,27 +188,34 @@ extension ListOverviewView {
                                 let outgoingTotal: Double = overview.items
                                     .map { NSDecimalNumber(decimal: $0.amount).doubleValue }
                                     .filter { $0 < 0 }
+
                                     .reduce(0, +)
 
                                 Text("\(rollover, format: .number.precision(.fractionLength(2)))")
                                     .fontWeight(.semibold)
+                                    .lineLimit(1)
                                     .foregroundStyle(rollover >= 0 ? .blue : .red)
 
                                 Text("+\(incomingTotal, format: .number.precision(.fractionLength(2)))")
                                     .fontWeight(.semibold)
+                                    .lineLimit(1)
                                     .foregroundStyle(.blue)
 
                                 Text("\(outgoingTotal, format: .number.precision(.fractionLength(2)))")
                                     .fontWeight(.semibold)
+                                    .lineLimit(1)
                                     .foregroundStyle(.red)
                             }
+                            .frame(maxWidth:UIScreen.main.bounds.size.width)
                             
                             VStack (alignment: .leading ) {
                                 Text("Rollover").fontWeight(.semibold)
                                 Text("Income").fontWeight(.semibold)
                                 Text("Expense").fontWeight(.semibold)
                             }
+                            .frame(maxWidth:UIScreen.main.bounds.size.width)
                         }
+                        .frame(maxWidth:UIScreen.main.bounds.size.width)
 
                         Spacer()
 
@@ -216,7 +223,7 @@ extension ListOverviewView {
                             Spacer()
                             VStack {
                                 let dayTotals = try? ledger.dayTotals(for: day)
-                                let dayNetTotal: Decimal = dayTotals?.netTotal ?? 0
+                                let dayNetTotal: Decimal = dayTotals?.runningBalanceEndOfDay ?? 0
                                 Text("\(dayNetTotal, format: .number.precision(.fractionLength(2)))")
                                     .fontWeight(.semibold)
                                     .font(.title)
@@ -226,6 +233,7 @@ extension ListOverviewView {
                         }
                     }
                 }
+                Spacer()
             } else {
                 Text("No items for this day.")
                     .foregroundStyle(.secondary)
