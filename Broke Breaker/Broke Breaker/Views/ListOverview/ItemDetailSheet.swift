@@ -6,6 +6,7 @@ struct ItemDetailSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     let item: DayLineItem
+    let requestDelete: (DayLineItem.Source) -> Void
 
     @State private var showDeleteConfirm = false
     @State private var showEditSheet = false
@@ -121,7 +122,7 @@ struct ItemDetailSheet: View {
             isPresented: $showDeleteConfirm,
             titleVisibility: .visible
         ) {
-            Button("Delete", role: .destructive) { requestDelete() }
+            Button("Delete", role: .destructive) { requestDelete(item.source) }
             Button("Cancel", role: .cancel) { }
         } message: {
             Text("This can’t be undone.")
@@ -141,18 +142,6 @@ struct ItemDetailSheet: View {
         case .everyWeeks(let n): return "Every \(n) week" + (n == 1 ? "" : "s")
         case .everyMonths(let n): return "Every \(n) month" + (n == 1 ? "" : "s")
         case .everyYears(let n): return "Every \(n) year" + (n == 1 ? "" : "s")
-        }
-    }
-
-    private func requestDelete() {
-        showDeleteConfirm = false
-        pendingDelete = true
-
-        dismiss() // dismiss the sheet
-
-        // delete after dismiss animation done
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
-            performDeleteNow()
         }
     }
 
