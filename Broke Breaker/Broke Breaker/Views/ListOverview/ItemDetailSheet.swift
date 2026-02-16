@@ -27,16 +27,30 @@ struct ItemDetailSheet: View {
         VStack(spacing: 16) {
             Spacer(minLength: 12)
             VStack(spacing: 8) {
-                Text(String(describing: item.amount))
-                    .font(.system(size: 44, weight: .heavy, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundStyle(item.amount >= 0 ? .blue : .red)
-                    .frame(maxWidth: .infinity, alignment: .center)
+                HStack(spacing: 6) {
+                    Text(format2(displayAmount))
+                        .font(.system(size: 44, weight: .heavy, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(displayAmount >= 0 ? .blue : .red)
+
+                    if let suffix = headlineSuffix {
+                        Text(suffix)
+                            .font(.title3.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .center)
 
                 Text(item.title)
                     .font(.title2.weight(.semibold))
                     .frame(maxWidth: .infinity, alignment: .center)
                     .lineLimit(2)
+
+                if let daily = approxDailyImpactText() {
+                    Text(daily)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
             }
             .padding(.top, 8)
 
@@ -122,6 +136,40 @@ struct ItemDetailSheet: View {
         } message: {
             Text("This can’t be undone.")
         }
+    }
+    private var displayAmount: Decimal {
+        switch item.source {
+        case .oneTime:
+            return oneTime?.amount ?? item.amount
+        case .recurring:
+            return recurring?.amountPerCycle ?? item.amount
+        }
+    }
+
+    private var headlineSuffix: String? {
+        guard let rule = recurring else { return nil }
+        return "/ " + cycleLabel(rule.recurrence)
+    }
+
+    private func cycleLabel(_ r: Recurrence) -> String {
+        switch r {
+        case .everyDays(let n):   return n == 1 ? "day" : "\(n) days"
+        case .everyWeeks(let n):  return n == 1 ? "week" : "\(n) weeks"
+        case .everyMonths(let n): return n == 1 ? "month" : "\(n) months"
+        case .everyYears(let n):  return n == 1 ? "year" : "\(n) years"
+        }
+    }
+
+    private func approxDailyImpactText() -> String? {
+        guard let rule = recurring else { return nil }
+        if case .everyDays(1) = rule.recurrence { return nil }
+
+        return "≈ \(format2(item.amount)) / day impact"
+    }
+
+    private func format2(_ value: Decimal) -> String {
+        let n = NSDecimalNumber(decimal: value)
+        return String(format: "%.2f", n.doubleValue)
     }
 
     private var typeLabel: String {
