@@ -22,6 +22,7 @@ struct ListOverviewView: View {
                 .font(.largeTitle.bold())
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.top, 8)
+                .padding(.horizontal)
             
             // Date Picker
             HStack {
@@ -29,28 +30,62 @@ struct ListOverviewView: View {
                 Button("Today") { date = .now }
                     .buttonStyle(.bordered)
             }
+            .padding(.horizontal)
 
             // Week Calendar
             weekCalendar
+                .padding(.horizontal)
             Divider()
             
             // Day views with swipe
             GeometryReader { geo in
+                let width = geo.size.width
                 HStack(spacing: 0) {
                     ForEach(visibleDates, id: \.self) { day in
                         dayView(for: day)
-                            .frame(width: geo.size.width)
+                            .frame(width: width)
                     }
                 }
-                .frame(width: geo.size.width * 3, alignment: .leading)
-                .offset(x: -geo.size.width + dragOffset)
+                .frame(width: width * 3, alignment: .leading)
+                .offset(x: -width + dragOffset)
                 .animation(.interactiveSpring(response: 0.25, dampingFraction: 0.85), value: dragOffset)
                 .contentShape(Rectangle()) // capture gestures even on empty space
-                .gesture(daySwipeGesture)
+                .gesture(
+                    DragGesture(minimumDistance: 5)
+                        .onChanged { value in
+                            guard abs(value.translation.width) > abs(value.translation.height) else { return }
+                            dragOffset = value.translation.width
+                        }
+                        .onEnded { value in
+                            let threshold: CGFloat = 60
+
+                            withAnimation(.interactiveSpring(response: 0.25, dampingFraction: 0.85)) {
+                                if value.translation.width < -threshold || value.predictedEndTranslation.width < -threshold {
+                                    // Snap left by exactly one page width
+                                    dragOffset = -width
+                                } else if value.translation.width > threshold || value.predictedEndTranslation.width > threshold {
+                                    // Snap right by exactly one page width
+                                    dragOffset = width
+                                } else {
+                                    // Cancel, snap back
+                                    dragOffset = 0
+                                }
+                            }
+
+                            // After the snap finishes, update the date and reset offset
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                                if dragOffset == -width {
+                                    changeDay(by: 1)
+                                } else if dragOffset == width {
+                                    changeDay(by: -1)
+                                }
+                                dragOffset = 0
+                            }
+                        }
+                )
             }
             .frame(maxHeight: .infinity)
         }
-        .padding(.horizontal)
         .onAppear {
             updateWeek()
             loadWeeklyOverview()
@@ -85,23 +120,6 @@ extension ListOverviewView {
             date = newWeek
             loadWeeklyOverview()
         }
-    }
-    
-    private var daySwipeGesture: some Gesture {
-        DragGesture(minimumDistance: 10)
-            .onChanged { value in
-                guard abs(value.translation.width) > abs(value.translation.height) else { return }
-                dragOffset = value.translation.width
-            }
-            .onEnded { value in
-                let threshold: CGFloat = 60
-                if value.translation.width < -threshold || value.predictedEndTranslation.width < -threshold {
-                    changeDay(by: 1)
-                } else if value.translation.width > threshold || value.predictedEndTranslation.width > threshold {
-                    changeDay(by: -1)
-                }
-                dragOffset = 0
-            }
     }
     
 // calander
@@ -251,7 +269,6 @@ extension ListOverviewView {
                 Text("Income")
                 Text("Expense")
             }
-            Spacer()
             Text("\(dayNetTotal, format: .number.precision(.fractionLength(2)))")
                 .font(.title)
                 .fontWeight(.bold)
