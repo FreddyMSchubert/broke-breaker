@@ -96,6 +96,12 @@ struct ListOverviewView: View {
     }
 }
 
+// MARK: - Want to do:
+    // 1. fix the calander so that the circles colour is based on runningBalanceEndOfDay not netTotal
+    // 2. make it re sorts the items when a new one is added otherwise it just wacks at bottom of relevant page
+    // 3. make swiping easier, it wants to scroll not swipe to go to the next day
+    // 4. animate calander swiping
+
 // views / calander, day and oerview bar
 extension ListOverviewView {
     
@@ -145,9 +151,9 @@ extension ListOverviewView {
                 .onEnded { value in
                     let threshold: CGFloat = 50
                     if value.translation.width < -threshold {
-                        changeWeek(by: 1)
+                        changeDay(by: 7)
                     } else if value.translation.width > threshold {
-                        changeWeek(by: -1)
+                        changeDay(by: -7)
                     }
                 }
         )
@@ -335,14 +341,6 @@ extension ListOverviewView {
     private func changeDay(by offset: Int) {
         if let newDate = Calendar.current.date(byAdding: .day, value: offset, to: date) {
             date = newDate
-        }
-    }
-    
-    private func changeWeek(by offset: Int) {
-        if let newWeek = Calendar.current.date(byAdding: .weekOfYear, value: offset, to: weekStart) {
-            weekStart = newWeek
-            date = newWeek
-            loadWeeklyOverview()
         }
     }
     
