@@ -3,44 +3,38 @@ import SwiftData
 
 
 struct HomeView: View {
+    
     @Environment(\.modelContext) private var modelContext
     private var ledger: LedgerService { LedgerService(context: modelContext) }
 
     
     //------Declare Data Variables----------------
     @AppStorage("isDarkMode") private var isDarkMode = false
-    // Light/Dark mode storage
+   
     
     //------Declare Data Variables----------------
     
-    let dailyBudget: Double = 20
-    
+    @State private var balanceToday: Double = 0
+    @State private var netToday: Double = 0
     @State private var dailySpendings: [Double] = Array(repeating: 0, count: 7)
-    @State private var todaySpending: Double = 0     // Gets today’s spending amount
+    
+    private var isNegativeToday: Bool { netToday < 0 }
 
     
 
     
     
     var body: some View {
-        
-       
-        let dailyDifference = dailyBudget - todaySpending
-        // Positive = under budget, Negative = over budget
-        
-        
-        
-//---------------------THE SCROLLVIEW-------------------
-        
         ZStack{
-            (todaySpending <= dailyBudget ? Color.blue.opacity(0.45)
-             : Color(.sRGB, red: 0.45, green: 0.0, blue: 0.0, opacity: 1.0))//burgundy red
+            (isNegativeToday
+             ? Color(.sRGB, red: 0.78, green: 0.29, blue: 0.29, opacity: 1.0)
+             : Color.blue.opacity(0.45))
+
             .ignoresSafeArea()
+           
             
-            
-            
-            
-            ScrollView {     // Allows scrolling if screen content becomes too tall
+//---------------------THE SCROLLVIEW-------------------
+            ScrollView {
                 VStack(spacing: 30) {
                     
                     
@@ -51,127 +45,88 @@ struct HomeView: View {
                         .font(.largeTitle)
                         .fontWeight(.bold)
                         .frame(maxWidth: .infinity, alignment: .leading)
+
                     
 //--------------TODAY SUMMARY CARD------------------
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Today's Spending")
-                            .font(.headline)
-                        
-                        Text("£\(todaySpending, specifier: "%.2f")")
-                            .font(.system(size: 36, weight: .bold))
-                        
-                        // Green if under budget, red if over budget
-                            .foregroundColor(todaySpending <= dailyBudget ? .green : .red)
-                        
-                        
-                        Text(todaySpending <= dailyBudget
-                             ? "You're within budget today ✅"
-                             : "You've exceeded today's budget ")
-                        
+                    VStack(alignment: .leading, spacing: 14) {
+                        HStack {
+                            Text("Today")
+                                .font(.headline)
+                            
+                            Spacer()
+                            
+                            Text(isNegativeToday ? "↓ Down" : "↑ Up")
+                                .font(.subheadline.weight(.semibold))
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(.ultraThinMaterial)
+                                .clipShape(Capsule())
+                        }
+
+                        Text("Balance")
+                            .font(.subheadline)
+                            .opacity(0.85)
+
+                        Text("£\(balanceToday, specifier: "%.2f")")
+                            .font(.system(size: 40, weight: .bold))
+
+                        HStack(spacing: 12) {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Net Today")
+                                    .font(.caption)
+                                    .opacity(0.8)
+
+                                Text("£\(netToday, specifier: "%.2f")")
+                                    .font(.title3.weight(.semibold))
+                            }
+
+                            Spacer()
+
+                            VStack(alignment: .trailing, spacing: 6) {
+                                Text("Status")
+                                    .font(.caption)
+                                    .opacity(0.8)
+
+                                Text(isNegativeToday ? "Negative" : "Positive")
+                                    .font(.title3.weight(.semibold))
+                            }
+                        }
                     }//END
                     .padding()
                     .frame(maxWidth: .infinity)
                     .background(.ultraThinMaterial)
+                    .overlay(
+                    RoundedRectangle(cornerRadius: 20)
+                    .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                    
+                    )
+                    
                     .cornerRadius(20)
-                    .shadow(radius: 4)
+                    .shadow(radius: 6)
                     
                     
-//------------------- DAILY BUDGET DIFFERENCE CARD ------------------------
-                    VStack(alignment: .leading, spacing: 12) {
-                        
-                        Text("Today's Budget Performance")
-                            .font(.headline)
-// -------------------------------------------------
-                        
-                        HStack {
-                            VStack(alignment: .leading) {
-                                Text("Budget")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                
-                                Text("£\(dailyBudget, specifier: "%.2f")")
-                                    .font(.title3)
-                                    .fontWeight(.bold)
-                            }//End
+
+
                             
-                            
-                            Spacer()
-                            
-// -------------------------------------------------
-                            VStack(alignment: .leading) {
-                                Text("Spent")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                
-                                Text("£\(todaySpending, specifier: "%.2f")")
-                                    .font(.title3)
-                                    .fontWeight(.bold)
-                            }//End
-                            
-                            
-                            Spacer()
-// ----------------------------------------------------
-                            
-                            VStack(alignment: .leading) {
-                                Text("Difference")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                
-                                Text("£\(abs(dailyDifference), specifier: "%.2f")")
-                                    .font(.title3)
-                                    .fontWeight(.bold)
-                                    .foregroundColor(dailyDifference >= 0 ? .green : .red)
-                                
-                            }//END
-                        }
-                        
-// -------------------------------------------------
-                        Text(dailyDifference >= 0
-                             ? "Great discipline! Save today and spend tomorrow wisely 🌱"
-                             : "Please stick to budget — the future rewards discipline. Let’s work together, friend 💪")
-                        .font(.subheadline)
-                        .foregroundColor(dailyDifference >= 0 ? .green : .red)
-                        
-                    }
-                    .padding()
-                    .frame(maxWidth: .infinity)
-                    .background(.ultraThinMaterial)
-                    .cornerRadius(20)
-                    .shadow(radius: 4)
-                    
-                    
-//                    
-//// -------------- WEEKLY FLOW CHART SECTION---------------
-//                    HStack{
-//                        ForEach(days.indices, id:\.self) {index in
-//                            VStack(spacing: 6) {
-//                                Text(days[index])
-//                                    .font(.caption)
-//                                    .foregroundColor(.black)
-//                                    .fontWeight(.bold)
-//                                
-//                                Text("£\(dailySpendings[index], specifier: "%.0f")")
-//                                    .font(.subheadline)
-//                                    .fontWeight(.bold)
-//                                
-//                            }
-//                            .frame(maxWidth: .infinity)
-//                        }
-//                    }//END
+
+                                    
+
                     
 // -------------------------------------------------
                     VStack(alignment: .leading, spacing: 16) {
-                        Text("Daily Spending Trend")
+                        Text("Daily Net Trend")
                             .font(.headline)
-                        FlowAreaChart(values: dailySpendings, budget: dailyBudget)
-                            .frame(height: 200) // Fixed height so chart looks balanced
+                        FlowAreaChart(values: dailySpendings, budget: 0)
+                            .frame(height: 200)
                         
                     }
                     
-                    Spacer()  // Push everything upward for clean spacing
+                    Spacer()
                     
                 }
-                .padding() // Adds space from screen edges
+                .padding()
+                .foregroundColor(isNegativeToday ? .white : .primary)
+
                 
                 
             }//Close ScrollView
@@ -181,29 +136,35 @@ struct HomeView: View {
         .task { loadRealData() }
         
     }//close var body
-    private func loadRealData() {
+    
+    
+private func loadRealData() {
         do {
-            
-            let totalsToday = try ledger.dayTotals(for: Date())
-            todaySpending = (totalsToday.netTotal as NSDecimalNumber).doubleValue
-
-    //------ Last 7 days totals (oldest - newest)------
-            var values: [Double] = []
             let cal = Calendar.current
+            let today = Date()
+
+            let totalsToday = try ledger.dayTotals(for: today)
+            netToday = (totalsToday.netTotal as NSDecimalNumber).doubleValue
+            balanceToday = (totalsToday.runningBalanceEndOfDay as NSDecimalNumber).doubleValue
+
+            var values: [Double] = []
 
             for offset in stride(from: 6, through: 0, by: -1) {
-                let date = cal.date(byAdding: .day, value: -offset, to: Date())!
+                let date = cal.date(byAdding: .day, value: -offset, to: today)!
                 let totals = try ledger.dayTotals(for: date)
                 values.append((totals.netTotal as NSDecimalNumber).doubleValue)
             }
 
             dailySpendings = values
+
         } catch {
             print("HomeView loadRealData error:", error)
-            todaySpending = 0
+            balanceToday = 0
+            netToday = 0
             dailySpendings = Array(repeating: 0, count: 7)
         }
     }
+
 
     
     
