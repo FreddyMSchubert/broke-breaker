@@ -8,7 +8,7 @@ struct ListOverviewView: View {
     @State private var date: Date = .now
     @State private var weekStart: Date = Calendar.current.date(
         from: Calendar.current.dateComponents([.yearForWeekOfYear, .weekOfYear], from: .now))!
-    @State private var weeklyOverview: [Date: DayOverview] = [:]
+    @State private var weeklyTotals: [Date: DayTotals] = [:]
     @State private var selectedItem: DayLineItem?
     @State private var dragOffset: CGFloat = 0
     @State private var pendingDeleteSource: DayLineItem.Source?
@@ -87,11 +87,11 @@ struct ListOverviewView: View {
         }
         .onAppear {
             updateWeek()
-            loadWeeklyOverview()
+            loadWeeklyTotals()
         }
         .onChange(of: date) { _, _ in
             updateWeek()
-            loadWeeklyOverview()
+            loadWeeklyTotals()
         }
     }
 }
@@ -132,7 +132,7 @@ extension ListOverviewView {
                                 .foregroundStyle(
                                     Calendar.current.isDate(day, inSameDayAs: date)
                                     ? .orange
-                                    : ((weeklyOverview[day]?.netTotal ?? 0) >= 0
+                                    : ((weeklyTotals[day]?.runningBalanceEndOfDay ?? 0) >= 0
                                        ? .blue
                                        : .red
                                       )
@@ -318,14 +318,14 @@ extension ListOverviewView {
         ) ?? weekStart
     }
     
-    private func loadWeeklyOverview() {
+    private func loadWeeklyTotals() {
         let ledger = LedgerService(context: modelContext)
-        weeklyOverview.removeAll()
+        weeklyTotals.removeAll()
         
         for i in 0..<7 {
             if let day = Calendar.current.date(byAdding: .day, value: i, to: weekStart),
-               let overview = try? ledger.dayOverview(for: day) {
-                weeklyOverview[day] = overview
+               let totals = try? ledger.dayTotals(for: day) {
+                weeklyTotals[day] = totals
             }
         }
     }
@@ -364,7 +364,7 @@ extension ListOverviewView {
                     try ledger.deleteRecurring(rule)
                 }
             }
-            loadWeeklyOverview()
+            loadWeeklyTotals()
         } catch {
             print("Delete failed:", error)
         }
