@@ -130,13 +130,16 @@ extension ListOverviewView {
         let letters = ["M", "T", "W", "T", "F", "S", "S"]
         
         return HStack {
-            ForEach(days.indices, id: \.self) { index in
+            ForEach(Array(days.enumerated()), id: \.offset) { index, day in
                 let day = days[index]
-                
                 VStack(spacing: 6) {
                     Text(letters[index])
+                        .foregroundStyle(
+                            Calendar.current.isDate(day, inSameDayAs: .now)
+                            ? .primary
+                            : .secondary
+                        )
                         .font(.caption.bold())
-                        .foregroundStyle(.secondary)
                     
                     Text(day.formatted(.dateTime.day()))
                         .fontWeight(.bold)
@@ -146,9 +149,10 @@ extension ListOverviewView {
                                 .foregroundStyle(
                                     Calendar.current.isDate(day, inSameDayAs: date)
                                     ? .orange
-                                    : (weeklyOverview[day]?.netTotal ?? 0) >= 0
-                                        ? .blue
-                                        : .red
+                                    : ((weeklyOverview[day]?.netTotal ?? 0) >= 0
+                                                    ? .blue
+                                                    : .red
+                                      )
                                 )
                         )
                         .foregroundStyle(.secondary)
@@ -216,7 +220,9 @@ extension ListOverviewView {
                                 Spacer()
                                 let amountDouble = NSDecimalNumber(decimal: item.amount).doubleValue
                                 Text("\(amountDouble, format: .number.precision(.fractionLength(2)))")
-                                    .foregroundStyle(item.amount >= 0 ? .blue : .red)
+                                    .foregroundStyle(item.amount >= 0
+                                                     ? .blue
+                                                     : .red)
                             }
                             .contentShape(Rectangle())
                             .onTapGesture { selectedItem = item }
@@ -242,6 +248,7 @@ extension ListOverviewView {
         }
     }
     
+// overview bar
     private func overviewBar(for day: Date) -> some View {
         let ledger = LedgerService(context: modelContext)
         
@@ -269,7 +276,9 @@ extension ListOverviewView {
             Spacer()
             VStack(alignment: .trailing) {
                 Text("\(rollover, format: .number.precision(.fractionLength(2)))")
-                    .foregroundStyle(rollover >= 0 ? .blue : .red)
+                    .foregroundStyle(rollover >= 0
+                                     ? .blue
+                                     : .red)
                 Text("+\(incomingTotal, format: .number.precision(.fractionLength(2)))")
                     .foregroundStyle(.blue)
                 Text("\(outgoingTotal, format: .number.precision(.fractionLength(2)))")
@@ -288,7 +297,9 @@ extension ListOverviewView {
             Text("\(dayNetTotal, format: .number.precision(.fractionLength(2)))")
                 .font(.title)
                 .fontWeight(.bold)
-                .foregroundStyle(dayNetTotal >= 0 ? .blue : .red)
+                .foregroundStyle(dayNetTotal >= 0
+                                 ? .blue
+                                 : .red)
             Spacer()
         }
         .fontWeight(.semibold)
