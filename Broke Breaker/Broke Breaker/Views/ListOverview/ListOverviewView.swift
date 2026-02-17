@@ -223,8 +223,6 @@ extension ListOverviewView {
                         }
                     }
                     .listStyle(.plain)
-                    Divider()
-                    overviewBar(for: day, overview: overview)
                 }
             } else {
                 Spacer()
@@ -233,6 +231,8 @@ extension ListOverviewView {
                     .frame(maxWidth: .infinity)
                 Spacer()
             }
+            Divider()
+            overviewBar(for: day)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .contentShape(Rectangle())
@@ -242,20 +242,31 @@ extension ListOverviewView {
         }
     }
     
-    private func overviewBar(for day: Date, overview: DayOverview) -> some View {
+    private func overviewBar(for day: Date) -> some View {
         let ledger = LedgerService(context: modelContext)
+        
+        let overview = (try? ledger.dayOverview(for: day))
+        let items = overview?.items ?? []
+        
         let previousDay = Calendar.current.date(byAdding: .day, value: -1, to: day)!
         let previousTotals = try? ledger.dayTotals(for: previousDay)
         let rollover = previousTotals?.runningBalanceEndOfDay ?? 0
         
-        let incomingTotal: Double = overview.items.map { NSDecimalNumber(decimal: $0.amount).doubleValue }
-            .filter { $0 > 0 }.reduce(0, +)
-        let outgoingTotal: Double = overview.items.map { NSDecimalNumber(decimal: $0.amount).doubleValue }
-            .filter { $0 < 0 }.reduce(0, +)
+        let incomingTotal: Double = items
+                .map { NSDecimalNumber(decimal: $0.amount).doubleValue }
+                .filter { $0 > 0 }
+                .reduce(0, +)
+            
+            let outgoingTotal: Double = items
+                .map { NSDecimalNumber(decimal: $0.amount).doubleValue }
+                .filter { $0 < 0 }
+                .reduce(0, +)
+        
         let dayTotals = try? ledger.dayTotals(for: day)
         let dayNetTotal: Decimal = dayTotals?.runningBalanceEndOfDay ?? 0
         
         return HStack {
+            Spacer()
             VStack(alignment: .trailing) {
                 Text("\(rollover, format: .number.precision(.fractionLength(2)))")
                     .foregroundStyle(rollover >= 0 ? .blue : .red)
@@ -269,10 +280,16 @@ extension ListOverviewView {
                 Text("Income")
                 Text("Expense")
             }
+            Spacer()
+            Text("=")
+                .font(.title2)
+                .fontWeight(.bold)
+            Spacer()
             Text("\(dayNetTotal, format: .number.precision(.fractionLength(2)))")
                 .font(.title)
                 .fontWeight(.bold)
                 .foregroundStyle(dayNetTotal >= 0 ? .blue : .red)
+            Spacer()
         }
         .fontWeight(.semibold)
     }
