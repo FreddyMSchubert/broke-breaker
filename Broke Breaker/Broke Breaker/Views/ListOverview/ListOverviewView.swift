@@ -322,7 +322,6 @@ extension ListOverviewView {
 }
 
 // fucntions
-
 extension ListOverviewView {
     
     private var visibleDates: [Date] {
