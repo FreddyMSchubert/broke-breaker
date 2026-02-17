@@ -369,13 +369,4 @@ extension ListOverviewView {
             print("Delete failed:", error)
         }
     }
-    
-    private var currencyFormatter: NumberFormatter {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .currency
-        formatter.locale = .current
-        formatter.maximumFractionDigits = 2
-        formatter.minimumFractionDigits = 2
-        return formatter
-    }
 }
