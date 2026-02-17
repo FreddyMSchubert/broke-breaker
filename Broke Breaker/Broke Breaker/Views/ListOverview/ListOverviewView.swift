@@ -159,24 +159,6 @@ extension ListOverviewView {
         )
     }
     
-    private func updateWeek() {
-        weekStart = Calendar.current.date(
-            from: Calendar.current.dateComponents([.yearForWeekOfYear, .weekOfYear], from: date)
-        ) ?? weekStart
-    }
-    
-    private func loadWeeklyOverview() {
-        let ledger = LedgerService(context: modelContext)
-        weeklyOverview.removeAll()
-        
-        for i in 0..<7 {
-            if let day = Calendar.current.date(byAdding: .day, value: i, to: weekStart),
-               let overview = try? ledger.dayOverview(for: day) {
-                weeklyOverview[day] = overview
-            }
-        }
-    }
-    
     // day view
     private func dayView(for day: Date) -> some View {
         let ledger = LedgerService(context: modelContext)
@@ -329,6 +311,24 @@ extension ListOverviewView {
 
 // fucntions
 extension ListOverviewView {
+    
+    private func updateWeek() {
+        weekStart = Calendar.current.date(
+            from: Calendar.current.dateComponents([.yearForWeekOfYear, .weekOfYear], from: date)
+        ) ?? weekStart
+    }
+    
+    private func loadWeeklyOverview() {
+        let ledger = LedgerService(context: modelContext)
+        weeklyOverview.removeAll()
+        
+        for i in 0..<7 {
+            if let day = Calendar.current.date(byAdding: .day, value: i, to: weekStart),
+               let overview = try? ledger.dayOverview(for: day) {
+                weeklyOverview[day] = overview
+            }
+        }
+    }
     
     private var visibleDates: [Date] {
         [
