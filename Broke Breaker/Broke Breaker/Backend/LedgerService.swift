@@ -1,5 +1,7 @@
 import Foundation
 import SwiftData
+import Vapor
+import Fluent
 
 // ----- BFF structs
 
