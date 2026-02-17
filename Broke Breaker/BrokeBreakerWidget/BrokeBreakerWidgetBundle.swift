@@ -12,7 +12,5 @@ import SwiftUI
 struct BrokeBreakerWidgetBundle: WidgetBundle {
     var body: some Widget {
         BrokeBreakerWidget()
-        BrokeBreakerWidgetControl()
-        BrokeBreakerWidgetLiveActivity()
     }
 }

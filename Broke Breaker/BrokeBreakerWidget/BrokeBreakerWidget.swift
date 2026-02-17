@@ -18,22 +18,9 @@ struct Provider: AppIntentTimelineProvider {
     }
     
     func timeline(for configuration: ConfigurationAppIntent, in context: Context) async -> Timeline<SimpleEntry> {
-        var entries: [SimpleEntry] = []
-
-        // Generate a timeline consisting of five entries an hour apart, starting from the current date.
-        let currentDate = Date()
-        for hourOffset in 0 ..< 5 {
-            let entryDate = Calendar.current.date(byAdding: .hour, value: hourOffset, to: currentDate)!
-            let entry = SimpleEntry(date: entryDate, configuration: configuration)
-            entries.append(entry)
-        }
-
-        return Timeline(entries: entries, policy: .atEnd)
+        let entry = SimpleEntry(date: Date(), configuration: configuration)
+        return Timeline(entries: [entry], policy: .never)
     }
-
-//    func relevances() async -> WidgetRelevances<ConfigurationAppIntent> {
-//        // Generate a list containing the contexts this widget is relevant in.
-//    }
 }
 
 struct SimpleEntry: TimelineEntry {
@@ -54,7 +41,7 @@ struct BrokeBreakerWidgetEntryView : View {
         
         ZStack {
             
-            // Emojis desorganizados (background)
+            // Background emojis
             ZStack {
                 
                 Text(isPositive ? "💰" : "💸")
@@ -113,7 +100,8 @@ struct BrokeBreakerWidgetEntryView : View {
                     .rotationEffect(.degrees(9))
                     .offset(x: 60, y: 50)
             }
-            // Conteúdo principal
+            
+            // Main content
             VStack(spacing: 8) {
                 
                 Text("£\(NSDecimalNumber(decimal: balance).stringValue)")
@@ -131,7 +119,6 @@ struct BrokeBreakerWidgetEntryView : View {
     }
 }
 
-
 struct BrokeBreakerWidget: Widget {
     let kind: String = "BrokeBreakerWidget"
 
@@ -142,27 +129,6 @@ struct BrokeBreakerWidget: Widget {
             provider: Provider()
         ) { entry in
             BrokeBreakerWidgetEntryView(entry: entry)
-                
         }
     }
-}
-extension ConfigurationAppIntent {
-    fileprivate static var smiley: ConfigurationAppIntent {
-        let intent = ConfigurationAppIntent()
-        intent.favoriteEmoji = "😀"
-        return intent
-    }
-    
-    fileprivate static var starEyes: ConfigurationAppIntent {
-        let intent = ConfigurationAppIntent()
-        intent.favoriteEmoji = "🤩"
-        return intent
-    }
-}
-
-#Preview(as: .systemSmall) {
-    BrokeBreakerWidget()
-} timeline: {
-    SimpleEntry(date: .now, configuration: .smiley)
-    SimpleEntry(date: .now, configuration: .starEyes)
 }
