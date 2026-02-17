@@ -7,8 +7,7 @@ struct ListOverviewView: View {
 
     @State private var date: Date = .now
     @State private var weekStart: Date = Calendar.current.date(
-        from: Calendar.current.dateComponents([.yearForWeekOfYear, .weekOfYear], from: .now)
-    )!
+        from: Calendar.current.dateComponents([.yearForWeekOfYear, .weekOfYear], from: .now))!
     @State private var weeklyOverview: [Date: DayOverview] = [:]
     @State private var selectedItem: DayLineItem?
     @State private var dragOffset: CGFloat = 0
@@ -17,7 +16,7 @@ struct ListOverviewView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             
-            // Header
+            // title
             Text("List Overview")
                 .font(.largeTitle.bold())
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -37,7 +36,7 @@ struct ListOverviewView: View {
                 .padding(.horizontal)
             Divider()
             
-            // Day views with swipe
+            // input reader
             GeometryReader { geo in
                 let width = geo.size.width
                 HStack(spacing: 0) {
@@ -97,32 +96,10 @@ struct ListOverviewView: View {
     }
 }
 
-
+// views / calander, day and oerview bar
 extension ListOverviewView {
     
-    private var visibleDates: [Date] {
-        [
-            Calendar.current.date(byAdding: .day, value: -1, to: date)!,
-            date,
-            Calendar.current.date(byAdding: .day, value: 1, to: date)!
-        ]
-    }
-    
-    private func changeDay(by offset: Int) {
-        if let newDate = Calendar.current.date(byAdding: .day, value: offset, to: date) {
-            date = newDate
-        }
-    }
-    
-    private func changeWeek(by offset: Int) {
-        if let newWeek = Calendar.current.date(byAdding: .weekOfYear, value: offset, to: weekStart) {
-            weekStart = newWeek
-            date = newWeek
-            loadWeeklyOverview()
-        }
-    }
-    
-// calander
+    // calander
     private var weekCalendar: some View {
         let days = (0..<7).compactMap {
             Calendar.current.date(byAdding: .day, value: $0, to: weekStart)
@@ -150,8 +127,8 @@ extension ListOverviewView {
                                     Calendar.current.isDate(day, inSameDayAs: date)
                                     ? .orange
                                     : ((weeklyOverview[day]?.netTotal ?? 0) >= 0
-                                                    ? .blue
-                                                    : .red
+                                       ? .blue
+                                       : .red
                                       )
                                 )
                         )
@@ -193,11 +170,8 @@ extension ListOverviewView {
             }
         }
     }
-}
-
-// Day View
-extension ListOverviewView {
     
+    // day view
     private func dayView(for day: Date) -> some View {
         let ledger = LedgerService(context: modelContext)
         let overview = try? ledger.dayOverview(for: day)
@@ -212,23 +186,64 @@ extension ListOverviewView {
                     Spacer()
                 } else {
                     List {
-                        ForEach(overview.items.sorted {
-                            $0.amount == $1.amount ? $0.title < $1.title : $0.amount > $1.amount
-                        }) { item in
-                            HStack {
-                                Text(item.title)
-                                Spacer()
-                                let amountDouble = NSDecimalNumber(decimal: item.amount).doubleValue
-                                Text("\(amountDouble, format: .number.precision(.fractionLength(2)))")
-                                    .foregroundStyle(item.amount >= 0
-                                                     ? .blue
-                                                     : .red)
+                        let oneTimeItems = overview.items.filter {
+                            if case .oneTime = $0.source { return true }
+                            return false
+                        }
+                        let recurringItems = overview.items.filter {
+                            if case .recurring = $0.source { return true }
+                            return false
+                        }
+                        
+                        // One-time Section
+                        if !oneTimeItems.isEmpty {
+                            Section {
+                                ForEach(oneTimeItems.sorted { $0.title > $1.title }) { item in
+                                    HStack {
+                                        Text(item.title)
+                                        Spacer()
+                                        let amountDouble = NSDecimalNumber(decimal: item.amount).doubleValue
+                                        Text("\(amountDouble, format: .number.precision(.fractionLength(2)))")
+                                            .foregroundStyle(item.amount >= 0 ? .blue : .red)
+                                    }
+                                    .contentShape(Rectangle())
+                                    .onTapGesture { selectedItem = item }
+                                }
+                            } header: {
+                                Text("One-Time Transactions:")
+                                    .font(.caption)
+                                    .fontWeight(.semibold)
+                                    .textCase(nil)
+                                    .foregroundStyle(.secondary)
                             }
-                            .contentShape(Rectangle())
-                            .onTapGesture { selectedItem = item }
+                        }
+                        
+                        // Recurring Section
+                        if !recurringItems.isEmpty {
+                            Section {
+                                ForEach(recurringItems.sorted { $0.title > $1.title }) { item in
+                                    HStack {
+                                        Text(item.title)
+                                        Spacer()
+                                        let amountDouble = NSDecimalNumber(decimal: item.amount).doubleValue
+                                        Text("\(amountDouble, format: .number.precision(.fractionLength(2)))")
+                                            .foregroundStyle(item.amount >= 0 ? .blue : .red)
+                                    }
+                                    .contentShape(Rectangle())
+                                    .onTapGesture { selectedItem = item }
+                                }
+                            } header: {
+                                Text("Recurring Transactions:")
+                                    .font(.caption)
+                                    .fontWeight(.semibold)
+                                    .textCase(nil)
+                                    .foregroundStyle(.secondary)
+                            }
+                            
                         }
                     }
                     .listStyle(.plain)
+                    
                 }
             } else {
                 Spacer()
@@ -248,7 +263,7 @@ extension ListOverviewView {
         }
     }
     
-// overview bar
+    // overview bar
     private func overviewBar(for day: Date) -> some View {
         let ledger = LedgerService(context: modelContext)
         
@@ -260,14 +275,14 @@ extension ListOverviewView {
         let rollover = previousTotals?.runningBalanceEndOfDay ?? 0
         
         let incomingTotal: Double = items
-                .map { NSDecimalNumber(decimal: $0.amount).doubleValue }
-                .filter { $0 > 0 }
-                .reduce(0, +)
-            
-            let outgoingTotal: Double = items
-                .map { NSDecimalNumber(decimal: $0.amount).doubleValue }
-                .filter { $0 < 0 }
-                .reduce(0, +)
+            .map { NSDecimalNumber(decimal: $0.amount).doubleValue }
+            .filter { $0 > 0 }
+            .reduce(0, +)
+        
+        let outgoingTotal: Double = items
+            .map { NSDecimalNumber(decimal: $0.amount).doubleValue }
+            .filter { $0 < 0 }
+            .reduce(0, +)
         
         let dayTotals = try? ledger.dayTotals(for: day)
         let dayNetTotal: Decimal = dayTotals?.runningBalanceEndOfDay ?? 0
@@ -304,6 +319,33 @@ extension ListOverviewView {
         }
         .fontWeight(.semibold)
     }
+}
+
+// fucntions
+
+extension ListOverviewView {
+    
+    private var visibleDates: [Date] {
+        [
+            Calendar.current.date(byAdding: .day, value: -1, to: date)!,
+            date,
+            Calendar.current.date(byAdding: .day, value: 1, to: date)!
+        ]
+    }
+    
+    private func changeDay(by offset: Int) {
+        if let newDate = Calendar.current.date(byAdding: .day, value: offset, to: date) {
+            date = newDate
+        }
+    }
+    
+    private func changeWeek(by offset: Int) {
+        if let newWeek = Calendar.current.date(byAdding: .weekOfYear, value: offset, to: weekStart) {
+            weekStart = newWeek
+            date = newWeek
+            loadWeeklyOverview()
+        }
+    }
     
     private func requestDeleteFromSheet(_ source: DayLineItem.Source) {
         pendingDeleteSource = source
@@ -330,9 +372,7 @@ extension ListOverviewView {
             print("Delete failed:", error)
         }
     }
-}
-
-extension ListOverviewView {
+    
     private var currencyFormatter: NumberFormatter {
         let formatter = NumberFormatter()
         formatter.numberStyle = .currency
