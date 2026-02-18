@@ -296,7 +296,7 @@ struct TransactionEditorView: View {
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 14)
                             .foregroundStyle(.white)
-                            .background(primaryActionColor)
+                            .background(primaryActionColor, in: RoundedRectangle(cornerRadius: 18))
                             .clipShape(RoundedRectangle(cornerRadius: 18))
                             .contentShape(Rectangle())
                     }
@@ -395,6 +395,9 @@ struct TransactionEditorView: View {
                         recurrence: recurrence
                     )
                 }
+                
+                resetInputsForNextCreate();
+
                 alert = .success("Created \(createTransactionName).")
 
             case .editOneTime(let tx):
@@ -420,6 +423,22 @@ struct TransactionEditorView: View {
         } catch {
             alert = .error(error.localizedDescription)
         }
+    }
+    
+    private func resetInputsForNextCreate() {
+        title = ""
+        amountDigits = ""
+        isPositive = false
+        selectedDate = Date()
+        txType = .oneTime
+
+        hasEndDate = false
+        selectedEndDate = Date()
+
+        everyNText = "1"
+        unit = .days
+
+        focusedField = nil
     }
 
     private func makeRecurrence() -> Recurrence {
