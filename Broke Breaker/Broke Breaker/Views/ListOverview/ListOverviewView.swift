@@ -5,14 +5,12 @@ struct ListOverviewView: View {
     
     @Environment(\.modelContext) private var modelContext
     
-    @State private var ledger: LedgerService?
     @State private var date: Date = .now
     @State private var weekStart: Date = Calendar.current.date(
         from: Calendar.current.dateComponents([.yearForWeekOfYear, .weekOfYear], from: .now))!
     @State private var weeklyTotals: [Date: DayTotals] = [:]
-    @State private var dayOverviews: [Date: DayOverview] = [:]
+    @State private var pageIndex = 1
     @State private var selectedItem: DayLineItem?
-    @State private var dragOffset: CGFloat = 0
     @State private var pendingDeleteSource: DayLineItem.Source?
 
     var body: some View {
@@ -29,7 +27,6 @@ struct ListOverviewView: View {
             HStack {
                 DatePicker("", selection: $date, displayedComponents: .date)
                 Button("Today") { date = .now }
-                    .buttonStyle(.bordered)
             }
             .padding(.horizontal)
 
@@ -38,61 +35,34 @@ struct ListOverviewView: View {
                 .padding(.horizontal)
             Divider()
             
-            // input reader
-            GeometryReader { geo in
-                let width = geo.size.width
-                HStack(spacing: 0) {
-                    ForEach(visibleDates, id: \.self) { day in
-                        dayView(for: day)
-                            .frame(width: width)
+            // day swiper
+            TabView(selection: $pageIndex) {
+                ForEach(0..<3) { index in
+                    let offset = index - 1
+                    let day = Calendar.current.date(byAdding: .day, value: offset, to: date)!
+                    dayView(for: day)
+                        .tag(index)
+                }
+            }
+            .tabViewStyle(.page(indexDisplayMode: .never))
+            .onChange(of: pageIndex) { oldIndex, newIndex in
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    let delta = newIndex - 1
+                    if delta != 0 {
+                        if let newDate = Calendar.current.date(byAdding: .day, value: delta, to: date) {
+                            date = newDate
+                        }
+                        pageIndex = 1
                     }
                 }
-                .frame(width: width * 3, alignment: .leading)
-                .offset(x: -width + dragOffset)
-                .animation(.interactiveSpring(response: 0.25, dampingFraction: 0.85), value: dragOffset)
-                .contentShape(Rectangle())
-                .gesture(
-                    DragGesture(minimumDistance: 1)
-                        .onChanged { value in
-                            guard abs(value.translation.width) > abs(value.translation.height) else { return }
-                            dragOffset = value.translation.width
-                        }
-                        .onEnded { value in
-                            let threshold: CGFloat = 60
-
-                            withAnimation(.interactiveSpring(response: 0.25, dampingFraction: 0.85)) {
-                                if value.translation.width < -threshold || value.predictedEndTranslation.width < -threshold {
-                                    dragOffset = -width
-                                } else if value.translation.width > threshold || value.predictedEndTranslation.width > threshold {
-                                    dragOffset = width
-                                } else {
-                                    dragOffset = 0
-                                }
-                            }
-
-                            // After the snap finishes, update the date and reset offset
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                                if dragOffset == -width {
-                                    changeDay(by: 1)
-                                } else if dragOffset == width {
-                                    changeDay(by: -1)
-                                }
-                                dragOffset = 0
-                            }
-                        }
-                )
             }
-            .frame(maxHeight: .infinity)
+            
         }
         .onAppear {
-            updateWeek()
-            loadWeeklyTotals()
-            loadVisibleDayOverviews()
+            refresh()
         }
-        .onChange(of: date) { _, _ in
-            updateWeek()
-            loadWeeklyTotals()
-            loadVisibleDayOverviews()
+        .onChange(of: date) { _, newDate in
+            refresh()
         }
     }
 }
@@ -160,7 +130,8 @@ extension ListOverviewView {
     
     // day view
     private func dayView(for day: Date) -> some View {
-        let overview = dayOverviews[day]
+        let ledger = LedgerService(context: modelContext)
+        let overview = try? ledger.dayOverview(for: day)
         
         return VStack(alignment: .leading, spacing: 8) {
             if let overview {
@@ -247,9 +218,6 @@ extension ListOverviewView {
             ItemDetailSheet(item: item, requestDelete: requestDeleteFromSheet)
                 .presentationDetents([.medium, .large])
         }
-        .onAppear {
-            ledger = LedgerService(context: modelContext)
-        }
     }
     
     // overview bar
@@ -331,24 +299,11 @@ extension ListOverviewView {
         }
     }
     
-    private var visibleDates: [Date] {
-        [
-            Calendar.current.date(byAdding: .day, value: -1, to: date)!,
-            date,
-            Calendar.current.date(byAdding: .day, value: 1, to: date)!
-        ]
+    private func refresh() {
+        updateWeek()
+        loadWeeklyTotals()
     }
-    
-    private func loadVisibleDayOverviews() {
-        let ledger = LedgerService(context: modelContext)
-        
-        for day in visibleDates {
-            if let overview = try? ledger.dayOverview(for: day) {
-                dayOverviews[day] = overview
-            }
-        }
-    }
-    
+
     private func changeDay(by offset: Int) {
         if let newDate = Calendar.current.date(byAdding: .day, value: offset, to: date) {
             date = newDate
