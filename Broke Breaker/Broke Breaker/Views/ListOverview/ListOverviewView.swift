@@ -4,11 +4,13 @@ import SwiftData
 struct ListOverviewView: View {
     
     @Environment(\.modelContext) private var modelContext
-
+    
+    @State private var ledger: LedgerService?
     @State private var date: Date = .now
     @State private var weekStart: Date = Calendar.current.date(
         from: Calendar.current.dateComponents([.yearForWeekOfYear, .weekOfYear], from: .now))!
     @State private var weeklyTotals: [Date: DayTotals] = [:]
+    @State private var dayOverviews: [Date: DayOverview] = [:]
     @State private var selectedItem: DayLineItem?
     @State private var dragOffset: CGFloat = 0
     @State private var pendingDeleteSource: DayLineItem.Source?
@@ -48,9 +50,9 @@ struct ListOverviewView: View {
                 .frame(width: width * 3, alignment: .leading)
                 .offset(x: -width + dragOffset)
                 .animation(.interactiveSpring(response: 0.25, dampingFraction: 0.85), value: dragOffset)
-                .contentShape(Rectangle()) // capture gestures even on empty space
+                .contentShape(Rectangle())
                 .gesture(
-                    DragGesture(minimumDistance: 5)
+                    DragGesture(minimumDistance: 1)
                         .onChanged { value in
                             guard abs(value.translation.width) > abs(value.translation.height) else { return }
                             dragOffset = value.translation.width
@@ -60,13 +62,10 @@ struct ListOverviewView: View {
 
                             withAnimation(.interactiveSpring(response: 0.25, dampingFraction: 0.85)) {
                                 if value.translation.width < -threshold || value.predictedEndTranslation.width < -threshold {
-                                    // Snap left by exactly one page width
                                     dragOffset = -width
                                 } else if value.translation.width > threshold || value.predictedEndTranslation.width > threshold {
-                                    // Snap right by exactly one page width
                                     dragOffset = width
                                 } else {
-                                    // Cancel, snap back
                                     dragOffset = 0
                                 }
                             }
@@ -88,19 +87,19 @@ struct ListOverviewView: View {
         .onAppear {
             updateWeek()
             loadWeeklyTotals()
+            loadVisibleDayOverviews()
         }
         .onChange(of: date) { _, _ in
             updateWeek()
             loadWeeklyTotals()
+            loadVisibleDayOverviews()
         }
     }
 }
 
 // MARK: - Want to do:
-    // 1. fix the calander so that the circles colour is based on runningBalanceEndOfDay not netTotal
-    // 2. make it re sorts the items when a new one is added otherwise it just wacks at bottom of relevant page
-    // 3. make swiping easier, it wants to scroll not swipe to go to the next day
-    // 4. animate calander swiping
+    // 1. make swiping easier, it wants to scroll not swipe to go to the next day
+    // 2. animate calander swiping
 
 // views / calander, day and oerview bar
 extension ListOverviewView {
@@ -161,8 +160,7 @@ extension ListOverviewView {
     
     // day view
     private func dayView(for day: Date) -> some View {
-        let ledger = LedgerService(context: modelContext)
-        let overview = try? ledger.dayOverview(for: day)
+        let overview = dayOverviews[day]
         
         return VStack(alignment: .leading, spacing: 8) {
             if let overview {
@@ -248,6 +246,9 @@ extension ListOverviewView {
         .sheet(item: $selectedItem, onDismiss: handleSheetDismiss) { item in
             ItemDetailSheet(item: item, requestDelete: requestDeleteFromSheet)
                 .presentationDetents([.medium, .large])
+        }
+        .onAppear {
+            ledger = LedgerService(context: modelContext)
         }
     }
     
@@ -336,6 +337,16 @@ extension ListOverviewView {
             date,
             Calendar.current.date(byAdding: .day, value: 1, to: date)!
         ]
+    }
+    
+    private func loadVisibleDayOverviews() {
+        let ledger = LedgerService(context: modelContext)
+        
+        for day in visibleDates {
+            if let overview = try? ledger.dayOverview(for: day) {
+                dayOverviews[day] = overview
+            }
+        }
     }
     
     private func changeDay(by offset: Int) {
