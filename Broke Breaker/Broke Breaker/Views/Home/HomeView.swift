@@ -13,7 +13,8 @@ struct HomeView: View {
    
     
     //------Declare Data Variables----------------
-    
+    @State private var showTodayDetails = false
+
     @State private var balanceToday: Double = 0
     @State private var netToday: Double = 0
     @State private var dailySpendings: [Double] = Array(repeating: 0, count: 7)
@@ -47,69 +48,119 @@ struct HomeView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
 
                     
-//--------------TODAY SUMMARY CARD------------------
-                    VStack(alignment: .leading, spacing: 14) {
-                        HStack {
-                            Text("Today")
-                                .font(.headline)
-                            
-                            Spacer()
-                            
-                            Text(isNegativeToday ? "↓ Down" : "↑ Up")
-                                .font(.subheadline.weight(.semibold))
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 6)
+    //--------------TODAY SUMMARY CARD------------------
+                    ZStack {
+
+                        if !showTodayDetails {
+                            Button {
+                                withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+                                    showTodayDetails.toggle()
+                                }
+                            } label: {
+                                VStack(alignment: .leading, spacing: 14) {
+
+                                    HStack {
+                                        Text("Today")
+                                            .font(.headline)
+
+                                        Spacer()
+
+                                        Image(systemName: "chevron.right")
+                                            .font(.headline)
+                                            .opacity(0.8)
+                                    }
+
+                                    Text("Balance")
+                                        .font(.subheadline)
+                                        .opacity(0.85)
+                                        .frame(maxWidth: .infinity, alignment: .center)
+
+                                    Text("£\(balanceToday, specifier: "%.2f")")
+                                        .font(.system(size: 40, weight: .bold))
+                                        .frame(maxWidth: .infinity, alignment: .center)
+
+                                }//END
+                                .padding()
+                                .frame(maxWidth: .infinity)
                                 .background(.ultraThinMaterial)
-                                .clipShape(Capsule())
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 20)
+                                        .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                                )
+                                .cornerRadius(20)
+                                .shadow(radius: 6)
+                            }
+                            .buttonStyle(.plain)
+                            .transition(.asymmetric(insertion: .move(edge: .leading).combined(with: .opacity),
+                                                    removal: .move(edge: .trailing).combined(with: .opacity)))
                         }
 
-                        Text("Balance")
-                            .font(.subheadline)
-                            .opacity(0.85)
+                        if showTodayDetails {
+                            Button {
+                                withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+                                    showTodayDetails.toggle()
+                                }
+                            } label: {
+                                VStack(alignment: .leading, spacing: 14) {
 
-                        Text("£\(balanceToday, specifier: "%.2f")")
-                            .font(.system(size: 40, weight: .bold))
+                                    HStack {
+                                        Text("Today Details")
+                                            .font(.headline)
 
-                        HStack(spacing: 12) {
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text("Net Today")
-                                    .font(.caption)
-                                    .opacity(0.8)
+                                        Spacer()
 
-                                Text("£\(netToday, specifier: "%.2f")")
-                                    .font(.title3.weight(.semibold))
+                                        Image(systemName: "chevron.left")
+                                            .font(.headline)
+                                            .opacity(0.8)
+                                    }
+
+                                    HStack {
+                                        VStack(alignment: .leading, spacing: 6) {
+                                            Text("Net Today")
+                                                .font(.caption)
+                                                .opacity(0.8)
+
+                                            Text("£\(netToday, specifier: "%.2f")")
+                                                .font(.title2.weight(.bold))
+                                        }
+
+                                        Spacer()
+
+                                       
+                                    }
+
+                                    Divider().opacity(0.25)
+
+                                    HStack(spacing: 12) {
+                                        VStack(alignment: .leading, spacing: 6) {
+                                            Text("Balance End Of Day")
+                                                .font(.caption)
+                                                .opacity(0.8)
+
+                                            Text("£\(balanceToday, specifier: "%.2f")")
+                                                .font(.title3.weight(.semibold))
+                                        }
+
+                                        Spacer()
+                                    }
+
+                                }//END
+                                .padding()
+                                .frame(maxWidth: .infinity)
+                                .background(.thinMaterial)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 20)
+                                        .stroke(Color.white.opacity(0.10), lineWidth: 1)
+                                )
+                                .cornerRadius(20)
+                                .shadow(radius: 10)
                             }
-
-                            Spacer()
-
-                            VStack(alignment: .trailing, spacing: 6) {
-                                Text("Status")
-                                    .font(.caption)
-                                    .opacity(0.8)
-
-                                Text(isNegativeToday ? "Negative" : "Positive")
-                                    .font(.title3.weight(.semibold))
-                            }
+                            .buttonStyle(.plain)
+                            .transition(.asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity),
+                                                    removal: .move(edge: .leading).combined(with: .opacity)))
                         }
-                    }//END
-                    .padding()
-                    .frame(maxWidth: .infinity)
-                    .background(.ultraThinMaterial)
-                    .overlay(
-                    RoundedRectangle(cornerRadius: 20)
-                    .stroke(Color.white.opacity(0.12), lineWidth: 1)
-                    
-                    )
-                    
-                    .cornerRadius(20)
-                    .shadow(radius: 6)
-                    
-                    
 
-
-                            
-
-                                    
+                    }
 
                     
 // -------------------------------------------------
@@ -146,6 +197,8 @@ private func loadRealData() {
             let totalsToday = try ledger.dayTotals(for: today)
             netToday = (totalsToday.netTotal as NSDecimalNumber).doubleValue
             balanceToday = (totalsToday.runningBalanceEndOfDay as NSDecimalNumber).doubleValue
+            print("netToday =", netToday)
+
 
             var values: [Double] = []
 
