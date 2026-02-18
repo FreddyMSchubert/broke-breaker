@@ -19,6 +19,15 @@ struct HomeView: View {
     @State private var netToday: Double = 0
     @State private var dailySpendings: [Double] = Array(repeating: 0, count: 7)
     
+    @State private var selectedIndex: Int? = nil
+    @State private var selectedDayItems: [DayLineItem] = []
+    @State private var selectedDayNet: Double = 0
+    @State private var selectedDayDate: Date = Date()
+    
+    @State private var showChartFullScreen = false
+    
+    @Namespace private var chartNamespace
+    
     private var isNegativeToday: Bool { netToday < 0 }
 
     
@@ -27,10 +36,20 @@ struct HomeView: View {
     
     var body: some View {
         ZStack{
-            (isNegativeToday
-             ? Color(.sRGB, red: 0.78, green: 0.29, blue: 0.29, opacity: 1.0)
-             : Color.blue.opacity(0.45))
-
+            
+            LinearGradient(
+                colors: isNegativeToday
+                ? [
+                    Color(red: 0.22, green: 0.03, blue: 0.07),
+                    Color(red: 0.52, green: 0.09, blue: 0.17)
+                  ]
+                : [
+                    Color(red: 0.03, green: 0.10, blue: 0.26),
+                    Color(red: 0.08, green: 0.21, blue: 0.48)
+                  ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
             .ignoresSafeArea()
            
             
@@ -42,11 +61,9 @@ struct HomeView: View {
                     
 //---------------------- PAGE TITLE--------------------
                     
-                    Text("Spending Overview")
-                        .font(.largeTitle)
-                        .fontWeight(.bold)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-
+                    Text("BROKE BREAK")
+                        .font(.system(size: 28, weight: .bold, design: .rounded))
+                            .tracking(1)
                     
     //--------------TODAY SUMMARY CARD------------------
                     ZStack {
@@ -125,8 +142,6 @@ struct HomeView: View {
                                         }
 
                                         Spacer()
-
-                                       
                                     }
 
                                     Divider().opacity(0.25)
@@ -167,20 +182,121 @@ struct HomeView: View {
                     VStack(alignment: .leading, spacing: 16) {
                         Text("Daily Net Trend")
                             .font(.headline)
-                        FlowAreaChart(values: dailySpendings, budget: 0)
-                            .frame(height: 200)
                         
+                        Button {
+                            withAnimation(.spring(response: 0.45, dampingFraction: 0.9)) {
+                                showChartFullScreen = true
+                            }
+                        } label: {
+                            VStack(spacing: 12) {
+                                FlowAreaChart(values: dailySpendings, budget: 0, selectedIndex: $selectedIndex, isNegativeTheme: isNegativeToday)
+                                    .frame(height: 200)
+                                    .onChange(of: selectedIndex) { newValue in
+                                        guard let newValue else { return }
+                                        updateSelectedDayDetails(index: newValue)
+                                    }
+                                
+                                if selectedIndex != nil {
+                                    VStack(alignment: .leading, spacing: 10) {
+                                        HStack {
+                                            Text(selectedDayDate.formatted(date: .abbreviated, time: .omitted))
+                                                .font(.subheadline.weight(.semibold))
+                                            
+                                            Spacer()
+                                            
+                                            Text("£\(selectedDayNet, specifier: "%.2f")")
+                                                .font(.subheadline.weight(.bold))
+                                        }
+                                        
+                                        if selectedDayItems.isEmpty {
+                                            Text("No transactions")
+                                                .font(.caption)
+                                                .opacity(0.7)
+                                        } else {
+                                            ForEach(selectedDayItems) { item in
+                                                HStack {
+                                                    Text(item.title)
+                                                        .font(.caption)
+                                                        .lineLimit(1)
+                                                    
+                                                    Spacer()
+                                                    
+                                                    Text("£\(NSDecimalNumber(decimal: item.amount).doubleValue, specifier: "%.2f")")
+                                                        .font(.caption.weight(.semibold))
+                                                }
+                                                .opacity(0.95)
+                                            }
+                                        }
+                                    }
+                                    .padding()
+                                    .frame(maxWidth: .infinity)
+                                    .background(.ultraThinMaterial)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 18)
+                                            .stroke(Color.white.opacity(0.10), lineWidth: 1)
+                                    )
+                                    .cornerRadius(18)
+                                    .transition(.opacity)
+                                }
+                            }
+                            .padding()
+                            .frame(maxWidth: .infinity)
+                            .background(
+                                LinearGradient(
+                                    colors: isNegativeToday
+                                    ? [
+                                        Color(red: 0.42, green: 0.08, blue: 0.14).opacity(0.55),
+                                        Color(red: 0.22, green: 0.03, blue: 0.07).opacity(0.55)
+                                      ]
+                                    : [
+                                        Color(red: 0.10, green: 0.20, blue: 0.46).opacity(0.55),
+                                        Color(red: 0.04, green: 0.10, blue: 0.26).opacity(0.55)
+                                      ],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 20)
+                                    .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                            )
+                            .cornerRadius(20)
+                            .shadow(color: isNegativeToday ? .red.opacity(0.28) : .blue.opacity(0.28), radius: 20, x: 0, y: 10)
+                            .matchedGeometryEffect(id: "chartCard", in: chartNamespace)
+                        }
+                        .buttonStyle(.plain)
                     }
                     
                     Spacer()
                     
                 }
                 .padding()
-                .foregroundColor(isNegativeToday ? .white : .primary)
+                .foregroundColor(.white)
 
                 
                 
             }//Close ScrollView
+            
+            
+            if showChartFullScreen {
+                ChartFullScreenOverlay(
+                    values: dailySpendings,
+                    selectedIndex: $selectedIndex,
+                    selectedDayItems: $selectedDayItems,
+                    selectedDayNet: $selectedDayNet,
+                    selectedDayDate: $selectedDayDate,
+                    ledger: ledger,
+                    isNegativeTheme: isNegativeToday,
+                    onClose: {
+                        withAnimation(.spring(response: 0.45, dampingFraction: 0.9)) {
+                            showChartFullScreen = false
+                        }
+                    }
+                )
+                .matchedGeometryEffect(id: "chartCard", in: chartNamespace)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+                .zIndex(10)
+            }
             
             
         }//Close ZStack
@@ -197,7 +313,6 @@ private func loadRealData() {
             let totalsToday = try ledger.dayTotals(for: today)
             netToday = (totalsToday.netTotal as NSDecimalNumber).doubleValue
             balanceToday = (totalsToday.runningBalanceEndOfDay as NSDecimalNumber).doubleValue
-            print("netToday =", netToday)
 
 
             var values: [Double] = []
@@ -209,12 +324,38 @@ private func loadRealData() {
             }
 
             dailySpendings = values
+            selectedIndex = nil
+            selectedDayItems = []
+            selectedDayNet = 0
+            selectedDayDate = today
 
         } catch {
             print("HomeView loadRealData error:", error)
             balanceToday = 0
             netToday = 0
             dailySpendings = Array(repeating: 0, count: 7)
+            selectedIndex = nil
+            selectedDayItems = []
+            selectedDayNet = 0
+            selectedDayDate = Date()
+        }
+    }
+
+    
+private func updateSelectedDayDetails(index: Int) {
+        let cal = Calendar.current
+        let today = Date()
+        let offset = 6 - index
+        let date = cal.date(byAdding: .day, value: -offset, to: today) ?? today
+        selectedDayDate = date
+        
+        do {
+            let overview = try ledger.dayOverview(for: date)
+            selectedDayItems = overview.items
+            selectedDayNet = (overview.netTotal as NSDecimalNumber).doubleValue
+        } catch {
+            selectedDayItems = []
+            selectedDayNet = 0
         }
     }
 
@@ -223,6 +364,163 @@ private func loadRealData() {
     
 }//Close HomeView
     
+
+
+struct ChartFullScreenOverlay: View {
+    
+    let values: [Double]
+    
+    @Binding var selectedIndex: Int?
+    @Binding var selectedDayItems: [DayLineItem]
+    @Binding var selectedDayNet: Double
+    @Binding var selectedDayDate: Date
+    
+    let ledger: LedgerService
+    let isNegativeTheme: Bool
+    let onClose: () -> Void
+    
+    @State private var dragOffset: CGFloat = 0
+    
+    var body: some View {
+        ZStack {
+            
+            Color.black.opacity(0.35)
+                .ignoresSafeArea()
+                .onTapGesture {
+                    onClose()
+                }
+            
+            VStack(spacing: 14) {
+                
+                HStack {
+                    Text("Daily Net Trend")
+                        .font(.headline)
+                    
+                    Spacer()
+                    
+                    Button {
+                        onClose()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title2)
+                            .opacity(0.85)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal)
+                .padding(.top, 14)
+                
+                FlowAreaChart(values: values, budget: 0, selectedIndex: $selectedIndex, isNegativeTheme: isNegativeTheme)
+                    .frame(height: 340)
+                    .padding(.horizontal)
+                    .onChange(of: selectedIndex) { newValue in
+                        guard let newValue else { return }
+                        updateSelectedDayDetails(index: newValue)
+                    }
+                
+                if selectedIndex != nil {
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack {
+                            Text(selectedDayDate.formatted(date: .abbreviated, time: .omitted))
+                                .font(.subheadline.weight(.semibold))
+                            
+                            Spacer()
+                            
+                            Text("£\(selectedDayNet, specifier: "%.2f")")
+                                .font(.subheadline.weight(.bold))
+                        }
+                        
+                        if selectedDayItems.isEmpty {
+                            Text("No transactions")
+                                .font(.caption)
+                                .opacity(0.7)
+                        } else {
+                            ForEach(selectedDayItems) { item in
+                                HStack {
+                                    Text(item.title)
+                                        .font(.caption)
+                                        .lineLimit(1)
+                                    
+                                    Spacer()
+                                    
+                                    Text("£\(NSDecimalNumber(decimal: item.amount).doubleValue, specifier: "%.2f")")
+                                        .font(.caption.weight(.semibold))
+                                }
+                                .opacity(0.95)
+                            }
+                        }
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity)
+                    .background(.ultraThinMaterial)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 18)
+                            .stroke(Color.white.opacity(0.10), lineWidth: 1)
+                    )
+                    .cornerRadius(18)
+                    .padding(.horizontal)
+                } else {
+                    Text("Swipe across the chart to inspect days")
+                        .font(.caption)
+                        .opacity(0.75)
+                        .padding(.bottom, 10)
+                }
+                
+                Spacer()
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(
+                LinearGradient(
+                    colors: [
+                        Color.black.opacity(0.86),
+                        Color.black.opacity(0.95)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
+            .cornerRadius(28)
+            .shadow(color: isNegativeTheme ? .red.opacity(0.25) : .blue.opacity(0.25), radius: 28, x: 0, y: 18)
+            .offset(y: max(0, dragOffset))
+            .gesture(
+                DragGesture()
+                    .onChanged { g in
+                        if g.translation.height > 0 {
+                            dragOffset = g.translation.height
+                        }
+                    }
+                    .onEnded { g in
+                        if g.translation.height > 140 {
+                            onClose()
+                        }
+                        dragOffset = 0
+                    }
+            )
+            .padding(.top, 20)
+            .padding(.bottom, 20)
+            .padding(.horizontal, 12)
+        }
+    }
+    
+    
+    private func updateSelectedDayDetails(index: Int) {
+        let cal = Calendar.current
+        let today = Date()
+        let offset = 6 - index
+        let date = cal.date(byAdding: .day, value: -offset, to: today) ?? today
+        selectedDayDate = date
+        
+        do {
+            let overview = try ledger.dayOverview(for: date)
+            selectedDayItems = overview.items
+            selectedDayNet = (overview.netTotal as NSDecimalNumber).doubleValue
+        } catch {
+            selectedDayItems = []
+            selectedDayNet = 0
+        }
+    }
+}
+
 
 // -------------------------------------------------
 
@@ -249,62 +547,79 @@ struct FlowAreaChart: View {
    
     let values: [Double]
     let budget: Double
+    @Binding var selectedIndex: Int?
+    let isNegativeTheme: Bool
     
     var body: some View {
         
         GeometryReader { geo in
-            let maxValue = max(values.max() ?? 1, budget) // Finds the highest value between spending and budget
+            let minValue = min(values.min() ?? 0, 0)
+            let maxValue = max(values.max() ?? 0, 0)
+            let range = (maxValue - minValue) == 0 ? 1 : (maxValue - minValue)
             
+            let zeroPosition = CGFloat((0 - minValue) / range)
+            let zeroY = geo.size.height - (geo.size.height * zeroPosition)
             
-//---------------FILLED SPENDING AREA---------------------
-
+            let lineGradient = LinearGradient(
+                colors: isNegativeTheme
+                ? [
+                    Color(red: 1.00, green: 0.35, blue: 0.42),
+                    Color(red: 0.85, green: 0.10, blue: 0.25)
+                  ]
+                : [
+                    Color(red: 0.35, green: 0.95, blue: 1.00),
+                    Color(red: 0.10, green: 0.55, blue: 1.00)
+                  ],
+                startPoint: .leading,
+                endPoint: .trailing
+            )
+            
+            let fillGradient = LinearGradient(
+                colors: isNegativeTheme
+                ? [
+                    Color(red: 0.95, green: 0.22, blue: 0.30).opacity(0.35),
+                    Color(red: 0.95, green: 0.22, blue: 0.30).opacity(0.05)
+                  ]
+                : [
+                    Color(red: 0.20, green: 0.70, blue: 1.00).opacity(0.35),
+                    Color(red: 0.20, green: 0.70, blue: 1.00).opacity(0.05)
+                  ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            
             ZStack {
                 
                 Path { path in
-                    
-                    for index in values.indices { // Loops through every day’s spending value
+                    for index in values.indices {
+                        let x = geo.size.width / CGFloat(max(values.count - 1, 1)) * CGFloat(index)
+                        let percentage = CGFloat((values[index] - minValue) / range)
+                        let y = geo.size.height - (geo.size.height * percentage)
                         
-                        // Spreads points evenly across the width of the chart
-                        let x = geo.size.width / CGFloat(values.count - 1) * CGFloat(index)
-                        
-                        // Converts spending amount into vertical screen position
-                        // Bigger spending = higher point on chart
-                        let y = geo.size.height - (geo.size.height * CGFloat(values[index] / maxValue))
-                       
                         if index == 0 {
-                            // Starts the drawing path at the first data point
                             path.move(to: CGPoint(x: x, y: y))
-                            
                         } else {
-                            // Draws straight lines connecting points
                             path.addLine(to: CGPoint(x: x, y: y))
                         }
                     }
                     
-                    // Drop line down to bottom-right corner
                     path.addLine(to: CGPoint(x: geo.size.width, y: geo.size.height))
-                    
-                    // Draws line to bottom-left corner
                     path.addLine(to: CGPoint(x: 0, y: geo.size.height))
-                    
-                    // Closes shape so it can be filled
                     path.closeSubpath()
                 }
-                .fill(
-                    LinearGradient(
-                        colors: [.blue.opacity(0.6), .blue.opacity(0.1)],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
+                .fill(fillGradient)
                 
-// ----------------SPENDING LINE-------------------------
                 Path { path in
-                    
+                    path.move(to: CGPoint(x: 0, y: zeroY))
+                    path.addLine(to: CGPoint(x: geo.size.width, y: zeroY))
+                }
+                .stroke(Color.white.opacity(0.22), style: StrokeStyle(lineWidth: 1, dash: [6]))
+                
+                Path { path in
                     for index in values.indices {
-                        
-                        let x = geo.size.width / CGFloat(values.count - 1) * CGFloat(index)
-                        let y = geo.size.height - (geo.size.height * CGFloat(values[index] / maxValue))
+                        let x = geo.size.width / CGFloat(max(values.count - 1, 1)) * CGFloat(index)
+                        let percentage = CGFloat((values[index] - minValue) / range)
+                        let y = geo.size.height - (geo.size.height * percentage)
                         
                         if index == 0 {
                             path.move(to: CGPoint(x: x, y: y))
@@ -313,7 +628,43 @@ struct FlowAreaChart: View {
                         }
                     }
                 }
-                .stroke(.blue, lineWidth: 3)
+                .stroke(lineGradient, lineWidth: 3)
+                
+                if let i = selectedIndex, values.indices.contains(i) {
+                    let x = geo.size.width / CGFloat(max(values.count - 1, 1)) * CGFloat(i)
+                    let percentage = CGFloat((values[i] - minValue) / range)
+                    let y = geo.size.height - (geo.size.height * percentage)
+                    
+                    Path { path in
+                        path.move(to: CGPoint(x: x, y: 0))
+                        path.addLine(to: CGPoint(x: x, y: geo.size.height))
+                    }
+                    .stroke(Color.white.opacity(0.14), lineWidth: 1)
+                    
+                    Circle()
+                        .fill(.white)
+                        .frame(width: 10, height: 10)
+                        .position(x: x, y: y)
+                        .shadow(color: .white.opacity(0.25), radius: 10, x: 0, y: 0)
+                }
+                
+                Rectangle()
+                    .fill(Color.clear)
+                    .contentShape(Rectangle())
+                    .gesture(
+                        DragGesture(minimumDistance: 0)
+                            .onChanged { g in
+                                let step = geo.size.width / CGFloat(max(values.count - 1, 1))
+                                let raw = Int(round(g.location.x / step))
+                                let clamped = min(max(raw, 0), max(values.count - 1, 0))
+                                selectedIndex = values.isEmpty ? nil : clamped
+                            }
+                            .onEnded { _ in
+                                if values.isEmpty {
+                                    selectedIndex = nil
+                                }
+                            }
+                    )
             }
         }
     }
