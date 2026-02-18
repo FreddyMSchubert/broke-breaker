@@ -11,6 +11,8 @@ struct ItemDetailSheet: View {
     @State private var showDeleteConfirm = false
     @State private var showEditSheet = false
     @State private var pendingDelete = false
+    
+    @State private var refreshTick = 0 // arbitrary data, just for refreshing
 
     // Resolved models
     private var oneTime: OneTimeTransaction? {
@@ -41,7 +43,7 @@ struct ItemDetailSheet: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .center)
 
-                Text(item.title)
+                Text(displayTitle)
                     .font(.title2.weight(.semibold))
                     .frame(maxWidth: .infinity, alignment: .center)
                     .lineLimit(2)
@@ -136,13 +138,33 @@ struct ItemDetailSheet: View {
         } message: {
             Text("This can’t be undone.")
         }
+        .sheet(isPresented: $showEditSheet, onDismiss: { refreshTick += 1 }) {
+            if let tx = oneTime {
+                TransactionEditorView(mode: .editOneTime(tx))
+                    .presentationDetents([.large])
+            } else if let rule = recurring {
+                TransactionEditorView(mode: .editRecurring(rule))
+                    .presentationDetents([.large])
+            } else {
+                Text("Missing item.")
+                    .presentationDetents([.medium])
+            }
+        }
+        .id(refreshTick)
     }
+
     private var displayAmount: Decimal {
         switch item.source {
         case .oneTime:
             return oneTime?.amount ?? item.amount
         case .recurring:
             return recurring?.amountPerCycle ?? item.amount
+        }
+    }
+    private var displayTitle: String {
+        switch item.source {
+        case .oneTime: return oneTime?.title ?? item.title
+        case .recurring: return recurring?.title ?? item.title
         }
     }
 
