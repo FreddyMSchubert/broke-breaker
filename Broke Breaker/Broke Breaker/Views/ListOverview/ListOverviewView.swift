@@ -68,8 +68,9 @@ struct ListOverviewView: View {
 }
 
 // MARK: - Want to do:
-    // 1. make swiping easier, it wants to scroll not swipe to go to the next day
+    // 1. fix swiping too fast
     // 2. animate calander swiping
+    // 3. modify .inline(1)
 
 // views / calander, day and oerview bar
 extension ListOverviewView {
@@ -209,8 +210,10 @@ extension ListOverviewView {
                     .frame(maxWidth: .infinity)
                 Spacer()
             }
+            Spacer()
             Divider()
             overviewBar(for: day)
+                .padding(.bottom, 8)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .contentShape(Rectangle())
@@ -251,10 +254,13 @@ extension ListOverviewView {
                     .foregroundStyle(rollover >= 0
                                      ? .blue
                                      : .red)
+                    .lineLimit(1)
                 Text("+\(incomingTotal, format: .number.precision(.fractionLength(2)))")
                     .foregroundStyle(.blue)
+                    .lineLimit(1)
                 Text("\(outgoingTotal, format: .number.precision(.fractionLength(2)))")
                     .foregroundStyle(.red)
+                    .lineLimit(1)
             }
             VStack(alignment: .leading) {
                 Text("Rollover")
@@ -272,6 +278,7 @@ extension ListOverviewView {
                 .foregroundStyle(dayNetTotal >= 0
                                  ? .blue
                                  : .red)
+                .lineLimit(1)
             Spacer()
         }
         .fontWeight(.semibold)
