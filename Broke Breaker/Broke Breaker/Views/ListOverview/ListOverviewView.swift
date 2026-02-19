@@ -2,187 +2,274 @@ import SwiftUI
 import SwiftData
 
 struct ListOverviewView: View {
+    
     @Environment(\.modelContext) private var modelContext
-    @State private var color: Color = .blue
-    @State private var date = Date.now
-    @State private var weekStart: Date = Calendar.current.date(from: Calendar.current.dateComponents([.yearForWeekOfYear, .weekOfYear], from: Date()))!
-    @State private var dayOverview: DayOverview?
-    @State private var loadError: String?
-    @State private var weeklyOverview: [Date: DayOverview] = [:]
 
-    
-    let colums = Array(repeating: GridItem(.flexible()), count: 7)
-    
+    @State private var date: Date = .now
+    @State private var weekStart: Date = Calendar.current.date(
+        from: Calendar.current.dateComponents([.yearForWeekOfYear, .weekOfYear], from: .now)
+    )!
+    @State private var weeklyOverview: [Date: DayOverview] = [:]
+    @State private var selectedItem: DayLineItem?
+    @State private var dragOffset: CGFloat = 0
+    @State private var pendingDeleteSource: DayLineItem.Source?
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             
-            // date picker and today button
-            HStack (){
+            // Header
+            Text("List Overview")
+                .font(.largeTitle.bold())
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 8)
+            
+            // Date Picker
+            HStack {
                 DatePicker("", selection: $date, displayedComponents: .date)
-                Button(action: today) {
-                    Text("Today")
-                        .foregroundColor(.black)
-                } .buttonStyle(.bordered)
+                Button("Today") { date = .now }
+                    .buttonStyle(.bordered)
             }
+
+            // Week Calendar
+            weekCalendar
+            Divider()
             
-            // The calander
-            HStack{
-                let days: [Date] = (0..<7).compactMap {
-                    Calendar.current.date(byAdding: .day, value: $0, to: weekStart)
-                }
-                let daysLetters = ["M", "T", "W", "T", "F", "S", "S"]
-                ForEach(days.indices, id: \.self) { index in
-                    let day = days[index]
-                    VStack(spacing: 6) {
-                        // The week letter
-                        Text(daysLetters[index])
-                            .foregroundStyle(.secondary)
-                            .font(.caption.bold())
-                        // The day number
-                        Text(day.formatted(.dateTime.day()))
-                            .fontWeight(.bold)
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity, minHeight: 40)
-                            .background(
-                                Circle()
-                                    .foregroundStyle(
-                                        Calendar.current.isDate(day, inSameDayAs: date)
-                                        ? Color.orange
-                                        : (weeklyOverview[day]?.netTotal ?? 0) >= 0
-                                            ? Color.blue
-                                            : Color.red
-                                    )
-                            )
-                    }
-                    .frame(maxWidth: .infinity)
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        date = day
+            // Day views with swipe
+            GeometryReader { geo in
+                HStack(spacing: 0) {
+                    ForEach(visibleDates, id: \.self) { day in
+                        dayView(for: day)
+                            .frame(width: geo.size.width)
                     }
                 }
+                .frame(width: geo.size.width * 3, alignment: .leading)
+                .offset(x: -geo.size.width + dragOffset)
+                .animation(.interactiveSpring(response: 0.25, dampingFraction: 0.85), value: dragOffset)
+                .contentShape(Rectangle()) // capture gestures even on empty space
+                .gesture(daySwipeGesture)
             }
-            .gesture(
-                DragGesture(minimumDistance: 20)
-                    .onEnded { value in
-                        if value.translation.width < -50 {
-                            // Swiped left → next week
-                            changeWeek(by: 1)
-                        } else if value.translation.width > 50 {
-                            // Swiped right → previous week
-                            changeWeek(by: -1)
-                        }
-                    }
-            )
-            
-            // Items for selected day
-            VStack(alignment: .leading, spacing: 8) {
-                Spacer()
-                Divider()
+            .frame(maxHeight: .infinity)
+        }
+        .padding(.horizontal)
+        .onAppear {
+            updateWeek()
+            loadWeeklyOverview()
+        }
+        .onChange(of: date) { _, _ in
+            updateWeek()
+            loadWeeklyOverview()
+        }
+    }
+}
 
-                if let overview = dayOverview {
-                    if overview.items.isEmpty {
-                        Spacer()
-                        Label("No Items", systemImage: "tray")
-                            .font(.title)
-                            .imageScale(.large)
-                            .frame(maxWidth: .infinity)
-                            .multilineTextAlignment(.center)
-                        List{}
-                    }
-                    else {
-                        Text("Transactions:")
-                            .font(.title2)
-                        Divider()
-                        
-                        let sortedItems = overview.items.sorted { lhs, rhs in
-                            if lhs.amount == rhs.amount { return lhs.title < rhs.title }
-                            return lhs.amount > rhs.amount
-                        }
-                        List {
-                            ForEach(sortedItems) { item in
-                                HStack {
-                                    Text(item.title)
-                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                    Text(item.amount as NSNumber, formatter: currencyFormatter)
-                                        .foregroundStyle(item.amount >= 0 ? .blue : .red)
-                                }
-                                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                    Button(role: .destructive) {
-                                        delete(item: item)
-                                    } label: {
-                                        Label("Delete", systemImage: "trash")
-                                    }
-                                }
-                            }
-                        }
-                        .listStyle(.plain)
-                        .frame(minHeight: 0, maxHeight: .infinity)
-
-
-                        Divider()
-                        HStack {
-                            Text("Net total")
-                                .fontWeight(.semibold)
-                            Spacer()
-                            Text(overview.netTotal as NSNumber, formatter: currencyFormatter)
-                                .fontWeight(.semibold)
-                                .foregroundStyle(overview.netTotal >= 0 ? .blue : .red)
-                        }
-                    }
+// MARK: - Calendar & Swipe Logic
+extension ListOverviewView {
+    
+    private var visibleDates: [Date] {
+        [
+            Calendar.current.date(byAdding: .day, value: -1, to: date)!,
+            date,
+            Calendar.current.date(byAdding: .day, value: 1, to: date)!
+        ]
+    }
+    
+    private func changeDay(by offset: Int) {
+        if let newDate = Calendar.current.date(byAdding: .day, value: offset, to: date) {
+            date = newDate
+        }
+    }
+    
+    private func changeWeek(by offset: Int) {
+        if let newWeek = Calendar.current.date(byAdding: .weekOfYear, value: offset, to: weekStart) {
+            weekStart = newWeek
+            date = newWeek
+            loadWeeklyOverview()
+        }
+    }
+    
+    private var daySwipeGesture: some Gesture {
+        DragGesture(minimumDistance: 10)
+            .onChanged { value in
+                guard abs(value.translation.width) > abs(value.translation.height) else { return }
+                dragOffset = value.translation.width
+            }
+            .onEnded { value in
+                let threshold: CGFloat = 60
+                if value.translation.width < -threshold || value.predictedEndTranslation.width < -threshold {
+                    changeDay(by: 1)
+                } else if value.translation.width > threshold || value.predictedEndTranslation.width > threshold {
+                    changeDay(by: -1)
                 }
-                else {
-                    Text("No items for this day.")
+                dragOffset = 0
+            }
+    }
+    
+    private var weekCalendar: some View {
+        let days = (0..<7).compactMap {
+            Calendar.current.date(byAdding: .day, value: $0, to: weekStart)
+        }
+        let letters = ["M", "T", "W", "T", "F", "S", "S"]
+        
+        return HStack {
+            ForEach(days.indices, id: \.self) { index in
+                let day = days[index]
+                
+                VStack(spacing: 6) {
+                    Text(letters[index])
+                        .font(.caption.bold())
+                        .foregroundStyle(.secondary)
+                    
+                    Text(day.formatted(.dateTime.day()))
+                        .fontWeight(.bold)
+                        .frame(maxWidth: .infinity, minHeight: 40)
+                        .background(
+                            Circle()
+                                .foregroundStyle(
+                                    Calendar.current.isDate(day, inSameDayAs: date)
+                                    ? .orange
+                                    : (weeklyOverview[day]?.netTotal ?? 0) >= 0
+                                        ? .blue
+                                        : .red
+                                )
+                        )
                         .foregroundStyle(.secondary)
                 }
+                .frame(maxWidth: .infinity)
+                .contentShape(Rectangle())
+                .onTapGesture { date = day }
             }
         }
-        .padding()
-        .navigationTitle("List Overview")
-        
-        .onAppear {
-            weekStart = Calendar.current.date(from:
-                Calendar.current.dateComponents([.yearForWeekOfYear, .weekOfYear], from: date)
-            ) ?? weekStart
-            loadOverview()
-        }
-        
-        .onChange(of: date) { _, newValue in
-            weekStart = Calendar.current.date(from:
-                Calendar.current.dateComponents([.yearForWeekOfYear, .weekOfYear], from: newValue)
-            ) ?? weekStart
-            loadOverview()
-        }
-    }
-
-    
-    // functions
-    private func today() {
-        date = Date.now
-    }
-
-    private func loadOverview() {
-        let ledger = LedgerService(context: modelContext)
-        do {
-            dayOverview = try ledger.dayOverview(for: date)
-        } catch {
-            loadError = error.localizedDescription
-            dayOverview = nil
-        }
-        
-        weeklyOverview.removeAll()
-        for i in 0..<7 {
-            if let day = Calendar.current.date(byAdding: .day, value: i, to: weekStart) {
-                if let overview = try? ledger.dayOverview(for: day) {
-                    weeklyOverview[day] = overview
+        .contentShape(Rectangle())
+        .gesture(
+            DragGesture(minimumDistance: 20)
+                .onEnded { value in
+                    let threshold: CGFloat = 50
+                    if value.translation.width < -threshold {
+                        changeWeek(by: 1)
+                    } else if value.translation.width > threshold {
+                        changeWeek(by: -1)
+                    }
                 }
+        )
+    }
+    
+    private func updateWeek() {
+        weekStart = Calendar.current.date(
+            from: Calendar.current.dateComponents([.yearForWeekOfYear, .weekOfYear], from: date)
+        ) ?? weekStart
+    }
+    
+    private func loadWeeklyOverview() {
+        let ledger = LedgerService(context: modelContext)
+        weeklyOverview.removeAll()
+        
+        for i in 0..<7 {
+            if let day = Calendar.current.date(byAdding: .day, value: i, to: weekStart),
+               let overview = try? ledger.dayOverview(for: day) {
+                weeklyOverview[day] = overview
             }
         }
     }
+}
 
-    private func delete(item: DayLineItem) {
+// MARK: - Day View & Sheet Handling
+extension ListOverviewView {
+    
+    private func dayView(for day: Date) -> some View {
+        let ledger = LedgerService(context: modelContext)
+        let overview = try? ledger.dayOverview(for: day)
+        
+        return VStack(alignment: .leading, spacing: 8) {
+            if let overview {
+                if overview.items.isEmpty {
+                    Spacer()
+                    Label("No Items", systemImage: "tray")
+                        .font(.title)
+                        .frame(maxWidth: .infinity)
+                    Spacer()
+                } else {
+                    List {
+                        ForEach(overview.items.sorted {
+                            $0.amount == $1.amount ? $0.title < $1.title : $0.amount > $1.amount
+                        }) { item in
+                            HStack {
+                                Text(item.title)
+                                Spacer()
+                                let amountDouble = NSDecimalNumber(decimal: item.amount).doubleValue
+                                Text("\(amountDouble, format: .number.precision(.fractionLength(2)))")
+                                    .foregroundStyle(item.amount >= 0 ? .blue : .red)
+                            }
+                            .contentShape(Rectangle())
+                            .onTapGesture { selectedItem = item }
+                        }
+                    }
+                    .listStyle(.plain)
+                    Divider()
+                    overviewBar(for: day, overview: overview)
+                }
+            } else {
+                Spacer()
+                Text("No items for this day.")
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity)
+                Spacer()
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .contentShape(Rectangle())
+        .sheet(item: $selectedItem, onDismiss: handleSheetDismiss) { item in
+            ItemDetailSheet(item: item, requestDelete: requestDeleteFromSheet)
+                .presentationDetents([.medium, .large])
+        }
+    }
+    
+    private func overviewBar(for day: Date, overview: DayOverview) -> some View {
+        let ledger = LedgerService(context: modelContext)
+        let previousDay = Calendar.current.date(byAdding: .day, value: -1, to: day)!
+        let previousTotals = try? ledger.dayTotals(for: previousDay)
+        let rollover = previousTotals?.runningBalanceEndOfDay ?? 0
+        
+        let incomingTotal: Double = overview.items.map { NSDecimalNumber(decimal: $0.amount).doubleValue }
+            .filter { $0 > 0 }.reduce(0, +)
+        let outgoingTotal: Double = overview.items.map { NSDecimalNumber(decimal: $0.amount).doubleValue }
+            .filter { $0 < 0 }.reduce(0, +)
+        let dayTotals = try? ledger.dayTotals(for: day)
+        let dayNetTotal: Decimal = dayTotals?.runningBalanceEndOfDay ?? 0
+        
+        return HStack {
+            VStack(alignment: .trailing) {
+                Text("\(rollover, format: .number.precision(.fractionLength(2)))")
+                    .foregroundStyle(rollover >= 0 ? .blue : .red)
+                Text("+\(incomingTotal, format: .number.precision(.fractionLength(2)))")
+                    .foregroundStyle(.blue)
+                Text("\(outgoingTotal, format: .number.precision(.fractionLength(2)))")
+                    .foregroundStyle(.red)
+            }
+            VStack(alignment: .leading) {
+                Text("Rollover")
+                Text("Income")
+                Text("Expense")
+            }
+            Spacer()
+            Text("\(dayNetTotal, format: .number.precision(.fractionLength(2)))")
+                .font(.title)
+                .fontWeight(.bold)
+                .foregroundStyle(dayNetTotal >= 0 ? .blue : .red)
+        }
+        .fontWeight(.semibold)
+    }
+    
+    private func requestDeleteFromSheet(_ source: DayLineItem.Source) {
+        pendingDeleteSource = source
+        selectedItem = nil
+    }
+    
+    private func handleSheetDismiss() {
+        guard let source = pendingDeleteSource else { return }
+        pendingDeleteSource = nil
         let ledger = LedgerService(context: modelContext)
         do {
-            switch item.source {
+            switch source {
             case .oneTime(let id):
                 if let tx = modelContext.model(for: id) as? OneTimeTransaction {
                     try ledger.deleteOneTime(tx)
@@ -192,23 +279,21 @@ struct ListOverviewView: View {
                     try ledger.deleteRecurring(rule)
                 }
             }
-            loadOverview()
+            loadWeeklyOverview()
         } catch {
-            loadError = error.localizedDescription
+            print("Delete failed:", error)
         }
     }
-    
-    private func changeWeek(by offset: Int) {
-        if let newWeekStart = Calendar.current.date(byAdding: .weekOfYear, value: offset, to: weekStart) {
-            weekStart = newWeekStart
-            date = newWeekStart
-            loadOverview()
-        }
-    }
+}
 
+// MARK: - Currency Formatter
+extension ListOverviewView {
     private var currencyFormatter: NumberFormatter {
-        let f = NumberFormatter()
-        f.numberStyle = .currency
-        return f
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.locale = .current
+        formatter.maximumFractionDigits = 2
+        formatter.minimumFractionDigits = 2
+        return formatter
     }
 }

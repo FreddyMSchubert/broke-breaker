@@ -14,6 +14,8 @@ struct AddItemView: View {
     @State private var amountDigits: String = ""
     @State private var isPositive: Bool = false
     @State private var selectedDate: Date = Date()
+    @State private var hasEndDate: Bool = false
+    @State private var selectedEndDate: Date = Date()
 
     enum TxType: String, CaseIterable, Identifiable {
         case oneTime = "One-time"
@@ -72,6 +74,10 @@ struct AddItemView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
+                Text("New Transaction")
+                    .font(.largeTitle.bold())
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, 8)
 
                 // Title
                 VStack(alignment: .leading, spacing: 8) {
@@ -183,6 +189,7 @@ struct AddItemView: View {
                         Spacer()
 
                         VStack(alignment: .leading, spacing: 10) {
+                            
                             Text("Schedule")
                                 .font(.title3.weight(.semibold))
 
@@ -218,6 +225,50 @@ struct AddItemView: View {
                         Spacer()
                     }
                     .transition(.opacity.combined(with: .move(edge: .top)))
+
+                    // End date
+                    HStack {
+                        Spacer()
+
+                        VStack(alignment: .leading, spacing: 10) {
+
+                            HStack(spacing: 10) {
+                                Text("End date")
+                                    .font(.title3.weight(.semibold))
+
+                                Toggle("", isOn: Binding(
+                                    get: { hasEndDate },
+                                    set: { on in
+                                        hasEndDate = on
+                                        if on { selectedEndDate = max(selectedEndDate, selectedDate) }
+                                    }
+                                ))
+                                .labelsHidden()
+                                .tint(createButtonColor)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 8)
+                            }
+
+                            if hasEndDate {
+                                DatePicker(
+                                    "",
+                                    selection: Binding(
+                                        get: { max(selectedEndDate, selectedDate) },
+                                        set: { selectedEndDate = max($0, selectedDate) }
+                                    ),
+                                    in: selectedDate...,
+                                    displayedComponents: [.date]
+                                )
+                                .datePickerStyle(.compact)
+                                .labelsHidden()
+                                .padding(12)
+                                .background(.ultraThinMaterial)
+                                .clipShape(RoundedRectangle(cornerRadius: 14))
+                            }
+                        }
+
+                        Spacer()
+                    }
                 }
 
                 Button(action: create) {
@@ -239,7 +290,6 @@ struct AddItemView: View {
             .padding()
             .animation(.spring(response: 0.35, dampingFraction: 0.85), value: txType)
         }
-        .navigationTitle("New Transaction")
         .onTapGesture { focusedField = nil }
         .alert(item: $alert) { state in
             Alert(
@@ -368,12 +418,14 @@ struct AddItemView: View {
                     case .years: return .everyYears(n)
                     }
                 }()
+                
+                let end: Date? = hasEndDate ? max(selectedEndDate, selectedDate) : nil
 
                 try ledger.addRecurring(
                     title: trimmedTitle,
                     amountPerCycle: finalAmount,
                     startDate: selectedDate,
-                    endDate: nil,
+                    endDate: end,
                     recurrence: recurrence
                 )
             }
@@ -386,6 +438,8 @@ struct AddItemView: View {
             amountDigits = ""
             isPositive = false
             selectedDate = Date()
+            hasEndDate = false
+            selectedEndDate = Date()
             everyNText = "1"
             unit = .days
             txType = .oneTime
