@@ -13,6 +13,7 @@ struct AddItemView: View {
     @State private var title: String = ""
     @State private var amountDigits: String = ""
     @State private var isPositive: Bool = false
+    @State private var bypassBudgetWarningOnce = false
     @State private var selectedDate: Date = Date()
 
     enum TxType: String, CaseIterable, Identifiable {
@@ -44,14 +45,14 @@ struct AddItemView: View {
     private enum AlertState: Identifiable {
         case error(String)
         case success(String)
-        case budgetWarning(projectedSpend: Decimal, budgetLimit: Decimal)
+        case budgetWarning(projectedBalance: Decimal, availableBudget: Decimal)
 
         var id: String {
             switch self {
             case .error(let msg): return "error:\(msg)"
             case .success(let msg): return "success:\(msg)"
-            case .budgetWarning(let projected, let limit):
-                return "budgetWarning:\(projected)-\(limit)"
+            case .budgetWarning(let projectedBalance, let availableBudget):
+                return "budgetWarning:\(projectedBalance)-\(availableBudget)"
             }
         }
 
@@ -67,9 +68,9 @@ struct AddItemView: View {
             switch self {
             case .error(let msg): return msg
             case .success(let msg): return msg
-            case .budgetWarning(let projected, let limit):
-                let overBy = max(Decimal(0), projected - limit)
-                return "This expense would take today’s spending to £\(AddItemView.formatGBP(projected)). That’s £\(AddItemView.formatGBP(overBy)) over your £\(AddItemView.formatGBP(limit)) budget. Add it anyway?"
+            case .budgetWarning(let projectedBalance, let availableBudget):
+                let shortfall = max(Decimal(0), -projectedBalance)
+                return "This expense would exceed the available balance for that day (\(AddItemView.formatNumber(availableBudget))) by \(AddItemView.formatNumber(shortfall)). Add it anyway?"
             }
         }
     }
@@ -77,7 +78,6 @@ struct AddItemView: View {
     @State private var alert: AlertState?
 
     // MARK: - Budget warning support
-    private let dailyBudgetLimit: Decimal = 20
 
     private struct PendingTransaction {
         let title: String
@@ -86,8 +86,6 @@ struct AddItemView: View {
         let txType: TxType
         let recurrence: Recurrence?
     }
-
-    @State private var pendingTx: PendingTransaction?
 
     var body: some View {
         ScrollView {
@@ -245,7 +243,7 @@ struct AddItemView: View {
                     .transition(.opacity.combined(with: .move(edge: .top)))
                 }
                 
-                Button(action: create) {
+                Button(action: { create() }) {
                     Text(createButtonTitle)
                         .font(.headline)
                         .frame(maxWidth: .infinity)
@@ -272,14 +270,11 @@ struct AddItemView: View {
                     title: Text(state.title),
                     message: Text(state.message),
                     primaryButton: .destructive(Text("Add anyway")) {
-                        if let tx = pendingTx {
-                            commit(tx)
-                            pendingTx = nil
-                        }
+                        bypassBudgetWarningOnce = true
+                        create()
+                        bypassBudgetWarningOnce = false
                     },
-                    secondaryButton: .cancel {
-                        pendingTx = nil
-                    }
+                    secondaryButton: .cancel()
                 )
                 
             default:
@@ -345,7 +340,11 @@ struct AddItemView: View {
             item.amount < 0 ? partial + (-item.amount) : partial
         }
     }
-
+    
+    private func availableBudget(on date: Date) throws -> Decimal {
+        let ledger = LedgerService(context: modelContext)
+        return try ledger.balanceEndOfDay(on: date)
+    }
     // MARK: - Input sanitization
 
     private var amountCents: Int {
@@ -369,17 +368,16 @@ struct AddItemView: View {
         )
     }
 
-    private static func formatGBP(_ value: Decimal) -> String {
+    private static func formatNumber(_ value: Decimal) -> String {
         let number = NSDecimalNumber(decimal: value)
         let formatter = NumberFormatter()
-        formatter.numberStyle = .currency
-        formatter.currencyCode = "GBP"
-        formatter.maximumFractionDigits = 2
+        formatter.locale = Locale(identifier: "en_GB")
+        formatter.numberStyle = .decimal
         formatter.minimumFractionDigits = 2
-
-        let formatted = formatter.string(from: number) ?? "0.00"
-        return formatted.replacingOccurrences(of: "£", with: "")
+        formatter.maximumFractionDigits = 2
+        return formatter.string(from: number) ?? "0.00"
     }
+
 
     private func formattedUKFromDigits(_ digits: String) -> String {
         let cents = Int(digits) ?? 0
@@ -452,7 +450,7 @@ struct AddItemView: View {
 
     // MARK: - Create
 
-    private func create() {
+    private func create(forceSave: Bool = false) {
         guard let magnitude = parsedAmountMagnitude, magnitude > 0 else {
             alert = .error("Enter a valid amount greater than 0.")
             return
@@ -480,21 +478,21 @@ struct AddItemView: View {
             recurrence: recurrence
         )
 
-        // Budget warning only for ONE-TIME EXPENSES for TODAY
-        if txType == .oneTime, !isPositive, Calendar.current.isDate(selectedDate, inSameDayAs: Date()) {
+        // Budget warning for ONE-TIME EXPENSES on the SELECTED day (not just today)
+        if !forceSave, txType == .oneTime, !isPositive {
             do {
-                let currentSpendToday = try spendingTotal(for: Date())
-                let projected = currentSpendToday + magnitude
+                let available = try availableBudget(on: selectedDate)
+                let projectedBalance = available - magnitude  // magnitude is positive, expense reduces balance
 
-                if projected > dailyBudgetLimit {
-                    pendingTx = tx
-                    alert = .budgetWarning(projectedSpend: projected, budgetLimit: dailyBudgetLimit)
+                if projectedBalance < 0 {
+                    alert = .budgetWarning(projectedBalance: projectedBalance, availableBudget: available)
                     return
                 }
             } catch {
                 // if calc fails, don't block creation
             }
         }
+
 
         commit(tx)
     }
@@ -503,4 +501,3 @@ struct AddItemView: View {
 #Preview {
     RootTabView()
 }
-
