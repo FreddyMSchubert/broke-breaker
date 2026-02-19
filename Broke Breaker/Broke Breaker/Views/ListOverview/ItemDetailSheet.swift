@@ -1,31 +1,23 @@
 import SwiftUI
-import SwiftData
+import SharedLedger
 
 struct ItemDetailSheet: View {
-    @Environment(\.modelContext) private var modelContext
+    let ledger = Ledger.shared
     @Environment(\.dismiss) private var dismiss
 
     let item: DayLineItem
     let requestDelete: (DayLineItem.Source) -> Void
 
+    let oneTime: OneTimeTransaction?
+    let recurring: RecurringRule?
+
     @State private var showDeleteConfirm = false
     @State private var showEditSheet = false
-    @State private var pendingDelete = false
-
-    // Resolved models
-    private var oneTime: OneTimeTransaction? {
-        guard case .oneTime(let id) = item.source else { return nil }
-        return modelContext.model(for: id) as? OneTimeTransaction
-    }
-
-    private var recurring: RecurringRule? {
-        guard case .recurring(let id) = item.source else { return nil }
-        return modelContext.model(for: id) as? RecurringRule
-    }
 
     var body: some View {
         VStack(spacing: 16) {
             Spacer(minLength: 12)
+
             VStack(spacing: 8) {
                 HStack(spacing: 6) {
                     Text(format2(displayAmount))
@@ -131,12 +123,14 @@ struct ItemDetailSheet: View {
             isPresented: $showDeleteConfirm,
             titleVisibility: .visible
         ) {
+            // Keep your existing behavior: caller controls deletion
             Button("Delete", role: .destructive) { requestDelete(item.source) }
             Button("Cancel", role: .cancel) { }
         } message: {
             Text("This can’t be undone.")
         }
     }
+
     private var displayAmount: Decimal {
         switch item.source {
         case .oneTime:
@@ -163,7 +157,6 @@ struct ItemDetailSheet: View {
     private func approxDailyImpactText() -> String? {
         guard let rule = recurring else { return nil }
         if case .everyDays(1) = rule.recurrence { return nil }
-
         return "≈ \(format2(item.amount)) / day impact"
     }
 
@@ -185,27 +178,6 @@ struct ItemDetailSheet: View {
         case .everyWeeks(let n): return "Every \(n) week" + (n == 1 ? "" : "s")
         case .everyMonths(let n): return "Every \(n) month" + (n == 1 ? "" : "s")
         case .everyYears(let n): return "Every \(n) year" + (n == 1 ? "" : "s")
-        }
-    }
-
-    private func performDeleteNow() {
-        guard pendingDelete else { return }
-        pendingDelete = false
-
-        let ledger = LedgerService(context: modelContext)
-
-        do {
-            switch item.source {
-            case .oneTime(let id):
-                if let tx = modelContext.model(for: id) as? OneTimeTransaction {
-                    try ledger.deleteOneTime(tx)
-                }
-            case .recurring(let id):
-                if let rule = modelContext.model(for: id) as? RecurringRule {
-                    try ledger.deleteRecurring(rule)
-                }
-            }
-        } catch {
         }
     }
 }
