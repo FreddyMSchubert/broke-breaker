@@ -17,79 +17,72 @@ public final class LedgerService: @unchecked Sendable {
 	public func addOneTime(title: String, date: Date, amount: Decimal) throws -> OneTimeTransaction {
 		let d = dayStart(date)
 
-		return try db.dbQueue.write { wdb in
-			try wdb.inTransaction {
-				let seconds = LedgerDatabase.dateToSeconds(date)
-				let amountStr = LedgerDatabase.decimalToString(amount)
+        return try db.dbQueue.write { wdb in
+            let seconds = LedgerDatabase.dateToSeconds(date)
+            let amountStr = LedgerDatabase.decimalToString(amount)
 
-				try wdb.execute(
-					sql: """
-					INSERT INTO one_time_transactions(title, date_seconds, amount_decimal)
-					VALUES (?, ?, ?);
-					""",
-					arguments: [title, seconds, amountStr]
-				)
+            try wdb.execute(
+                sql: """
+                INSERT INTO one_time_transactions(title, date_seconds, amount_decimal)
+                VALUES (?, ?, ?);
+                """,
+                arguments: [title, seconds, amountStr]
+            )
 
-				let newId = wdb.lastInsertedRowID
-				try invalidateCache(from: d, wdb: wdb)
-				try ensureCachedThrough(day: today(), wdb: wdb)
+            let newId = wdb.lastInsertedRowID
+            try invalidateCache(from: d, wdb: wdb)
+            try ensureCachedThrough(day: today(), wdb: wdb)
 
-				return .commit
-			}
-
-			return OneTimeTransaction(id: wdb.lastInsertedRowID, title: title, date: date, amount: amount)
-		}
+            return OneTimeTransaction(id: newId, title: title, date: date, amount: amount)
+        }
 	}
 
-	@discardableResult
-	public func addRecurring(
-		title: String,
-		amountPerCycle: Decimal,
-		startDate: Date,
-		endDate: Date?,
-		recurrence: Recurrence
-	) throws -> RecurringRule {
-		return try db.dbQueue.write { wdb in
-			try wdb.inTransaction {
-				let startSec = LedgerDatabase.dateToSeconds(startDate)
-				let endSec = endDate.map { LedgerDatabase.dateToSeconds($0) }
-				let amountStr = LedgerDatabase.decimalToString(amountPerCycle)
+    @discardableResult
+    public func addRecurring(
+        title: String,
+        amountPerCycle: Decimal,
+        startDate: Date,
+        endDate: Date?,
+        recurrence: Recurrence
+    ) throws -> RecurringRule {
+        try db.dbQueue.write { wdb in
+            let startSec = LedgerDatabase.dateToSeconds(startDate)
+            let endSec = endDate.map { LedgerDatabase.dateToSeconds($0) }
+            let amountStr = LedgerDatabase.decimalToString(amountPerCycle)
 
-				let (unit, interval): (Int, Int) = {
-					switch recurrence {
-					case .everyDays(let n):   return (0, n)
-					case .everyWeeks(let n):  return (1, n)
-					case .everyMonths(let n): return (2, n)
-					case .everyYears(let n):  return (3, n)
-					}
-				}()
+            let (unit, interval): (Int, Int) = {
+                switch recurrence {
+                case .everyDays(let n):   return (0, n)
+                case .everyWeeks(let n):  return (1, n)
+                case .everyMonths(let n): return (2, n)
+                case .everyYears(let n):  return (3, n)
+                }
+            }()
 
-				try wdb.execute(
-					sql: """
-					INSERT INTO recurring_rules(
-						title, amount_per_cycle_decimal, start_date_seconds, end_date_seconds,
-						recurrence_unit, recurrence_interval
-					) VALUES (?, ?, ?, ?, ?, ?);
-					""",
-					arguments: [title, amountStr, startSec, endSec as DatabaseValueConvertible?, unit, interval]
-				)
+            try wdb.execute(
+                sql: """
+                INSERT INTO recurring_rules(
+                    title, amount_per_cycle_decimal, start_date_seconds, end_date_seconds,
+                    recurrence_unit, recurrence_interval
+                ) VALUES (?, ?, ?, ?, ?, ?);
+                """,
+                arguments: [title, amountStr, startSec, endSec as DatabaseValueConvertible?, unit, interval]
+            )
 
-				try invalidateCache(from: dayStart(startDate), wdb: wdb)
-				try ensureCachedThrough(day: today(), wdb: wdb)
-				return .commit
-			}
+            let newId = wdb.lastInsertedRowID
+            try invalidateCache(from: dayStart(startDate), wdb: wdb)
+            try ensureCachedThrough(day: today(), wdb: wdb)
 
-			let newId = wdb.lastInsertedRowID
-			return RecurringRule(
-				id: newId,
-				title: title,
-				amountPerCycle: amountPerCycle,
-				startDate: startDate,
-				endDate: endDate,
-				recurrence: recurrence
-			)
-		}
-	}
+            return RecurringRule(
+                id: newId,
+                title: title,
+                amountPerCycle: amountPerCycle,
+                startDate: startDate,
+                endDate: endDate,
+                recurrence: recurrence
+            )
+        }
+    }
 
 	public func updateOneTime(
 		_ tx: OneTimeTransaction,
@@ -107,23 +100,20 @@ public final class LedgerService: @unchecked Sendable {
 		let earliest = min(oldDay, newDay)
 
 		try db.dbQueue.write { wdb in
-			try wdb.inTransaction {
-				let seconds = LedgerDatabase.dateToSeconds(tx.date)
-				let amountStr = LedgerDatabase.decimalToString(tx.amount)
+            let seconds = LedgerDatabase.dateToSeconds(tx.date)
+            let amountStr = LedgerDatabase.decimalToString(tx.amount)
 
-				try wdb.execute(
-					sql: """
-					UPDATE one_time_transactions
-					SET title = ?, date_seconds = ?, amount_decimal = ?
-					WHERE id = ?;
-					""",
-					arguments: [tx.title, seconds, amountStr, tx.id]
-				)
+            try wdb.execute(
+                sql: """
+                UPDATE one_time_transactions
+                SET title = ?, date_seconds = ?, amount_decimal = ?
+                WHERE id = ?;
+                """,
+                arguments: [tx.title, seconds, amountStr, tx.id]
+            )
 
-				try invalidateCache(from: earliest, wdb: wdb)
-				try ensureCachedThrough(day: today(), wdb: wdb)
-				return .commit
-			}
+            try invalidateCache(from: earliest, wdb: wdb)
+            try ensureCachedThrough(day: today(), wdb: wdb)
 		}
 	}
 
@@ -158,37 +148,34 @@ public final class LedgerService: @unchecked Sendable {
 		let earliest = min(oldStart, newStart)
 
 		try db.dbQueue.write { wdb in
-			try wdb.inTransaction {
-				let startSec = LedgerDatabase.dateToSeconds(rule.startDate)
-				let endSec = rule.endDate.map { LedgerDatabase.dateToSeconds($0) }
-				let amountStr = LedgerDatabase.decimalToString(rule.amountPerCycle)
+            let startSec = LedgerDatabase.dateToSeconds(rule.startDate)
+            let endSec = rule.endDate.map { LedgerDatabase.dateToSeconds($0) }
+            let amountStr = LedgerDatabase.decimalToString(rule.amountPerCycle)
 
-				try wdb.execute(
-					sql: """
-					UPDATE recurring_rules
-					SET title = ?,
-						amount_per_cycle_decimal = ?,
-						start_date_seconds = ?,
-						end_date_seconds = ?,
-						recurrence_unit = ?,
-						recurrence_interval = ?
-					WHERE id = ?;
-					""",
-					arguments: [
-						rule.title,
-						amountStr,
-						startSec,
-						endSec as DatabaseValueConvertible?,
-						rule.recurrenceUnit,
-						rule.recurrenceInterval,
-						rule.id
-					]
-				)
+            try wdb.execute(
+                sql: """
+                UPDATE recurring_rules
+                SET title = ?,
+                    amount_per_cycle_decimal = ?,
+                    start_date_seconds = ?,
+                    end_date_seconds = ?,
+                    recurrence_unit = ?,
+                    recurrence_interval = ?
+                WHERE id = ?;
+                """,
+                arguments: [
+                    rule.title,
+                    amountStr,
+                    startSec,
+                    endSec as DatabaseValueConvertible?,
+                    rule.recurrenceUnit,
+                    rule.recurrenceInterval,
+                    rule.id
+                ]
+            )
 
-				try invalidateCache(from: earliest, wdb: wdb)
-				try ensureCachedThrough(day: today(), wdb: wdb)
-				return .commit
-			}
+            try invalidateCache(from: earliest, wdb: wdb)
+            try ensureCachedThrough(day: today(), wdb: wdb)
 		}
 	}
 
@@ -196,15 +183,12 @@ public final class LedgerService: @unchecked Sendable {
 		let d = dayStart(tx.date)
 
 		try db.dbQueue.write { wdb in
-			try wdb.inTransaction {
-				try wdb.execute(
-					sql: "DELETE FROM one_time_transactions WHERE id = ?;",
-					arguments: [tx.id]
-				)
-				try invalidateCache(from: d, wdb: wdb)
-				try ensureCachedThrough(day: today(), wdb: wdb)
-				return .commit
-			}
+            try wdb.execute(
+                sql: "DELETE FROM one_time_transactions WHERE id = ?;",
+                arguments: [tx.id]
+            )
+            try invalidateCache(from: d, wdb: wdb)
+            try ensureCachedThrough(day: today(), wdb: wdb)
 		}
 	}
 
@@ -212,15 +196,12 @@ public final class LedgerService: @unchecked Sendable {
 		let d = dayStart(rule.startDate)
 
 		try db.dbQueue.write { wdb in
-			try wdb.inTransaction {
-				try wdb.execute(
-					sql: "DELETE FROM recurring_rules WHERE id = ?;",
-					arguments: [rule.id]
-				)
-				try invalidateCache(from: d, wdb: wdb)
-				try ensureCachedThrough(day: today(), wdb: wdb)
-				return .commit
-			}
+            try wdb.execute(
+                sql: "DELETE FROM recurring_rules WHERE id = ?;",
+                arguments: [rule.id]
+            )
+            try invalidateCache(from: d, wdb: wdb)
+            try ensureCachedThrough(day: today(), wdb: wdb)
 		}
 	}
 
@@ -229,7 +210,7 @@ public final class LedgerService: @unchecked Sendable {
 	public func dayOverview(for date: Date) throws -> DayOverview {
 		let day = dayStart(date)
 
-		return try db.dbQueue.write { wdb in
+		return try db.dbQueue.read { wdb in
 			// if no entries yet or before first entry, return empty day
 			guard let ledgerStart = try earliestLedgerDay(wdb: wdb) else {
 				return DayOverview(dayStart: day, items: [], netTotal: 0)
@@ -271,7 +252,7 @@ public final class LedgerService: @unchecked Sendable {
 	public func dayTotals(for date: Date) throws -> DayTotals {
 		let day = dayStart(date)
 
-		return try db.dbQueue.write { wdb in
+		return try db.dbQueue.read { wdb in
 			guard let ledgerStart = try earliestLedgerDay(wdb: wdb) else {
 				return DayTotals(dayStart: day, netTotal: 0, runningBalanceEndOfDay: 0)
 			}
