@@ -255,11 +255,14 @@ extension ListOverviewView {
         return HStack {
             Spacer()
             VStack(alignment: .trailing) {
-                Text("\(rollover, format: .number.precision(.fractionLength(2)))")
-                    .foregroundStyle(rollover >= 0
-                                     ? .blue
-                                     : .red)
-                    .lineLimit(1)
+                HStack() {
+                    let sign = rollover >= 0 ? "+" : ""
+                    Text("\(sign)\(rollover, format: .number.precision(.fractionLength(2)))")
+                        .lineLimit(1)
+                        .foregroundStyle(rollover >= 0
+                                         ? .blue
+                                         : .red)
+                }
                 Text("+\(incomingTotal, format: .number.precision(.fractionLength(2)))")
                     .foregroundStyle(.blue)
                     .lineLimit(1)
