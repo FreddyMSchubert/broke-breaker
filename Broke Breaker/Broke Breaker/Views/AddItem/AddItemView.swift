@@ -15,6 +15,8 @@ struct AddItemView: View {
     @State private var isPositive: Bool = false
     @State private var bypassBudgetWarningOnce = false
     @State private var selectedDate: Date = Date()
+    @State private var hasEndDate: Bool = false
+    @State private var selectedEndDate: Date = Date()
 
     enum TxType: String, CaseIterable, Identifiable {
         case oneTime = "One-time"
@@ -241,6 +243,50 @@ struct AddItemView: View {
                         Spacer()
                     }
                     .transition(.opacity.combined(with: .move(edge: .top)))
+
+                    // End date
+                    HStack {
+                        Spacer()
+
+                        VStack(alignment: .leading, spacing: 10) {
+
+                            HStack(spacing: 10) {
+                                Text("End date")
+                                    .font(.title3.weight(.semibold))
+
+                                Toggle("", isOn: Binding(
+                                    get: { hasEndDate },
+                                    set: { on in
+                                        hasEndDate = on
+                                        if on { selectedEndDate = max(selectedEndDate, selectedDate) }
+                                    }
+                                ))
+                                .labelsHidden()
+                                .tint(createButtonColor)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 8)
+                            }
+
+                            if hasEndDate {
+                                DatePicker(
+                                    "",
+                                    selection: Binding(
+                                        get: { max(selectedEndDate, selectedDate) },
+                                        set: { selectedEndDate = max($0, selectedDate) }
+                                    ),
+                                    in: selectedDate...,
+                                    displayedComponents: [.date]
+                                )
+                                .datePickerStyle(.compact)
+                                .labelsHidden()
+                                .padding(12)
+                                .background(.ultraThinMaterial)
+                                .clipShape(RoundedRectangle(cornerRadius: 14))
+                            }
+                        }
+
+                        Spacer()
+                    }
                 }
                 
                 Button(action: { create() }) {
@@ -490,9 +536,28 @@ struct AddItemView: View {
                 }
             } catch {
                 // if calc fails, don't block creation
+            case .repeating:
+                let recurrence: Recurrence = {
+                    let n = everyN
+                    switch unit {
+                    case .days: return .everyDays(n)
+                    case .weeks: return .everyWeeks(n)
+                    case .months: return .everyMonths(n)
+                    case .years: return .everyYears(n)
+                    }
+                }()
+                
+                let end: Date? = hasEndDate ? max(selectedEndDate, selectedDate) : nil
+
+                try ledger.addRecurring(
+                    title: trimmedTitle,
+                    amountPerCycle: finalAmount,
+                    startDate: selectedDate,
+                    endDate: end,
+                    recurrence: recurrence
+                )
             }
         }
-
 
         commit(tx)
     }

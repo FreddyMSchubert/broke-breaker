@@ -1,4 +1,4 @@
-.DS_Store
+Broke Breaker/Broke Breaker.xcodeproj/project.pbxproj
 
 # macOS
 .DS_Store
@@ -14,14 +14,4 @@ build/
 .build/
 Packages/
 Package.resolved
-
-# Optional: fastlane (if used)
-fastlane/report.xml
-fastlane/Preview.html
-fastlane/screenshots
-fastlane/test_output
-
-
-
-
 
