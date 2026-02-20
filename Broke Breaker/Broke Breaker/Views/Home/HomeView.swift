@@ -1,13 +1,11 @@
 import SwiftUI
-import SwiftData
+import SharedLedger
 
 
 struct HomeView: View {
     
-    @Environment(\.modelContext) private var modelContext
-    private var ledger: LedgerService { LedgerService(context: modelContext) }
+    let ledger = Ledger.shared
 
-    
     //------Declare Data Variables----------------
     @AppStorage("isDarkMode") private var isDarkMode = false
    
@@ -525,16 +523,15 @@ struct ChartFullScreenOverlay: View {
 // -------------------------------------------------
 
 #Preview {
-    let schema = Schema([
-        OneTimeTransaction.self,
-        RecurringRule.self,
-        DailyCacheEntry.self
-    ])
-    let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
-    let container = try! ModelContainer(for: schema, configurations: [config])
+    // create preview db
+    let tmp = FileManager.default.temporaryDirectory
+        .appendingPathComponent("preview-ledger.sqlite")
+    // clean old preview db if it exists
+    try? FileManager.default.removeItem(at: tmp)
+
+    let ledger = Ledger.shared
 
     return HomeView()
-        .modelContainer(container)
 }
 
 // -------------------------------------------------
