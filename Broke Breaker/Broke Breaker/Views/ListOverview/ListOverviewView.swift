@@ -99,6 +99,8 @@ extension ListOverviewView {
                     
                     Text(day.formatted(.dateTime.day()))
                         .fontWeight(.bold)
+                        .foregroundStyle(.primary)
+                        .colorInvert()
                         .frame(maxWidth: .infinity, minHeight: 40)
                         .background(
                             Circle()
