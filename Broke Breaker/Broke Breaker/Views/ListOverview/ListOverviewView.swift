@@ -4,6 +4,7 @@ import SwiftData
 struct ListOverviewView: View {
     
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.colorScheme) var colourScheme: ColorScheme
     
     @State private var date: Date = .now
     @State private var weekStart: Date = Calendar.current.date(
@@ -99,19 +100,16 @@ extension ListOverviewView {
                     
                     Text(day.formatted(.dateTime.day()))
                         .fontWeight(.bold)
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(
+                            Calendar.current.isDate(day, inSameDayAs: date)
+                            ? Color(uiColor: .systemBackground)
+                            : .primary
+                        )
                         .colorInvert()
                         .frame(maxWidth: .infinity, minHeight: 40)
                         .background(
                             Circle()
-                                .foregroundStyle(
-                                    Calendar.current.isDate(day, inSameDayAs: date)
-                                    ? .orange
-                                    : ((weeklyTotals[day]?.runningBalanceEndOfDay ?? 0) >= 0
-                                       ? .blue
-                                       : .red
-                                      )
-                                )
+                                .foregroundStyle(circleColour(day: day))
                         )
                         .foregroundStyle(.secondary)
                 }
@@ -349,5 +347,20 @@ extension ListOverviewView {
         } catch {
             print("Delete failed:", error)
         }
+    }
+    
+    private func circleColour(day: Date) -> Color {
+        let isSelected = Calendar.current.isDate(day, inSameDayAs: date)
+        let balance = weeklyTotals[day]?.runningBalanceEndOfDay ?? 0
+
+        let circleColor: Color
+        if isSelected {
+            circleColor = colourScheme == .light
+                ? .purple.opacity(0.6)
+                : .purple
+        } else {
+            circleColor = balance >= 0 ? .blue : .red
+        }
+        return circleColor
     }
 }
