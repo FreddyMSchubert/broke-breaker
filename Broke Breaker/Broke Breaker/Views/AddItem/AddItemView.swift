@@ -1,8 +1,8 @@
 import SwiftUI
-import SwiftData
+import SharedLedger
 
 struct AddItemView: View {
-    @Environment(\.modelContext) private var modelContext
+    let ledger = Ledger.shared
     @FocusState private var focusedField: FocusedField?
 
     enum FocusedField {
@@ -401,7 +401,6 @@ struct AddItemView: View {
         }
         let finalAmount = isPositive ? magnitude : -magnitude
         let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        let ledger = LedgerService(context: modelContext)
 
         do {
             switch txType {
@@ -418,7 +417,7 @@ struct AddItemView: View {
                     case .years: return .everyYears(n)
                     }
                 }()
-                
+
                 let end: Date? = hasEndDate ? max(selectedEndDate, selectedDate) : nil
 
                 try ledger.addRecurring(
@@ -429,11 +428,10 @@ struct AddItemView: View {
                     recurrence: recurrence
                 )
             }
-            
-            // success feedback
+
             alert = .success(createTransactionName.capitalized + " saved.")
 
-            // Reset
+            // Reset (unchanged)
             title = ""
             amountDigits = ""
             isPositive = false
@@ -452,6 +450,12 @@ struct AddItemView: View {
 }
 
 #Preview {
-    RootTabView()
+    let tmp = FileManager.default.temporaryDirectory
+        .appendingPathComponent("preview-ledger.sqlite")
+    try? FileManager.default.removeItem(at: tmp)
+
+    let ledger = Ledger.shared
+
+    return RootTabView()
 }
 

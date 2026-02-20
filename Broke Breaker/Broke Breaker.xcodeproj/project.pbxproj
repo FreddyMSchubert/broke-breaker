@@ -10,6 +10,7 @@
 		2B148E2D2F3B48FD00C699BC /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2B148E2C2F3B48FD00C699BC /* WidgetKit.framework */; };
 		2B148E2F2F3B48FD00C699BC /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2B148E2E2F3B48FD00C699BC /* SwiftUI.framework */; };
 		2B148E402F3B48FF00C699BC /* BrokeBreakerWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 2B148E2A2F3B48FD00C699BC /* BrokeBreakerWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		B61CBDC42F47C9200060FDB2 /* SharedLedger in Frameworks */ = {isa = PBXBuildFile; productRef = B61CBDC32F47C9200060FDB2 /* SharedLedger */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -84,6 +85,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B61CBDC42F47C9200060FDB2 /* SharedLedger in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -163,6 +165,7 @@
 			);
 			name = "Broke Breaker";
 			packageProductDependencies = (
+				B61CBDC32F47C9200060FDB2 /* SharedLedger */,
 			);
 			productName = "Broke Breaker";
 			productReference = B64D557F2F2942B500F228D7 /* Broke Breaker.app */;
@@ -195,6 +198,9 @@
 			);
 			mainGroup = B64D55762F2942B500F228D7;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				B61CBDC22F47C9200060FDB2 /* XCLocalSwiftPackageReference "../SharedLedger" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = B64D55802F2942B500F228D7 /* Products */;
 			projectDirPath = "";
@@ -535,6 +541,20 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		B61CBDC22F47C9200060FDB2 /* XCLocalSwiftPackageReference "../SharedLedger" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../SharedLedger;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		B61CBDC32F47C9200060FDB2 /* SharedLedger */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SharedLedger;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = B64D55772F2942B500F228D7 /* Project object */;
 }
