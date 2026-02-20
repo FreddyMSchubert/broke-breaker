@@ -27,6 +27,14 @@ struct ListOverviewView: View {
             HStack {
                 DatePicker("", selection: $date, displayedComponents: .date)
                 Button("Today") { date = .now }
+                    .padding(.horizontal, 13)
+                    .padding(.vertical, 7)
+                    .padding(.bottom, 1)
+                    .background(Color(UIColor.tertiarySystemFill))
+                    .clipShape(Capsule())
+                    .foregroundStyle(.primary)
+                    .controlSize(.mini)
+                    .font(.system(size: 17))
             }
             .padding(.horizontal)
 
@@ -66,11 +74,6 @@ struct ListOverviewView: View {
         }
     }
 }
-
-// MARK: - Want to do:
-    // 1. fix swiping too fast
-    // 2. animate calander swiping
-    // 3. modify .inline(1)
 
 // views / calander, day and oerview bar
 extension ListOverviewView {
