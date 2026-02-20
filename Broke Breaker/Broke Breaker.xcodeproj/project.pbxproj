@@ -6,11 +6,64 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		2B148E2D2F3B48FD00C699BC /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2B148E2C2F3B48FD00C699BC /* WidgetKit.framework */; };
+		2B148E2F2F3B48FD00C699BC /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2B148E2E2F3B48FD00C699BC /* SwiftUI.framework */; };
+		2B148E402F3B48FF00C699BC /* BrokeBreakerWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 2B148E2A2F3B48FD00C699BC /* BrokeBreakerWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		B61CBDC42F47C9200060FDB2 /* SharedLedger in Frameworks */ = {isa = PBXBuildFile; productRef = B61CBDC32F47C9200060FDB2 /* SharedLedger */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		2B148E3E2F3B48FF00C699BC /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = B64D55772F2942B500F228D7 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 2B148E292F3B48FD00C699BC;
+			remoteInfo = BrokeBreakerWidgetExtension;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		2B148E452F3B48FF00C699BC /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				2B148E402F3B48FF00C699BC /* BrokeBreakerWidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		2B148E2A2F3B48FD00C699BC /* BrokeBreakerWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = BrokeBreakerWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		2B148E2C2F3B48FD00C699BC /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		2B148E2E2F3B48FD00C699BC /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		2BFA92382F3D41EE0025A047 /* BrokeBreakerWidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = BrokeBreakerWidgetExtension.entitlements; sourceTree = "<group>"; };
 		B64D557F2F2942B500F228D7 /* Broke Breaker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Broke Breaker.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		2B148E412F3B48FF00C699BC /* Exceptions for "BrokeBreakerWidget" folder in "BrokeBreakerWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 2B148E292F3B48FD00C699BC /* BrokeBreakerWidgetExtension */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		2B148E302F3B48FD00C699BC /* BrokeBreakerWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				2B148E412F3B48FF00C699BC /* Exceptions for "BrokeBreakerWidget" folder in "BrokeBreakerWidgetExtension" target */,
+			);
+			path = BrokeBreakerWidget;
+			sourceTree = "<group>";
+		};
 		B64D55812F2942B500F228D7 /* Broke Breaker */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = "Broke Breaker";
@@ -19,20 +72,42 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		2B148E272F3B48FD00C699BC /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2B148E2F2F3B48FD00C699BC /* SwiftUI.framework in Frameworks */,
+				2B148E2D2F3B48FD00C699BC /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		B64D557C2F2942B500F228D7 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B61CBDC42F47C9200060FDB2 /* SharedLedger in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		2B148E2B2F3B48FD00C699BC /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				2B148E2C2F3B48FD00C699BC /* WidgetKit.framework */,
+				2B148E2E2F3B48FD00C699BC /* SwiftUI.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		B64D55762F2942B500F228D7 = {
 			isa = PBXGroup;
 			children = (
+				2BFA92382F3D41EE0025A047 /* BrokeBreakerWidgetExtension.entitlements */,
 				B64D55812F2942B500F228D7 /* Broke Breaker */,
+				2B148E302F3B48FD00C699BC /* BrokeBreakerWidget */,
+				2B148E2B2F3B48FD00C699BC /* Frameworks */,
 				B64D55802F2942B500F228D7 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -41,6 +116,7 @@
 			isa = PBXGroup;
 			children = (
 				B64D557F2F2942B500F228D7 /* Broke Breaker.app */,
+				2B148E2A2F3B48FD00C699BC /* BrokeBreakerWidgetExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -48,6 +124,28 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		2B148E292F3B48FD00C699BC /* BrokeBreakerWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 2B148E422F3B48FF00C699BC /* Build configuration list for PBXNativeTarget "BrokeBreakerWidgetExtension" */;
+			buildPhases = (
+				2B148E262F3B48FD00C699BC /* Sources */,
+				2B148E272F3B48FD00C699BC /* Frameworks */,
+				2B148E282F3B48FD00C699BC /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				2B148E302F3B48FD00C699BC /* BrokeBreakerWidget */,
+			);
+			name = BrokeBreakerWidgetExtension;
+			packageProductDependencies = (
+			);
+			productName = BrokeBreakerWidgetExtension;
+			productReference = 2B148E2A2F3B48FD00C699BC /* BrokeBreakerWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		B64D557E2F2942B500F228D7 /* Broke Breaker */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = B64D558C2F2942B600F228D7 /* Build configuration list for PBXNativeTarget "Broke Breaker" */;
@@ -55,16 +153,19 @@
 				B64D557B2F2942B500F228D7 /* Sources */,
 				B64D557C2F2942B500F228D7 /* Frameworks */,
 				B64D557D2F2942B500F228D7 /* Resources */,
+				2B148E452F3B48FF00C699BC /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				2B148E3F2F3B48FF00C699BC /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				B64D55812F2942B500F228D7 /* Broke Breaker */,
 			);
 			name = "Broke Breaker";
 			packageProductDependencies = (
+				B61CBDC32F47C9200060FDB2 /* SharedLedger */,
 			);
 			productName = "Broke Breaker";
 			productReference = B64D557F2F2942B500F228D7 /* Broke Breaker.app */;
@@ -80,6 +181,9 @@
 				LastSwiftUpdateCheck = 2620;
 				LastUpgradeCheck = 2620;
 				TargetAttributes = {
+					2B148E292F3B48FD00C699BC = {
+						CreatedOnToolsVersion = 26.2;
+					};
 					B64D557E2F2942B500F228D7 = {
 						CreatedOnToolsVersion = 26.2;
 					};
@@ -94,17 +198,28 @@
 			);
 			mainGroup = B64D55762F2942B500F228D7;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				B61CBDC22F47C9200060FDB2 /* XCLocalSwiftPackageReference "../SharedLedger" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = B64D55802F2942B500F228D7 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
 				B64D557E2F2942B500F228D7 /* Broke Breaker */,
+				2B148E292F3B48FD00C699BC /* BrokeBreakerWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		2B148E282F3B48FD00C699BC /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		B64D557D2F2942B500F228D7 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -115,6 +230,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		2B148E262F3B48FD00C699BC /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		B64D557B2F2942B500F228D7 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -124,7 +246,79 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		2B148E3F2F3B48FF00C699BC /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 2B148E292F3B48FD00C699BC /* BrokeBreakerWidgetExtension */;
+			targetProxy = 2B148E3E2F3B48FF00C699BC /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		2B148E432F3B48FF00C699BC /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = TY7Z7UV6VG;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = BrokeBreakerWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = BrokeBreakerWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.frederickschubert.brokebreaker.BrokeBreakerwidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		2B148E442F3B48FF00C699BC /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = TY7Z7UV6VG;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = BrokeBreakerWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = BrokeBreakerWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.frederickschubert.brokebreaker.BrokeBreakerwidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 		B64D558A2F2942B600F228D7 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -251,23 +445,26 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "Broke Breaker/Broke Breaker.entitlements";
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = PF732TS6VY;
+				DEVELOPMENT_TEAM = TY7Z7UV6VG;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.calumlane.Broke-Breaker";
+				PRODUCT_BUNDLE_IDENTIFIER = com.frederickschubert.brokebreaker;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
@@ -283,23 +480,26 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "Broke Breaker/Broke Breaker.entitlements";
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = PF732TS6VY;
+				DEVELOPMENT_TEAM = TY7Z7UV6VG;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.calumlane.Broke-Breaker";
+				PRODUCT_BUNDLE_IDENTIFIER = com.frederickschubert.brokebreaker;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
@@ -313,6 +513,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		2B148E422F3B48FF00C699BC /* Build configuration list for PBXNativeTarget "BrokeBreakerWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				2B148E432F3B48FF00C699BC /* Debug */,
+				2B148E442F3B48FF00C699BC /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		B64D557A2F2942B500F228D7 /* Build configuration list for PBXProject "Broke Breaker" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -332,6 +541,20 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		B61CBDC22F47C9200060FDB2 /* XCLocalSwiftPackageReference "../SharedLedger" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../SharedLedger;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		B61CBDC32F47C9200060FDB2 /* SharedLedger */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SharedLedger;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = B64D55772F2942B500F228D7 /* Project object */;
 }

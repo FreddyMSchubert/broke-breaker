@@ -1,9 +1,9 @@
 import SwiftUI
-import SwiftData
+import SharedLedger
 
 struct ListOverviewView: View {
-    
-    @Environment(\.modelContext) private var modelContext
+
+    let ledger = Ledger.shared
 
     @State private var date: Date = .now
     @State private var weekStart: Date = Calendar.current.date(
@@ -14,27 +14,26 @@ struct ListOverviewView: View {
     @State private var dragOffset: CGFloat = 0
     @State private var pendingDeleteSource: DayLineItem.Source?
 
+    @State private var sheetOneTime: OneTimeTransaction?
+    @State private var sheetRecurring: RecurringRule?
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            
-            // Header
+
             Text("List Overview")
                 .font(.largeTitle.bold())
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.top, 8)
-            
-            // Date Picker
+
             HStack {
                 DatePicker("", selection: $date, displayedComponents: .date)
                 Button("Today") { date = .now }
                     .buttonStyle(.bordered)
             }
 
-            // Week Calendar
             weekCalendar
             Divider()
-            
-            // Day views with swipe
+
             GeometryReader { geo in
                 HStack(spacing: 0) {
                     ForEach(visibleDates, id: \.self) { day in
@@ -45,7 +44,7 @@ struct ListOverviewView: View {
                 .frame(width: geo.size.width * 3, alignment: .leading)
                 .offset(x: -geo.size.width + dragOffset)
                 .animation(.interactiveSpring(response: 0.25, dampingFraction: 0.85), value: dragOffset)
-                .contentShape(Rectangle()) // capture gestures even on empty space
+                .contentShape(Rectangle())
                 .gesture(daySwipeGesture)
             }
             .frame(maxHeight: .infinity)
@@ -64,7 +63,7 @@ struct ListOverviewView: View {
 
 // MARK: - Calendar & Swipe Logic
 extension ListOverviewView {
-    
+
     private var visibleDates: [Date] {
         [
             Calendar.current.date(byAdding: .day, value: -1, to: date)!,
@@ -72,13 +71,13 @@ extension ListOverviewView {
             Calendar.current.date(byAdding: .day, value: 1, to: date)!
         ]
     }
-    
+
     private func changeDay(by offset: Int) {
         if let newDate = Calendar.current.date(byAdding: .day, value: offset, to: date) {
             date = newDate
         }
     }
-    
+
     private func changeWeek(by offset: Int) {
         if let newWeek = Calendar.current.date(byAdding: .weekOfYear, value: offset, to: weekStart) {
             weekStart = newWeek
@@ -86,7 +85,7 @@ extension ListOverviewView {
             loadWeeklyOverview()
         }
     }
-    
+
     private var daySwipeGesture: some Gesture {
         DragGesture(minimumDistance: 10)
             .onChanged { value in
@@ -103,22 +102,22 @@ extension ListOverviewView {
                 dragOffset = 0
             }
     }
-    
+
     private var weekCalendar: some View {
         let days = (0..<7).compactMap {
             Calendar.current.date(byAdding: .day, value: $0, to: weekStart)
         }
         let letters = ["M", "T", "W", "T", "F", "S", "S"]
-        
+
         return HStack {
             ForEach(days.indices, id: \.self) { index in
                 let day = days[index]
-                
+
                 VStack(spacing: 6) {
                     Text(letters[index])
                         .font(.caption.bold())
                         .foregroundStyle(.secondary)
-                    
+
                     Text(day.formatted(.dateTime.day()))
                         .fontWeight(.bold)
                         .frame(maxWidth: .infinity, minHeight: 40)
@@ -152,17 +151,16 @@ extension ListOverviewView {
                 }
         )
     }
-    
+
     private func updateWeek() {
         weekStart = Calendar.current.date(
             from: Calendar.current.dateComponents([.yearForWeekOfYear, .weekOfYear], from: date)
         ) ?? weekStart
     }
-    
+
     private func loadWeeklyOverview() {
-        let ledger = LedgerService(context: modelContext)
         weeklyOverview.removeAll()
-        
+
         for i in 0..<7 {
             if let day = Calendar.current.date(byAdding: .day, value: i, to: weekStart),
                let overview = try? ledger.dayOverview(for: day) {
@@ -174,11 +172,10 @@ extension ListOverviewView {
 
 // MARK: - Day View & Sheet Handling
 extension ListOverviewView {
-    
+
     private func dayView(for day: Date) -> some View {
-        let ledger = LedgerService(context: modelContext)
         let overview = try? ledger.dayOverview(for: day)
-        
+
         return VStack(alignment: .leading, spacing: 8) {
             if let overview {
                 if overview.items.isEmpty {
@@ -200,10 +197,15 @@ extension ListOverviewView {
                                     .foregroundStyle(item.amount >= 0 ? .blue : .red)
                             }
                             .contentShape(Rectangle())
-                            .onTapGesture { selectedItem = item }
+                            .onTapGesture {
+                                // NEW: resolve backing model for the sheet
+                                resolveSheetModels(for: item)
+                                selectedItem = item
+                            }
                         }
                     }
                     .listStyle(.plain)
+
                     Divider()
                     overviewBar(for: day, overview: overview)
                 }
@@ -218,24 +220,51 @@ extension ListOverviewView {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .contentShape(Rectangle())
         .sheet(item: $selectedItem, onDismiss: handleSheetDismiss) { item in
-            ItemDetailSheet(item: item, requestDelete: requestDeleteFromSheet)
-                .presentationDetents([.medium, .large])
+            ItemDetailSheet(
+                item: item,
+                requestDelete: requestDeleteFromSheet,
+                oneTime: sheetOneTime,
+                recurring: sheetRecurring
+            )
+            .presentationDetents([.medium, .large])
         }
     }
-    
+
+    private func resolveSheetModels(for item: DayLineItem) {
+        sheetOneTime = nil
+        sheetRecurring = nil
+
+        do {
+            switch item.source {
+            case .oneTime(let id):
+                sheetOneTime = try ledger.fetchOneTime(id: id)
+            case .recurring(let id):
+                sheetRecurring = try ledger.fetchRecurring(id: id)
+            }
+        } catch {
+            sheetOneTime = nil
+            sheetRecurring = nil
+        }
+    }
+
     private func overviewBar(for day: Date, overview: DayOverview) -> some View {
-        let ledger = LedgerService(context: modelContext)
         let previousDay = Calendar.current.date(byAdding: .day, value: -1, to: day)!
         let previousTotals = try? ledger.dayTotals(for: previousDay)
         let rollover = previousTotals?.runningBalanceEndOfDay ?? 0
-        
-        let incomingTotal: Double = overview.items.map { NSDecimalNumber(decimal: $0.amount).doubleValue }
-            .filter { $0 > 0 }.reduce(0, +)
-        let outgoingTotal: Double = overview.items.map { NSDecimalNumber(decimal: $0.amount).doubleValue }
-            .filter { $0 < 0 }.reduce(0, +)
+
+        let incomingTotal: Double = overview.items
+            .map { NSDecimalNumber(decimal: $0.amount).doubleValue }
+            .filter { $0 > 0 }
+            .reduce(0, +)
+
+        let outgoingTotal: Double = overview.items
+            .map { NSDecimalNumber(decimal: $0.amount).doubleValue }
+            .filter { $0 < 0 }
+            .reduce(0, +)
+
         let dayTotals = try? ledger.dayTotals(for: day)
         let dayNetTotal: Decimal = dayTotals?.runningBalanceEndOfDay ?? 0
-        
+
         return HStack {
             VStack(alignment: .trailing) {
                 Text("\(rollover, format: .number.precision(.fractionLength(2)))")
@@ -258,24 +287,24 @@ extension ListOverviewView {
         }
         .fontWeight(.semibold)
     }
-    
+
     private func requestDeleteFromSheet(_ source: DayLineItem.Source) {
         pendingDeleteSource = source
         selectedItem = nil
     }
-    
+
     private func handleSheetDismiss() {
         guard let source = pendingDeleteSource else { return }
         pendingDeleteSource = nil
-        let ledger = LedgerService(context: modelContext)
+
         do {
             switch source {
             case .oneTime(let id):
-                if let tx = modelContext.model(for: id) as? OneTimeTransaction {
+                if let tx = try ledger.fetchOneTime(id: id) {
                     try ledger.deleteOneTime(tx)
                 }
             case .recurring(let id):
-                if let rule = modelContext.model(for: id) as? RecurringRule {
+                if let rule = try ledger.fetchRecurring(id: id) {
                     try ledger.deleteRecurring(rule)
                 }
             }
