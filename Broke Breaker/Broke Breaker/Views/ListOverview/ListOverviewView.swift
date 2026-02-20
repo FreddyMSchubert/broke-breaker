@@ -4,6 +4,8 @@ import SharedLedger
 struct ListOverviewView: View {
 
     let ledger = Ledger.shared
+    
+    @Environment(\.colorScheme) var colourScheme: ColorScheme
 
     @State private var date: Date = .now
     @State private var weekStart: Date = Calendar.current.date(
@@ -135,6 +137,7 @@ extension ListOverviewView {
     
     // day view
     private func dayView(for day: Date) -> some View {
+        
         let overview = try? ledger.dayOverview(for: day)
 
         return VStack(alignment: .leading, spacing: 8) {
@@ -215,8 +218,10 @@ extension ListOverviewView {
             }
             Spacer()
             Divider()
-            overviewBar(for: day)
-                .padding(.bottom, 8)
+            if let overview {
+                overviewBar(for: day, overview: overview)
+                    .padding(.bottom, 8)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .contentShape(Rectangle())
@@ -232,22 +237,18 @@ extension ListOverviewView {
     }
     
     // overview bar
-    private func overviewBar(for day: Date) -> some View {
-        let ledger = LedgerService(context: modelContext)
-        
-        let overview = (try? ledger.dayOverview(for: day))
-        let items = overview?.items ?? []
+    private func overviewBar(for day: Date, overview: DayOverview) -> some View {
         
         let previousDay = Calendar.current.date(byAdding: .day, value: -1, to: day)!
         let previousTotals = try? ledger.dayTotals(for: previousDay)
         let rollover = previousTotals?.runningBalanceEndOfDay ?? 0
         
-        let incomingTotal: Double = items
+        let incomingTotal: Double = overview.items
             .map { NSDecimalNumber(decimal: $0.amount).doubleValue }
             .filter { $0 > 0 }
             .reduce(0, +)
         
-        let outgoingTotal: Double = items
+        let outgoingTotal: Double = overview.items
             .map { NSDecimalNumber(decimal: $0.amount).doubleValue }
             .filter { $0 < 0 }
             .reduce(0, +)
@@ -306,7 +307,7 @@ extension ListOverviewView {
     }
     
     private func loadWeeklyTotals() {
-        let ledger = LedgerService(context: modelContext)
+        //let ledger = LedgerService(context: modelContext)
         weeklyTotals.removeAll()
         
         for i in 0..<7 {
