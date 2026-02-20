@@ -198,8 +198,6 @@ extension ListOverviewView {
                             }
                             .contentShape(Rectangle())
                             .onTapGesture {
-                                // NEW: resolve backing model for the sheet
-                                resolveSheetModels(for: item)
                                 selectedItem = item
                             }
                         }
@@ -220,30 +218,31 @@ extension ListOverviewView {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .contentShape(Rectangle())
         .sheet(item: $selectedItem, onDismiss: handleSheetDismiss) { item in
+            let resolved = resolveModels(for: item)
+
             ItemDetailSheet(
                 item: item,
                 requestDelete: requestDeleteFromSheet,
-                oneTime: sheetOneTime,
-                recurring: sheetRecurring
+                oneTime: resolved.oneTime,
+                recurring: resolved.recurring
             )
             .presentationDetents([.medium, .large])
         }
     }
 
-    private func resolveSheetModels(for item: DayLineItem) {
+    private func resolveModels(for item: DayLineItem) -> (oneTime: OneTimeTransaction?, recurring: RecurringRule?)
+    {
         sheetOneTime = nil
         sheetRecurring = nil
-
         do {
             switch item.source {
             case .oneTime(let id):
-                sheetOneTime = try ledger.fetchOneTime(id: id)
+                return (try ledger.fetchOneTime(id: id), nil)
             case .recurring(let id):
-                sheetRecurring = try ledger.fetchRecurring(id: id)
+                return (nil, try ledger.fetchRecurring(id: id))
             }
         } catch {
-            sheetOneTime = nil
-            sheetRecurring = nil
+            return (nil, nil)
         }
     }
 
