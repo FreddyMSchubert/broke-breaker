@@ -11,6 +11,7 @@ struct ListOverviewView: View {
     @State private var weekStart: Date = Calendar.current.date(
         from: Calendar.current.dateComponents([.yearForWeekOfYear, .weekOfYear], from: .now))!
     @State private var weeklyTotals: [Date: DayTotals] = [:]
+    @State private var weekPageIndex = 1
     @State private var pageIndex = 1
     @State private var selectedItem: DayLineItem?
     @State private var pendingDeleteSource: DayLineItem.Source?
@@ -42,7 +43,7 @@ struct ListOverviewView: View {
                     .font(.system(size: 17))
             }
             .padding(.horizontal)
-
+            
             weekCalendar
                 .padding(.horizontal)
             Divider()
@@ -84,55 +85,34 @@ extension ListOverviewView {
     
     // calander
     private var weekCalendar: some View {
-        let days = (0..<7).compactMap {
-            Calendar.current.date(byAdding: .day, value: $0, to: weekStart)
-        }
-        let letters = ["M", "T", "W", "T", "F", "S", "S"]
-
-        return HStack {
-            ForEach(Array(days.enumerated()), id: \.offset) { index, day in
-                let day = days[index]
-                VStack(spacing: 6) {
-                    Text(letters[index])
-                        .foregroundStyle(
-                            Calendar.current.isDate(day, inSameDayAs: .now)
-                            ? .primary
-                            : .secondary
-                        )
-                        .font(.caption.bold())
-                    
-                    Text(day.formatted(.dateTime.day()))
-                        .fontWeight(.bold)
-                        .foregroundStyle(
-                            Calendar.current.isDate(day, inSameDayAs: date)
-                            ? Color(uiColor: .systemBackground)
-                            : .primary
-                        )
-                        .colorInvert()
-                        .frame(maxWidth: .infinity, minHeight: 40)
-                        .background(
-                            Circle()
-                                .foregroundStyle(circleColour(day: day))
-                        )
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity)
-                .contentShape(Rectangle())
-                .onTapGesture { date = day }
+        TabView(selection: $weekPageIndex) {
+            ForEach(0..<3) { index in
+                let offset = index - 1
+                let baseWeek = Calendar.current.date(byAdding: .weekOfYear, value: offset, to: weekStart)!
+                weekView(for: baseWeek)
+                    .tag(index)
             }
         }
-        .contentShape(Rectangle())
-        .gesture(
-            DragGesture(minimumDistance: 20)
-                .onEnded { value in
-                    let threshold: CGFloat = 50
-                    if value.translation.width < -threshold {
-                        changeDay(by: 7)
-                    } else if value.translation.width > threshold {
-                        changeDay(by: -7)
+        .tabViewStyle(.page(indexDisplayMode: .never))
+        .frame(height: 70)
+        .onChange(of: weekPageIndex) { _, newIndex in
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                let delta = newIndex - 1
+                if delta != 0 {
+                    if let newWeekStart = Calendar.current.date(byAdding: .weekOfYear, value: delta, to: weekStart) {
+                        let weekdayOffset = Calendar.current.dateComponents([.day], from: weekStart, to: date).day ?? 0
+                        if let newDate = Calendar.current.date(byAdding: .day, value: weekdayOffset, to: newWeekStart) {
+                            weekStart = newWeekStart
+                            date = newDate
+                        } else {
+                            weekStart = newWeekStart
+                            date = newWeekStart
+                        }
                     }
+                    weekPageIndex = 1
                 }
-        )
+            }
+        }
     }
     
     // day view
@@ -307,13 +287,52 @@ extension ListOverviewView {
     }
     
     private func loadWeeklyTotals() {
-        //let ledger = LedgerService(context: modelContext)
         weeklyTotals.removeAll()
         
         for i in 0..<7 {
             if let day = Calendar.current.date(byAdding: .day, value: i, to: weekStart),
                let totals = try? ledger.dayTotals(for: day) {
                 weeklyTotals[day] = totals
+            }
+        }
+    }
+    
+    private func weekView(for startOfWeek: Date) -> some View {
+        let days = (0..<7).compactMap {
+            Calendar.current.date(byAdding: .day, value: $0, to: startOfWeek)
+        }
+        let letters = ["M", "T", "W", "T", "F", "S", "S"]
+
+        return HStack {
+            ForEach(Array(days.enumerated()), id: \.offset) { index, day in
+                let day = days[index]
+                VStack(spacing: 6) {
+                    Text(letters[index])
+                        .foregroundStyle(
+                            Calendar.current.isDate(day, inSameDayAs: .now)
+                            ? .primary
+                            : .secondary
+                        )
+                        .font(.caption.bold())
+                    
+                    Text(day.formatted(.dateTime.day()))
+                        .fontWeight(.bold)
+                        .foregroundStyle(
+                            Calendar.current.isDate(day, inSameDayAs: date)
+                            ? Color(uiColor: .systemBackground)
+                            : .primary
+                        )
+                        .colorInvert()
+                        .frame(maxWidth: .infinity, minHeight: 40)
+                        .background(
+                            Circle()
+                                .foregroundStyle(circleColour(day: day))
+                        )
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+                .contentShape(Rectangle())
+                .onTapGesture { date = day }
             }
         }
     }
