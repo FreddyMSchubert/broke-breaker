@@ -1,9 +1,8 @@
 import SwiftUI
-import SwiftData
+import SharedLedger
 
 struct TransactionEditorView: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
     @FocusState private var focusedField: FocusedField?
 
     enum FocusedField { case title, amount, every }
@@ -376,7 +375,7 @@ struct TransactionEditorView: View {
 
         let finalAmount = isPositive ? magnitude : -magnitude
         let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        let ledger = LedgerService(context: modelContext)
+        let ledger = Ledger.shared
 
         do {
             switch mode {

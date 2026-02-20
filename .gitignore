@@ -1,5 +1,9 @@
 Broke Breaker/Broke Breaker.xcodeproj/project.pbxproj
 
+LedgerCLI/ledger.sqlite
+LedgerCLI/ledger.sqlite-shm
+LedgerCLI/ledger.sqlite-wal
+
 # macOS
 .DS_Store
 
@@ -15,3 +19,38 @@ build/
 Packages/
 Package.resolved
 
+# --- Xcode / Swift ---
+.DS_Store
+
+# Build products / derived data
+DerivedData/
+.build/
+Build/
+*.xcuserstate
+*.xcscmblueprint
+*.moved-aside
+*.swp
+
+# User-specific Xcode project files
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+xcuserdata/
+
+# SwiftPM working directory (not source)
+**/.swiftpm/
+Package.resolved   # optional: commit if you want dependency pinning
+
+# Instruments / profiling
+*.trace
+
+# Playgrounds
+timeline.xctimeline
+playground.xcworkspace
+
+# If you use fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+fastlane/test_output
