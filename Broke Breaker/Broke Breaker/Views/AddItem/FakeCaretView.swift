@@ -1,5 +1,5 @@
 import SwiftUI
-import SwiftData
+import SharedLedger
 
 struct FakeCaret: View {
     @State private var on = true

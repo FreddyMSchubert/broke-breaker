@@ -1,11 +1,10 @@
 import SwiftUI
-import SwiftData
+import SharedLedger
 
 struct ListOverviewView: View {
-    
-    @Environment(\.modelContext) private var modelContext
-    @Environment(\.colorScheme) var colourScheme: ColorScheme
-    
+
+    let ledger = Ledger.shared
+
     @State private var date: Date = .now
     @State private var weekStart: Date = Calendar.current.date(
         from: Calendar.current.dateComponents([.yearForWeekOfYear, .weekOfYear], from: .now))!
@@ -13,6 +12,9 @@ struct ListOverviewView: View {
     @State private var pageIndex = 1
     @State private var selectedItem: DayLineItem?
     @State private var pendingDeleteSource: DayLineItem.Source?
+
+    @State private var sheetOneTime: OneTimeTransaction?
+    @State private var sheetRecurring: RecurringRule?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -39,7 +41,6 @@ struct ListOverviewView: View {
             }
             .padding(.horizontal)
 
-            // Week Calendar
             weekCalendar
                 .padding(.horizontal)
             Divider()
@@ -85,7 +86,7 @@ extension ListOverviewView {
             Calendar.current.date(byAdding: .day, value: $0, to: weekStart)
         }
         let letters = ["M", "T", "W", "T", "F", "S", "S"]
-        
+
         return HStack {
             ForEach(Array(days.enumerated()), id: \.offset) { index, day in
                 let day = days[index]
@@ -134,9 +135,8 @@ extension ListOverviewView {
     
     // day view
     private func dayView(for day: Date) -> some View {
-        let ledger = LedgerService(context: modelContext)
         let overview = try? ledger.dayOverview(for: day)
-        
+
         return VStack(alignment: .leading, spacing: 8) {
             if let overview {
                 if overview.items.isEmpty {
@@ -221,8 +221,13 @@ extension ListOverviewView {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .contentShape(Rectangle())
         .sheet(item: $selectedItem, onDismiss: handleSheetDismiss) { item in
-            ItemDetailSheet(item: item, requestDelete: requestDeleteFromSheet)
-                .presentationDetents([.medium, .large])
+            ItemDetailSheet(
+                item: item,
+                requestDelete: requestDeleteFromSheet,
+                oneTime: sheetOneTime,
+                recurring: sheetRecurring
+            )
+            .presentationDetents([.medium, .large])
         }
     }
     
@@ -249,7 +254,7 @@ extension ListOverviewView {
         
         let dayTotals = try? ledger.dayTotals(for: day)
         let dayNetTotal: Decimal = dayTotals?.runningBalanceEndOfDay ?? 0
-        
+
         return HStack {
             Spacer()
             VStack(alignment: .trailing) {
@@ -327,19 +332,19 @@ extension ListOverviewView {
         pendingDeleteSource = source
         selectedItem = nil
     }
-    
+
     private func handleSheetDismiss() {
         guard let source = pendingDeleteSource else { return }
         pendingDeleteSource = nil
-        let ledger = LedgerService(context: modelContext)
+
         do {
             switch source {
             case .oneTime(let id):
-                if let tx = modelContext.model(for: id) as? OneTimeTransaction {
+                if let tx = try ledger.fetchOneTime(id: id) {
                     try ledger.deleteOneTime(tx)
                 }
             case .recurring(let id):
-                if let rule = modelContext.model(for: id) as? RecurringRule {
+                if let rule = try ledger.fetchRecurring(id: id) {
                     try ledger.deleteRecurring(rule)
                 }
             }
