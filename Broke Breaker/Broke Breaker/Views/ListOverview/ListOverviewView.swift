@@ -6,12 +6,14 @@ struct ListOverviewView: View {
     let ledger = Ledger.shared
     
     @Environment(\.colorScheme) var colourScheme: ColorScheme
+    @GestureState private var isWeekDragging = false
 
     @State private var date: Date = .now
     @State private var weekStart: Date = Calendar.current.date(
         from: Calendar.current.dateComponents([.yearForWeekOfYear, .weekOfYear], from: .now))!
     @State private var weeklyTotals: [Date: DayTotals] = [:]
     @State private var weekPageIndex = 1
+    @State private var weekChanging: Bool = false
     @State private var pageIndex = 1
     @State private var selectedItem: DayLineItem?
     @State private var pendingDeleteSource: DayLineItem.Source?
@@ -89,12 +91,22 @@ extension ListOverviewView {
             ForEach(0..<3) { index in
                 let offset = index - 1
                 let baseWeek = Calendar.current.date(byAdding: .weekOfYear, value: offset, to: weekStart)!
-                weekView(for: baseWeek)
-                    .tag(index)
+                HStack {
+                    Divider().opacity(isWeekDragging ? 1 : 0)
+                    weekView(for: baseWeek)
+                        .tag(index)
+                    Divider().opacity(isWeekDragging ? 1 : 0)
+                }
             }
         }
         .tabViewStyle(.page(indexDisplayMode: .never))
         .frame(height: 70)
+        .simultaneousGesture (
+            DragGesture(minimumDistance: 1)
+                .updating($isWeekDragging) { _, state, _ in
+                    state = true
+                }
+        )
         .onChange(of: weekPageIndex) { _, newIndex in
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                 let delta = newIndex - 1
