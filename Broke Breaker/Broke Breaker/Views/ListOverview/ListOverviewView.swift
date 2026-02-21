@@ -325,6 +325,11 @@ extension ListOverviewView {
         
         let diff = calendar.dateComponents([.weekOfYear], from: currentWeek, to: targetWeek).weekOfYear ?? 0
         
+        if calendar.isDate(currentWeek, inSameDayAs: targetWeek) {
+                date = today
+                return
+        }
+        
         guard diff != 0 else {
             withAnimation {
                 date = today
