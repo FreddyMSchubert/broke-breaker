@@ -191,7 +191,7 @@ extension ListOverviewView {
                 }
             } else {
                 Spacer()
-                Text("No items for this day.")
+                Text("Error loading day")
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity)
                 Spacer()
