@@ -460,7 +460,7 @@ extension ListOverviewView {
         return circleColor
     }
 
-    func lastDigit(of number: Double) -> Int? {
+    private func lastDigit(of number: Double) -> Int? {
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal
         formatter.maximumFractionDigits = 100
