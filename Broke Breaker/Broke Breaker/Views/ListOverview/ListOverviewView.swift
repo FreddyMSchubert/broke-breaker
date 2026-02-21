@@ -164,7 +164,8 @@ extension ListOverviewView {
                                         Text(item.title)
                                         Spacer()
                                         let amountDouble = NSDecimalNumber(decimal: item.amount).doubleValue
-                                        Text("\(amountDouble, format: .number.precision(.fractionLength(2)))")
+                                        let sign = amountDouble >= 0 ? "+" : ""
+                                        Text("\(sign)\(amountDouble, format: .number.precision(.fractionLength(2)))")
                                             .foregroundStyle(item.amount >= 0 ? .blue : .red)
                                     }
                                     .contentShape(Rectangle())
@@ -187,8 +188,16 @@ extension ListOverviewView {
                                         Text(item.title)
                                         Spacer()
                                         let amountDouble = NSDecimalNumber(decimal: item.amount).doubleValue
-                                        Text("\(amountDouble, format: .number.precision(.fractionLength(2)))")
-                                            .foregroundStyle(item.amount >= 0 ? .blue : .red)
+                                        let sign = amountDouble >= 0 ? "+" : ""
+                                        if (amountDouble < 0.01) && (amountDouble > -0.01) {
+                                            let sign = amountDouble <= 0 ? "-" : ""
+                                            Text("\(sign)0.0...\(lastDigit(of: amountDouble) ?? 1)")
+                                                .foregroundStyle(item.amount >= 0 ? .blue : .red)
+                                        }
+                                        else {
+                                            Text("\(sign)\(amountDouble, format: .number.precision(.fractionLength(2)))")
+                                                .foregroundStyle(item.amount >= 0 ? .blue : .red)
+                                        }
                                     }
                                     .contentShape(Rectangle())
                                     .onTapGesture { selectedItem = item }
@@ -444,5 +453,22 @@ extension ListOverviewView {
             circleColor = balance >= 0 ? .blue : .red
         }
         return circleColor
+    }
+
+    func lastDigit(of number: Double) -> Int? {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.maximumFractionDigits = 100
+        formatter.minimumFractionDigits = 0
+        
+        guard let numberString = formatter.string(for: number) else {
+            return nil
+        }
+    
+        let cleanString = numberString.replacingOccurrences(of: ".", with: "")
+        let trimmed = cleanString.trimmingCharacters(in: CharacterSet(charactersIn: "0"))
+        let lastThree = trimmed.suffix(3)
+            
+        return Int(lastThree) ?? 0
     }
 }
