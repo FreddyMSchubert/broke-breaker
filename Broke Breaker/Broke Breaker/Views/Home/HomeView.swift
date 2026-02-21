@@ -1,5 +1,6 @@
 import SwiftUI
 import SharedLedger
+import WidgetKit
 
 
 struct HomeView: View {
@@ -311,7 +312,9 @@ private func loadRealData() {
             let totalsToday = try ledger.dayTotals(for: today)
             netToday = (totalsToday.netTotal as NSDecimalNumber).doubleValue
             balanceToday = (totalsToday.runningBalanceEndOfDay as NSDecimalNumber).doubleValue
-
+            let defaults = UserDefaults(suiteName: "group.com.freddy.brokebreaker")
+            defaults?.set(balanceToday, forKey: "currentBalance")
+            WidgetCenter.shared.reloadAllTimelines()
 
             var values: [Double] = []
 
