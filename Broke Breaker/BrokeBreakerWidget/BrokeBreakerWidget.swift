@@ -32,7 +32,8 @@ struct BrokeBreakerWidgetEntryView : View {
     var entry: Provider.Entry
     
     var body: some View {
-        let balance: Decimal = 15.50
+        let defaults = UserDefaults(suiteName: "group.com.freddy.brokebreaker")
+        let balance = defaults?.double(forKey: "currentBalance") ?? 0
         let isPositive = balance >= 0
         
         let backgroundColor = isPositive
@@ -45,66 +46,66 @@ struct BrokeBreakerWidgetEntryView : View {
             ZStack {
                 
                 Text(isPositive ? "💰" : "💸")
-                    .font(.system(size: 22))
-                    .opacity(0.18)
-                    .blur(radius: 1.2)
+                    .font(.system(size: 24))
+                    .opacity(0.30)
+                    .blur(radius: 0.6)
                     .rotationEffect(.degrees(-18))
                     .offset(x: -70, y: -60)
                 
                 Text(isPositive ? "😊" : "😢")
-                    .font(.system(size: 20))
-                    .opacity(0.16)
-                    .blur(radius: 1)
+                    .font(.system(size: 22))
+                    .opacity(0.28)
+                    .blur(radius: 0.6)
                     .rotationEffect(.degrees(12))
                     .offset(x: -20, y: -55)
                 
                 Text(isPositive ? "💵" : "📉")
-                    .font(.system(size: 24))
-                    .opacity(0.18)
-                    .blur(radius: 1.3)
+                    .font(.system(size: 26))
+                    .opacity(0.30)
+                    .blur(radius: 0.6)
                     .rotationEffect(.degrees(-10))
                     .offset(x: 55, y: -45)
                 
                 Text(isPositive ? "🤑" : "😰")
-                    .font(.system(size: 21))
-                    .opacity(0.16)
-                    .blur(radius: 1)
+                    .font(.system(size: 23))
+                    .opacity(0.28)
+                    .blur(radius: 0.6)
                     .rotationEffect(.degrees(20))
                     .offset(x: 70, y: -10)
                 
                 Text(isPositive ? "💰" : "💸")
-                    .font(.system(size: 19))
-                    .opacity(0.15)
-                    .blur(radius: 1)
+                    .font(.system(size: 21))
+                    .opacity(0.26)
+                    .blur(radius: 0.6)
                     .rotationEffect(.degrees(-8))
                     .offset(x: -55, y: 10)
                 
                 Text(isPositive ? "💵" : "📉")
-                    .font(.system(size: 23))
-                    .opacity(0.18)
-                    .blur(radius: 1.2)
+                    .font(.system(size: 25))
+                    .opacity(0.30)
+                    .blur(radius: 0.6)
                     .rotationEffect(.degrees(15))
                     .offset(x: 10, y: 35)
                 
                 Text(isPositive ? "😊" : "😢")
-                    .font(.system(size: 20))
-                    .opacity(0.15)
-                    .blur(radius: 1)
+                    .font(.system(size: 22))
+                    .opacity(0.26)
+                    .blur(radius: 0.6)
                     .rotationEffect(.degrees(-22))
                     .offset(x: -35, y: 55)
                 
                 Text(isPositive ? "🤑" : "😰")
-                    .font(.system(size: 22))
-                    .opacity(0.17)
-                    .blur(radius: 1.1)
+                    .font(.system(size: 24))
+                    .opacity(0.28)
+                    .blur(radius: 0.6)
                     .rotationEffect(.degrees(9))
                     .offset(x: 60, y: 50)
-            }
+        }
             
             // Main content
             VStack(spacing: 8) {
                 
-                Text("£\(NSDecimalNumber(decimal: balance).stringValue)")
+                Text("£\(balance, specifier: "%.2f")")
                     .font(.system(size: 36, weight: .bold))
                     .foregroundColor(.white)
                 
