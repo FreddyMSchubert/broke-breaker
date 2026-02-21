@@ -1,4 +1,5 @@
 import SwiftUI
+import SharedLedger
 
 struct RootTabView: View {
     var body: some View {
@@ -28,5 +29,11 @@ struct RootTabView: View {
 }
 
 #Preview {
-    RootTabView()
+    let tmp = FileManager.default.temporaryDirectory
+        .appendingPathComponent("preview-ledger.sqlite")
+    try? FileManager.default.removeItem(at: tmp)
+
+    let ledger = Ledger.shared
+
+    return RootTabView()
 }

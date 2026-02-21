@@ -1,27 +1,25 @@
 import SwiftUI
-import SwiftData
+import SharedLedger
 
 @main
 struct Broke_BreakerApp: App {
-    var sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            OneTimeTransaction.self,
-            RecurringRule.self,
-            DailyCacheEntry.self
-        ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+    let ledgerService: LedgerService
+
+    init() {
+        // db stored in in documents or application support
+        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let dbURL = docs.appendingPathComponent("ledger.sqlite")
 
         do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
+            ledgerService = try LedgerService(databasePath: dbURL.path)
         } catch {
-            fatalError("Could not create ModelContainer: \(error)")
+            fatalError("Could not open ledger DB: \(error)")
         }
-    }()
+    }
 
     var body: some Scene {
         WindowGroup {
             RootTabView()
         }
-        .modelContainer(sharedModelContainer)
     }
 }
