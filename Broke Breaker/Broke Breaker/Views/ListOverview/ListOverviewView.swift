@@ -34,7 +34,7 @@ struct ListOverviewView: View {
             // Date Picker
             HStack {
                 DatePicker("", selection: $date, displayedComponents: .date)
-                Button("Today") { date = .now }
+                Button("Today") { goToToday() }
                     .padding(.horizontal, 13)
                     .padding(.vertical, 7)
                     .padding(.bottom, 1)
@@ -108,6 +108,9 @@ extension ListOverviewView {
                 }
         )
         .onChange(of: weekPageIndex) { _, newIndex in
+            guard newIndex != 1 else { return }
+            guard !weekChanging else { return }
+            
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                 let delta = newIndex - 1
                 if delta != 0 {
@@ -296,6 +299,46 @@ extension ListOverviewView {
         weekStart = Calendar.current.date(
             from: Calendar.current.dateComponents([.yearForWeekOfYear, .weekOfYear], from: date)
         ) ?? weekStart
+    }
+
+    private func goToToday() {
+        let calendar = Calendar.current
+        let today = Date()
+        
+        let currentWeek = calendar.date(
+            from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: date)
+        )!
+        let targetWeek = calendar.date(
+            from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: today)
+        )!
+        
+        let diff = calendar.dateComponents([.weekOfYear], from: currentWeek, to: targetWeek).weekOfYear ?? 0
+        
+        guard diff != 0 else {
+            withAnimation {
+                date = today
+            }
+            return
+        }
+        
+        weekChanging = true
+        
+        withAnimation(.easeInOut(duration: 0.3)) {
+            weekPageIndex = diff > 0 ? 2 : 0
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            weekStart = targetWeek
+            date = today
+            
+            var transaction = Transaction()
+            transaction.disablesAnimations = true
+            withTransaction(transaction) {
+                weekPageIndex = 1
+            }
+            
+            weekChanging = false
+            loadWeeklyTotals()
+        }
     }
     
     private func loadWeeklyTotals() {
