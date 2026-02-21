@@ -139,8 +139,10 @@ extension ListOverviewView {
             if let overview {
                 if overview.items.isEmpty {
                     Spacer()
+                    Spacer()
                     Label("No Items", systemImage: "tray")
                         .font(.title)
+                        .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity)
                     Spacer()
                 } else {
