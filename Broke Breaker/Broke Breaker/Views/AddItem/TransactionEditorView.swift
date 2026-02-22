@@ -318,11 +318,11 @@ struct TransactionEditorView: View {
                 })
             )
         }
+        .scrollDismissesKeyboard(.immediately)
         .onAppear { prefillFromMode() }
-        .background(
-            Color.clear
-                .contentShape(Rectangle())
-                .onTapGesture { focusedField = nil }
+        .contentShape(Rectangle())
+        .simultaneousGesture(
+            TapGesture().onEnded { focusedField = nil }
         )
     }
 
@@ -467,7 +467,7 @@ struct TransactionEditorView: View {
 
     private var primaryActionTitle: String {
         switch mode {
-        case .create: return "Create"
+        case .create: return "Create \(createTransactionName)"
         case .editOneTime, .editRecurring: return "Save"
         }
     }
