@@ -14,10 +14,9 @@ struct ListOverviewView: View {
     @State private var weekPageIndex = 1
     @State private var pageIndex = 1
     @State private var selectedItem: DayLineItem?
-    
     @State private var refreshToken = UUID()
-    @State private var isPresentingItemSheet = false
-    @State private var pendingRefreshAfterSheet = false
+    
+    @State private var selectedItemDay: Date = .now
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -78,27 +77,16 @@ struct ListOverviewView: View {
         .onChange(of: date) { _, newDate in
             refresh()
         }
-        .sheet(isPresented: $isPresentingItemSheet, onDismiss: {
-            if pendingRefreshAfterSheet {
-                pendingRefreshAfterSheet = false
-                DispatchQueue.main.async {
+        .sheet(item: $selectedItem) { item in
+            ItemDetailSheet(
+                day: selectedItemDay,
+                item: item,
+                onChanged: {
                     refresh()
                     refreshToken = UUID()
                 }
-            }
-        }) {
-            if let item = selectedItem {
-                ItemDetailSheet(
-                    item: item,
-                    onChanged: {
-                        pendingRefreshAfterSheet = true
-                    }
-                )
-                .presentationDetents([.medium, .large])
-            } else {
-                Text("No transaction selected - please reopen the sheet.")
-                    .presentationDetents([.medium])
-            }
+            )
+            .presentationDetents([.medium, .large])
         }
     }
 }
@@ -175,10 +163,8 @@ extension ListOverviewView {
                                     }
                                     .contentShape(Rectangle())
                                     .onTapGesture {
+                                        selectedItemDay = day
                                         selectedItem = item
-                                        DispatchQueue.main.async {
-                                            isPresentingItemSheet = true
-                                        }
                                     }
                                 }
                             } header: {
@@ -203,10 +189,8 @@ extension ListOverviewView {
                                     }
                                     .contentShape(Rectangle())
                                     .onTapGesture {
+                                        selectedItemDay = day
                                         selectedItem = item
-                                        DispatchQueue.main.async {
-                                            isPresentingItemSheet = true
-                                        }
                                     }
                                 }
                             } header: {

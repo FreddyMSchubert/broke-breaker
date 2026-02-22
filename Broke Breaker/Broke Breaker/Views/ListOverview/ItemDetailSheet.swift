@@ -5,6 +5,7 @@ struct ItemDetailSheet: View {
     let ledger = Ledger.shared
     @Environment(\.dismiss) private var dismiss
 
+    let day: Date
     let item: DayLineItem
     let onChanged: () -> Void
 
@@ -13,6 +14,15 @@ struct ItemDetailSheet: View {
 
     @State private var showDeleteConfirm = false
     @State private var showEditSheet = false
+    
+    @State private var dailyAmount: Decimal
+    
+    init(day: Date, item: DayLineItem, onChanged: @escaping () -> Void) {
+        self.day = day
+        self.item = item
+        self.onChanged = onChanged
+        _dailyAmount = State(initialValue: item.amount)
+    }
 
     var body: some View {
         VStack(spacing: 16) {
@@ -38,7 +48,7 @@ struct ItemDetailSheet: View {
                     .frame(maxWidth: .infinity, alignment: .center)
                     .lineLimit(2)
 
-                if let daily = approxDailyImpactText() {
+                if let daily = displayDailyImpact() {
                     Text(daily)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
@@ -130,8 +140,9 @@ struct ItemDetailSheet: View {
             Text("This can’t be undone.")
         }
         .sheet(isPresented: $showEditSheet, onDismiss: {
-            reloadModels()     // refresh this sheet’s display
-            onChanged()        // refresh list view
+            reloadModels()
+            refreshDailyAmountFromBackend()
+            onChanged()
         }) {
             if let tx = oneTime {
                 TransactionEditorView(mode: .editOneTime(tx))
@@ -191,6 +202,31 @@ struct ItemDetailSheet: View {
         case .recurring: return recurring?.title ?? item.title
         }
     }
+    private func displayDailyImpact() -> String? {
+        guard let rule = recurring else { return nil }
+        if case .everyDays(1) = rule.recurrence { return nil }
+        return "≈ \(format2(dailyAmount)) / day impact"
+    }
+    
+    private func refreshDailyAmountFromBackend() {
+        do {
+            let overview = try ledger.dayOverview(for: day)
+
+            let updated = overview.items.first { candidate in
+                switch (candidate.source, item.source) {
+                case (.oneTime(let a), .oneTime(let b)): return a == b
+                case (.recurring(let a), .recurring(let b)): return a == b
+                default: return false
+                }
+            }
+
+            if let updated {
+                dailyAmount = updated.amount
+            }
+        } catch {
+            // ignore
+        }
+    }
 
     private var headlineSuffix: String? {
         guard let rule = recurring else { return nil }
@@ -204,12 +240,6 @@ struct ItemDetailSheet: View {
         case .everyMonths(let n): return n == 1 ? "month" : "\(n) months"
         case .everyYears(let n):  return n == 1 ? "year" : "\(n) years"
         }
-    }
-
-    private func approxDailyImpactText() -> String? {
-        guard let rule = recurring else { return nil }
-        if case .everyDays(1) = rule.recurrence { return nil }
-        return "≈ \(format2(item.amount)) / day impact"
     }
 
     private func format2(_ value: Decimal) -> String {
