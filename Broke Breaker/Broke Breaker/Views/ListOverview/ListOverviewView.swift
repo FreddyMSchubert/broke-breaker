@@ -14,10 +14,10 @@ struct ListOverviewView: View {
     @State private var weekPageIndex = 1
     @State private var pageIndex = 1
     @State private var selectedItem: DayLineItem?
-    @State private var pendingDeleteSource: DayLineItem.Source?
-
-    @State private var sheetOneTime: OneTimeTransaction?
-    @State private var sheetRecurring: RecurringRule?
+    
+    @State private var refreshToken = UUID()
+    @State private var isPresentingItemSheet = false
+    @State private var pendingRefreshAfterSheet = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -57,6 +57,7 @@ struct ListOverviewView: View {
                         .tag(index)
                 }
             }
+            .id(refreshToken)
             .tabViewStyle(.page(indexDisplayMode: .never))
             .onChange(of: pageIndex) { oldIndex, newIndex in
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
@@ -76,6 +77,28 @@ struct ListOverviewView: View {
         }
         .onChange(of: date) { _, newDate in
             refresh()
+        }
+        .sheet(isPresented: $isPresentingItemSheet, onDismiss: {
+            if pendingRefreshAfterSheet {
+                pendingRefreshAfterSheet = false
+                DispatchQueue.main.async {
+                    refresh()
+                    refreshToken = UUID()
+                }
+            }
+        }) {
+            if let item = selectedItem {
+                ItemDetailSheet(
+                    item: item,
+                    onChanged: {
+                        pendingRefreshAfterSheet = true
+                    }
+                )
+                .presentationDetents([.medium, .large])
+            } else {
+                Text("No transaction selected - please reopen the sheet.")
+                    .presentationDetents([.medium])
+            }
         }
     }
 }
@@ -151,7 +174,12 @@ extension ListOverviewView {
                                             .foregroundStyle(item.amount >= 0 ? .blue : .red)
                                     }
                                     .contentShape(Rectangle())
-                                    .onTapGesture { selectedItem = item }
+                                    .onTapGesture {
+                                        selectedItem = item
+                                        DispatchQueue.main.async {
+                                            isPresentingItemSheet = true
+                                        }
+                                    }
                                 }
                             } header: {
                                 Text("One-Time Transactions:")
@@ -174,7 +202,12 @@ extension ListOverviewView {
                                             .foregroundStyle(item.amount >= 0 ? .blue : .red)
                                     }
                                     .contentShape(Rectangle())
-                                    .onTapGesture { selectedItem = item }
+                                    .onTapGesture {
+                                        selectedItem = item
+                                        DispatchQueue.main.async {
+                                            isPresentingItemSheet = true
+                                        }
+                                    }
                                 }
                             } header: {
                                 Text("Recurring Transactions:")
@@ -205,33 +238,6 @@ extension ListOverviewView {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .contentShape(Rectangle())
-        .sheet(item: $selectedItem, onDismiss: handleSheetDismiss) { item in
-            let resolved = resolveModels(for: item)
-
-            ItemDetailSheet(
-                item: item,
-                requestDelete: requestDeleteFromSheet,
-                oneTime: resolved.oneTime,
-                recurring: resolved.recurring
-            )
-            .presentationDetents([.medium, .large])
-        }
-    }
-
-    private func resolveModels(for item: DayLineItem) -> (oneTime: OneTimeTransaction?, recurring: RecurringRule?)
-    {
-        sheetOneTime = nil
-        sheetRecurring = nil
-        do {
-            switch item.source {
-            case .oneTime(let id):
-                return (try ledger.fetchOneTime(id: id), nil)
-            case .recurring(let id):
-                return (nil, try ledger.fetchRecurring(id: id))
-            }
-        } catch {
-            return (nil, nil)
-        }
     }
 
     private func overviewBar(for day: Date, overview: DayOverview) -> some View {
@@ -364,33 +370,7 @@ extension ListOverviewView {
             date = newDate
         }
     }
-    
-    private func requestDeleteFromSheet(_ source: DayLineItem.Source) {
-        pendingDeleteSource = source
-        selectedItem = nil
-    }
 
-    private func handleSheetDismiss() {
-        guard let source = pendingDeleteSource else { return }
-        pendingDeleteSource = nil
-
-        do {
-            switch source {
-            case .oneTime(let id):
-                if let tx = try ledger.fetchOneTime(id: id) {
-                    try ledger.deleteOneTime(tx)
-                }
-            case .recurring(let id):
-                if let rule = try ledger.fetchRecurring(id: id) {
-                    try ledger.deleteRecurring(rule)
-                }
-            }
-            loadWeeklyTotals()
-        } catch {
-            print("Delete failed:", error)
-        }
-    }
-    
     private func circleColour(day: Date) -> Color {
         let isSelected = Calendar.current.isDate(day, inSameDayAs: date)
         let balance = weeklyTotals[day]?.runningBalanceEndOfDay ?? 0

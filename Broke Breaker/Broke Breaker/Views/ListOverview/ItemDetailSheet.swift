@@ -6,16 +6,13 @@ struct ItemDetailSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     let item: DayLineItem
-    let requestDelete: (DayLineItem.Source) -> Void
+    let onChanged: () -> Void
 
-    let oneTime: OneTimeTransaction?
-    let recurring: RecurringRule?
+    @State private var oneTime: OneTimeTransaction?
+    @State private var recurring: RecurringRule?
 
     @State private var showDeleteConfirm = false
     @State private var showEditSheet = false
-    @State private var pendingDelete = false
-    
-    @State private var refreshTick = 0 // arbitrary data, just for refreshing
 
     var body: some View {
         VStack(spacing: 16) {
@@ -121,17 +118,21 @@ struct ItemDetailSheet: View {
             .padding(.bottom, 10)
         }
         .padding(.horizontal)
+        .onAppear { reloadModels() }
         .confirmationDialog(
             "Delete this transaction?",
             isPresented: $showDeleteConfirm,
             titleVisibility: .visible
         ) {
-            Button("Delete", role: .destructive) { requestDelete(item.source) }
-            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) { deleteNow() }
+            Button("Cancel", role: .cancel) {}
         } message: {
             Text("This can’t be undone.")
         }
-        .sheet(isPresented: $showEditSheet, onDismiss: { refreshTick += 1 }) {
+        .sheet(isPresented: $showEditSheet, onDismiss: {
+            reloadModels()     // refresh this sheet’s display
+            onChanged()        // refresh list view
+        }) {
             if let tx = oneTime {
                 TransactionEditorView(mode: .editOneTime(tx))
                     .presentationDetents([.large])
@@ -143,7 +144,37 @@ struct ItemDetailSheet: View {
                     .presentationDetents([.medium])
             }
         }
-        .id(refreshTick)
+    }
+    
+    private func reloadModels() {
+        do {
+            switch item.source {
+            case .oneTime(let id):
+                oneTime = try ledger.fetchOneTime(id: id)
+                recurring = nil
+            case .recurring(let id):
+                recurring = try ledger.fetchRecurring(id: id)
+                oneTime = nil
+            }
+        } catch {
+            oneTime = nil
+            recurring = nil
+        }
+    }
+
+    private func deleteNow() {
+        do {
+            switch item.source {
+            case .oneTime(let id):
+                if let tx = try ledger.fetchOneTime(id: id) { try ledger.deleteOneTime(tx) }
+            case .recurring(let id):
+                if let rule = try ledger.fetchRecurring(id: id) { try ledger.deleteRecurring(rule) }
+            }
+            dismiss()
+            onChanged()
+        } catch {
+            print("Delete failed:", error)
+        }
     }
 
     private var displayAmount: Decimal {
