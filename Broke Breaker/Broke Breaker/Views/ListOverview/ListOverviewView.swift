@@ -147,6 +147,7 @@ extension ListOverviewView {
         let overview = try? ledger.dayOverview(for: day)
 
         return VStack(alignment: .leading, spacing: 8) {
+            Divider()
             if let overview {
                 if overview.items.isEmpty {
                     Spacer()
@@ -171,7 +172,14 @@ extension ListOverviewView {
                         }
                         
                         if !oneTimeItems.isEmpty {
-                            Section {
+                            VStack() {
+                                Text("One-Time Transactions:")
+                                    .font(.subheadline)
+                                    .fontWeight(.semibold)
+                                    .foregroundStyle(.secondary)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(8)
+                                
                                 ForEach(oneTimeItems.sorted { $0.title > $1.title }) { item in
                                     HStack {
                                         Text(item.title)
@@ -181,27 +189,32 @@ extension ListOverviewView {
                                         Text("\(sign)\(amountDouble, format: .number.precision(.fractionLength(2)))")
                                             .foregroundStyle(item.amount >= 0 ? .blue : .red)
                                     }
+                                    Divider()
                                     .contentShape(Rectangle())
+                                    .padding(8)
                                     .onTapGesture {
                                         selectedItemDay = day
                                         selectedItem = item
                                     }
                                 }
-                            } header: {
-                                Text("One-Time Transactions:")
-                                    .font(.subheadline)
-                                    .fontWeight(.semibold)
-                                    .textCase(nil)
-                                    .foregroundStyle(.secondary)
                             }
+                            .padding(8)
+                            .glassEffect(in: .rect(cornerRadius: 16.0))
                         }
                         
                         if !recurringItems.isEmpty {
-                            Section {
+                            VStack() {
+                                Text("Recurring Transactions:")
+                                    .font(.subheadline)
+                                    .fontWeight(.semibold)
+                                    .foregroundStyle(.secondary)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(8)
+                                
                                 ForEach(recurringItems.sorted { $0.title > $1.title }) { item in
                                     HStack {
                                         Label("\(item.title)", systemImage: "repeat")
-                                            .foregroundStyle(.white)
+                                            .foregroundStyle(.primary)
                                         Spacer()
                                         let amountDouble = NSDecimalNumber(decimal: item.amount).doubleValue
                                         let sign = amountDouble >= 0 ? "+" : ""
@@ -215,20 +228,17 @@ extension ListOverviewView {
                                                 .foregroundStyle(item.amount >= 0 ? .blue : .red)
                                         }
                                     }
+                                    Divider()
                                     .contentShape(Rectangle())
+                                    .padding(8)
                                     .onTapGesture {
                                         selectedItemDay = day
                                         selectedItem = item
                                     }
                                 }
-                            } header: {
-                                Text("Recurring Transactions:")
-                                    .font(.subheadline)
-                                    .fontWeight(.semibold)
-                                    .textCase(nil)
-                                    .foregroundStyle(.secondary)
                             }
-                            
+                            .padding(8)
+                            .glassEffect(in: .rect(cornerRadius: 16.0))
                         }
                     }
                     .listStyle(.plain)
@@ -243,7 +253,6 @@ extension ListOverviewView {
                 Spacer()
             }
             Spacer()
-            Divider()
             if let overview {
                 overviewBar(for: day, overview: overview)
                     .padding(.bottom, 8)
