@@ -197,7 +197,11 @@ extension ListOverviewView {
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .padding(8)
                                 
-                                ForEach(oneTimeItems.sorted { $0.title > $1.title }) { item in
+                                let sortedOneTime = oneTimeItems.sorted { $0.title > $1.title }
+                                
+                                ForEach(sortedOneTime.indices, id: \.self) { index in
+                                            let item = sortedOneTime[index]
+                                    
                                     HStack {
                                         Text(item.title)
                                         Spacer()
@@ -211,6 +215,9 @@ extension ListOverviewView {
                                     .onTapGesture {
                                         selectedItemDay = day
                                         selectedItem = item
+                                    }
+                                    if index < sortedOneTime.count - 1 {
+                                        Divider()
                                     }
                                 }
                             }
@@ -228,8 +235,11 @@ extension ListOverviewView {
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .padding(8)
                                 
-                                let index = 1;
-                                ForEach(recurringItems.sorted { $0.title > $1.title }) { item in
+                                let sortedReccuring = recurringItems.sorted { $0.title > $1.title }
+                                
+                                ForEach(sortedReccuring.indices, id: \.self) { index in
+                                            let item = sortedReccuring[index]
+                                    
                                     HStack {
                                         Label("\(item.title)", systemImage: "repeat")
                                             .foregroundStyle(.primary)
@@ -252,7 +262,7 @@ extension ListOverviewView {
                                         selectedItemDay = day
                                         selectedItem = item
                                     }
-                                    if (index < recurringItems.count) {
+                                    if index < sortedReccuring.count - 1 {
                                         Divider()
                                     }
                                 }
