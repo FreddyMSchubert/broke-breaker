@@ -140,10 +140,13 @@ extension ListOverviewView {
                 if overview.items.isEmpty {
                     Spacer()
                     Spacer()
-                    Label("No Items", systemImage: "tray")
-                        .font(.title)
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity)
+                    VStack(spacing: 8) {
+                        Image(systemName: "tray")
+                        Text("No Transactions")
+                    }
+                    .font(.title)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity)
                     Spacer()
                 } else {
                     List {
