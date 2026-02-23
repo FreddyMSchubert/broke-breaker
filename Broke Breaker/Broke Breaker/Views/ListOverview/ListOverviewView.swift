@@ -16,10 +16,9 @@ struct ListOverviewView: View {
     @State private var weekChanging: Bool = false
     @State private var pageIndex = 1
     @State private var selectedItem: DayLineItem?
-    @State private var pendingDeleteSource: DayLineItem.Source?
-
-    @State private var sheetOneTime: OneTimeTransaction?
-    @State private var sheetRecurring: RecurringRule?
+    @State private var refreshToken = UUID()
+    
+    @State private var selectedItemDay: Date = .now
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -59,6 +58,7 @@ struct ListOverviewView: View {
                         .tag(index)
                 }
             }
+            .id(refreshToken)
             .tabViewStyle(.page(indexDisplayMode: .never))
             .onChange(of: pageIndex) { oldIndex, newIndex in
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
@@ -78,6 +78,17 @@ struct ListOverviewView: View {
         }
         .onChange(of: date) { _, newDate in
             refresh()
+        }
+        .sheet(item: $selectedItem) { item in
+            ItemDetailSheet(
+                day: selectedItemDay,
+                item: item,
+                onChanged: {
+                    refresh()
+                    refreshToken = UUID()
+                }
+            )
+            .presentationDetents([.medium, .large])
         }
     }
 }
@@ -171,7 +182,10 @@ extension ListOverviewView {
                                             .foregroundStyle(item.amount >= 0 ? .blue : .red)
                                     }
                                     .contentShape(Rectangle())
-                                    .onTapGesture { selectedItem = item }
+                                    .onTapGesture {
+                                        selectedItemDay = day
+                                        selectedItem = item
+                                    }
                                 }
                             } header: {
                                 Text("One-Time Transactions:")
@@ -202,7 +216,10 @@ extension ListOverviewView {
                                         }
                                     }
                                     .contentShape(Rectangle())
-                                    .onTapGesture { selectedItem = item }
+                                    .onTapGesture {
+                                        selectedItemDay = day
+                                        selectedItem = item
+                                    }
                                 }
                             } header: {
                                 Text("Recurring Transactions:")
@@ -234,18 +251,8 @@ extension ListOverviewView {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .contentShape(Rectangle())
-        .sheet(item: $selectedItem, onDismiss: handleSheetDismiss) { item in
-            ItemDetailSheet(
-                item: item,
-                requestDelete: requestDeleteFromSheet,
-                oneTime: sheetOneTime,
-                recurring: sheetRecurring
-            )
-            .presentationDetents([.medium, .large])
-        }
     }
-    
-    // overview bar
+
     private func overviewBar(for day: Date, overview: DayOverview) -> some View {
         
         let previousDay = Calendar.current.date(byAdding: .day, value: -1, to: day)!
@@ -421,33 +428,7 @@ extension ListOverviewView {
             date = newDate
         }
     }
-    
-    private func requestDeleteFromSheet(_ source: DayLineItem.Source) {
-        pendingDeleteSource = source
-        selectedItem = nil
-    }
 
-    private func handleSheetDismiss() {
-        guard let source = pendingDeleteSource else { return }
-        pendingDeleteSource = nil
-
-        do {
-            switch source {
-            case .oneTime(let id):
-                if let tx = try ledger.fetchOneTime(id: id) {
-                    try ledger.deleteOneTime(tx)
-                }
-            case .recurring(let id):
-                if let rule = try ledger.fetchRecurring(id: id) {
-                    try ledger.deleteRecurring(rule)
-                }
-            }
-            loadWeeklyTotals()
-        } catch {
-            print("Delete failed:", error)
-        }
-    }
-    
     private func circleColour(day: Date) -> Color {
         let isSelected = Calendar.current.isDate(day, inSameDayAs: date)
         let balance = weeklyTotals[day]?.runningBalanceEndOfDay ?? 0

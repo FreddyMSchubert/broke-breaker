@@ -9,6 +9,7 @@ struct RootTabView: View {
             }
             .tabItem {
                 Label("Home", systemImage: "house")
+                    .labelStyle(.iconOnly)
             }
 
             NavigationStack {
@@ -16,6 +17,7 @@ struct RootTabView: View {
             }
             .tabItem {
                 Label("List", systemImage: "list.bullet")
+                    .labelStyle(.iconOnly)
             }
 
             NavigationStack {
@@ -23,6 +25,7 @@ struct RootTabView: View {
             }
             .tabItem {
                 Label("Add", systemImage: "plus")
+                    .labelStyle(.iconOnly)
             }
         }
     }
@@ -37,3 +40,4 @@ struct RootTabView: View {
 
     return RootTabView()
 }
+
