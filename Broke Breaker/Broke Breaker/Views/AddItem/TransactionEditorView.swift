@@ -295,14 +295,20 @@ struct TransactionEditorView: View {
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 14)
                             .foregroundStyle(.white)
-                            .background(primaryActionColor, in: RoundedRectangle(cornerRadius: 18))
-                            .clipShape(RoundedRectangle(cornerRadius: 18))
-                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
-                    .shadow(radius: 10, y: 6)
+                    .background {
+                        RoundedRectangle(cornerRadius: 18)
+                            .fill(primaryActionColor)
+                    }
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 18)
+                            .stroke(Color.white.opacity(0.10), lineWidth: 1)
+                    }
+                    .shadow(radius: 10, x: 0, y: 6)
                     .opacity(canSave ? 1.0 : 0.5)
                     .disabled(!canSave)
+                    .compositingGroup()
                 }
 
                 Spacer(minLength: 10)
