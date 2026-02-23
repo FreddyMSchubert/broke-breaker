@@ -202,12 +202,17 @@ struct ItemDetailSheet: View {
         case .recurring: return recurring?.title ?? item.title
         }
     }
+    /// Produces a human-readable daily impact string for recurring items that do not occur every day.
+    /// - Returns: A string like "≈ 12.34 / day impact" for non-daily recurring rules, or `nil` if not applicable.
     private func displayDailyImpact() -> String? {
         guard let rule = recurring else { return nil }
         if case .everyDays(1) = rule.recurrence { return nil }
         return "≈ \(format(dailyAmount)) / day impact"
     }
     
+    /// Refreshes `dailyAmount` by fetching the day's overview from the ledger and updating the value from the matching item.
+    /// 
+    /// This loads the ledger's day overview for `day`, finds the corresponding item whose source (one-time or recurring) matches `item.source`, and sets `dailyAmount` to that item's amount if found. Any errors from the ledger call are ignored.
     private func refreshDailyAmountFromBackend() {
         do {
             let overview = try ledger.dayOverview(for: day)
@@ -233,6 +238,9 @@ struct ItemDetailSheet: View {
         return "/ " + cycleLabel(rule.recurrence)
     }
 
+    /// Produce a compact human-readable cycle label for a recurrence (e.g., "day", "2 weeks").
+    /// - Parameter r: The recurrence to describe.
+    /// - Returns: A singular or plural cycle string matching the recurrence count (for example, `"day"` or `"3 weeks"`).
     private func cycleLabel(_ r: Recurrence) -> String {
         switch r {
         case .everyDays(let n):   return n == 1 ? "day" : "\(n) days"
@@ -242,6 +250,10 @@ struct ItemDetailSheet: View {
         }
     }
 
+    /// Format a Decimal as a two-decimal string, clamping very small non-zero magnitudes to avoid tiny rounded values.
+    /// - Parameters:
+    ///   - value: The decimal value to format.
+    /// - Returns: A string with the value formatted to two decimal places. Values with absolute magnitude greater than 0 but less than 0.01 are clamped to ±0.01; exact zero is preserved.
     private func format(_ value: Decimal) -> String {
         let n = NSDecimalNumber(decimal: value)
         return String(format: "%.2f", clampTiny(n.doubleValue))
@@ -254,6 +266,9 @@ struct ItemDetailSheet: View {
         }
     }
 
+    /// Produces a human-readable schedule string for a recurrence pattern.
+    /// - Parameter r: The recurrence pattern and its interval.
+    /// - Returns: A string describing the recurrence, e.g. `"Every 2 weeks"` or `"Every 1 month"`.
     private func scheduleLabel(_ r: Recurrence) -> String {
         switch r {
         case .everyDays(let n): return "Every \(n) day" + (n == 1 ? "" : "s")
@@ -263,6 +278,10 @@ struct ItemDetailSheet: View {
         }
     }
 
+    /// Normalize very small non-zero values by snapping them to ±0.01 (zero stays zero).
+    /// - Parameters:
+    ///   - value: The input value to normalize.
+    /// - Returns: `0` if `value` is exactly zero; `0.01` or `-0.01` if the absolute value is greater than 0 but less than 0.01; otherwise the original `value`.
     private func clampTiny(_ value: Double) -> Double {
         if value == 0 { return 0 }
         let absVal = value < 0 ? -value : value
