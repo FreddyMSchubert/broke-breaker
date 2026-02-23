@@ -175,7 +175,7 @@ extension ListOverviewView {
                                 }
                             } header: {
                                 Text("One-Time Transactions:")
-                                    .font(.caption)
+                                    .font(.subheadline)
                                     .fontWeight(.semibold)
                                     .textCase(nil)
                                     .foregroundStyle(.secondary)
@@ -186,7 +186,8 @@ extension ListOverviewView {
                             Section {
                                 ForEach(recurringItems.sorted { $0.title > $1.title }) { item in
                                     HStack {
-                                        Text(item.title)
+                                        Label("\(item.title)", systemImage: "repeat")
+                                            .foregroundStyle(.white)
                                         Spacer()
                                         let amountDouble = NSDecimalNumber(decimal: item.amount).doubleValue
                                         let sign = amountDouble >= 0 ? "+" : ""
@@ -205,7 +206,7 @@ extension ListOverviewView {
                                 }
                             } header: {
                                 Text("Recurring Transactions:")
-                                    .font(.caption)
+                                    .font(.subheadline)
                                     .fontWeight(.semibold)
                                     .textCase(nil)
                                     .foregroundStyle(.secondary)
@@ -214,6 +215,7 @@ extension ListOverviewView {
                         }
                     }
                     .listStyle(.plain)
+                    .padding(.top, -12)
                     
                 }
             } else {
