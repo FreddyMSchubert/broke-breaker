@@ -192,7 +192,7 @@ extension ListOverviewView {
                                         let sign = amountDouble >= 0 ? "+" : ""
                                         if (amountDouble < 0.01) && (amountDouble > -0.01) {
                                             let sign = amountDouble <= 0 ? "-" : ""
-                                            Text("\(sign)0.0...\(lastDigit(of: amountDouble) ?? 1)")
+                                            Text("\(sign)0.01")
                                                 .foregroundStyle(item.amount >= 0 ? .blue : .red)
                                         }
                                         else {
@@ -461,20 +461,4 @@ extension ListOverviewView {
         return circleColor
     }
 
-    private func lastDigit(of number: Double) -> Int? {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        formatter.maximumFractionDigits = 100
-        formatter.minimumFractionDigits = 0
-        
-        guard let numberString = formatter.string(for: number) else {
-            return nil
-        }
-    
-        let cleanString = numberString.replacingOccurrences(of: ".", with: "")
-        let trimmed = cleanString.trimmingCharacters(in: CharacterSet(charactersIn: "0"))
-        let lastThree = trimmed.suffix(3)
-            
-        return Int(lastThree) ?? 0
-    }
 }
