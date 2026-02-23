@@ -147,7 +147,6 @@ extension ListOverviewView {
         let overview = try? ledger.dayOverview(for: day)
 
         return VStack(alignment: .leading, spacing: 8) {
-            Divider()
             if let overview {
                 if overview.items.isEmpty {
                     Spacer()
@@ -180,6 +179,7 @@ extension ListOverviewView {
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .padding(8)
                                 
+                                var index = 1;
                                 ForEach(oneTimeItems.sorted { $0.title > $1.title }) { item in
                                     HStack {
                                         Text(item.title)
@@ -189,15 +189,18 @@ extension ListOverviewView {
                                         Text("\(sign)\(amountDouble, format: .number.precision(.fractionLength(2)))")
                                             .foregroundStyle(item.amount >= 0 ? .blue : .red)
                                     }
-                                    Divider()
                                     .contentShape(Rectangle())
                                     .padding(8)
                                     .onTapGesture {
                                         selectedItemDay = day
                                         selectedItem = item
                                     }
+                                    if (index < recurringItems.count) {
+                                        Divider()
+                                    }
                                 }
                             }
+                            .listRowSeparator(.hidden)
                             .padding(8)
                             .glassEffect(in: .rect(cornerRadius: 16.0))
                         }
@@ -211,6 +214,7 @@ extension ListOverviewView {
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .padding(8)
                                 
+                                let index = 1;
                                 ForEach(recurringItems.sorted { $0.title > $1.title }) { item in
                                     HStack {
                                         Label("\(item.title)", systemImage: "repeat")
@@ -228,17 +232,20 @@ extension ListOverviewView {
                                                 .foregroundStyle(item.amount >= 0 ? .blue : .red)
                                         }
                                     }
-                                    Divider()
                                     .contentShape(Rectangle())
                                     .padding(8)
                                     .onTapGesture {
                                         selectedItemDay = day
                                         selectedItem = item
                                     }
+                                    if (index < recurringItems.count) {
+                                        Divider()
+                                    }
                                 }
                             }
                             .padding(8)
                             .glassEffect(in: .rect(cornerRadius: 16.0))
+                            .listRowSeparator(.hidden)
                         }
                     }
                     .listStyle(.plain)
@@ -452,5 +459,4 @@ extension ListOverviewView {
         }
         return circleColor
     }
-
 }
