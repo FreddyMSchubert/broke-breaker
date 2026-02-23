@@ -1,34 +1,52 @@
 import SwiftUI
 import SharedLedger
 
-struct AddItemView: View {
-    let ledger = Ledger.shared
+struct TransactionEditorView: View {
+    @Environment(\.dismiss) private var dismiss
     @FocusState private var focusedField: FocusedField?
-    
-    enum FocusedField {
-        case title, amount, every
+
+    enum FocusedField { case title, amount, every }
+
+    enum Mode: Equatable {
+        case create
+        case editOneTime(OneTimeTransaction)
+        case editRecurring(RecurringRule)
+
+        static func == (lhs: Mode, rhs: Mode) -> Bool {
+            switch (lhs, rhs) {
+            case (.create, .create):
+                return true
+            case (.editOneTime, .editOneTime):
+                return true
+            case (.editRecurring, .editRecurring):
+                return true
+            default:
+                return false
+            }
+        }
     }
-    
+
+    let mode: Mode
+
     // MARK: - UI State
     @State private var title: String = ""
     @State private var amountDigits: String = ""
     @State private var isPositive: Bool = false
-    @State private var bypassBudgetWarningOnce = false
     @State private var selectedDate: Date = Date()
     @State private var hasEndDate: Bool = false
     @State private var selectedEndDate: Date = Date()
-    
+
     enum TxType: String, CaseIterable, Identifiable {
         case oneTime = "One-time"
         case repeating = "Repeating"
         var id: String { rawValue }
     }
     @State private var txType: TxType = .oneTime
-    
+
     enum RecurrenceUnitUI: CaseIterable, Identifiable {
         case days, weeks, months, years
         var id: String { "\(self)" }
-        
+
         func label(for n: Int) -> String {
             let singular = (n == 1)
             switch self {
@@ -39,69 +57,49 @@ struct AddItemView: View {
             }
         }
     }
-    
+
     @State private var everyNText: String = "1"
     @State private var unit: RecurrenceUnitUI = .days
-    
+
     // MARK: - Alerts
     private enum AlertState: Identifiable {
         case error(String)
         case success(String)
-        case budgetWarning(projectedBalance: Decimal, availableBudget: Decimal)
-        
-        var id: String {
-            switch self {
-            case .error(let msg): return "error:\(msg)"
-            case .success(let msg): return "success:\(msg)"
-            case .budgetWarning(let projectedBalance, let availableBudget):
-                return "budgetWarning:\(projectedBalance)-\(availableBudget)"
-            }
-        }
-        
+        var id: String { "\(self)" }
+
         var title: String {
             switch self {
-            case .error: return "❌ Couldn’t Create Transaction"
-            case .success: return "✅ Transaction logged."
-            case .budgetWarning: return "⚠️ Over Budget"
+            case .error: return "❌ Couldn’t Save"
+            case .success: return "✅ Saved"
             }
         }
-        
         var message: String {
             switch self {
             case .error(let msg): return msg
             case .success(let msg): return msg
-            case .budgetWarning(let projectedBalance, let availableBudget):
-                let shortfall = max(Decimal(0), -projectedBalance)
-                return "This expense would exceed the available balance for that day (\(AddItemView.formatNumber(availableBudget))) by \(AddItemView.formatNumber(shortfall)). Add it anyway?"
             }
         }
     }
-    
     @State private var alert: AlertState?
-    
-    // MARK: - Budget warning support
-    
-    private struct PendingTransaction {
-        let title: String
-        let date: Date
-        let amount: Decimal
-        let txType: TxType
-        let recurrence: Recurrence?
+
+    // MARK: - Init with prefill
+    init(mode: Mode) {
+        self.mode = mode
     }
-    
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                Text("New Transaction")
+                Text(headerTitle)
                     .font(.largeTitle.bold())
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.top, 8)
-                
+
                 // Title
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Title")
                         .font(.title3.weight(.semibold))
-                    
+
                     TextField("e.g. Rent, Salary, Coffee, Groceries…", text: $title)
                         .font(.system(size: 18, weight: .medium))
                         .textInputAutocapitalization(.words)
@@ -111,46 +109,45 @@ struct AddItemView: View {
                         .background(.ultraThinMaterial)
                         .clipShape(RoundedRectangle(cornerRadius: 14))
                 }
-                
+
                 // Amount
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Amount")
                         .font(.title3.weight(.semibold))
-                    
+
                     HStack(spacing: 12) {
                         VStack(spacing: 10) {
                             signButton(label: "+", active: isPositive) { isPositive = true }
                             signButton(label: "–", active: !isPositive) { isPositive = false }
                         }
                         .frame(width: 56)
-                        
+
                         VStack(alignment: .leading, spacing: 6) {
                             ZStack(alignment: .leading) {
                                 HStack(spacing: 0) {
                                     Text(formattedUKFromDigits(amountDigits))
                                         .font(.system(size: 28, weight: .semibold, design: .rounded))
                                         .monospacedDigit()
-                                    
+
                                     if focusedField == .amount {
                                         FakeCaret(height: 28)
                                     }
                                 }
                                 .padding(.horizontal, 14)
-                                
-                                // Invisible editor
+
                                 TextField("", text: amountDigitsBinding)
                                     .font(.system(size: 28, weight: .semibold, design: .rounded))
                                     .keyboardType(.numberPad)
                                     .focused($focusedField, equals: .amount)
-                                    .foregroundStyle(.clear) // hide digits
-                                    .tint(.clear) // hide caret
-                                    .textSelection(.disabled) // hide selection
+                                    .foregroundStyle(.clear)
+                                    .tint(.clear)
+                                    .textSelection(.disabled)
                                     .padding(.horizontal, 14)
                             }
                             .padding(.vertical, 14)
                             .background(.ultraThinMaterial)
                             .clipShape(RoundedRectangle(cornerRadius: 16))
-                            
+
                             Text(isPositive ? "Income (positive)" : "Expense (negative)")
                                 .font(.footnote)
                                 .foregroundStyle(.secondary)
@@ -158,35 +155,30 @@ struct AddItemView: View {
                         .frame(maxWidth: .infinity)
                     }
                 }
-                
+
+                // Date + Type
                 HStack(alignment: .center) {
                     Spacer()
-                    
-                    // Date Picker
+
                     VStack(alignment: .leading, spacing: 8) {
                         Text(txType == .oneTime ? "Date" : "Start date")
                             .font(.title3.weight(.semibold))
-                        
-                        DatePicker(
-                            "",
-                            selection: $selectedDate,
-                            displayedComponents: [.date]
-                        )
-                        .datePickerStyle(.compact)
-                        .labelsHidden()
-                        .padding(12)
-                        .background(.ultraThinMaterial)
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
+
+                        DatePicker("", selection: $selectedDate, displayedComponents: [.date])
+                            .datePickerStyle(.compact)
+                            .labelsHidden()
+                            .padding(12)
+                            .background(.ultraThinMaterial)
+                            .clipShape(RoundedRectangle(cornerRadius: 14))
                     }
-                    
+
                     Spacer()
                     Spacer()
-                    
-                    // Type picker
+
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Type")
                             .font(.title3.weight(.semibold))
-                        
+
                         Picker("Type", selection: $txType) {
                             ForEach(TxType.allCases) { t in
                                 Text(t.rawValue).tag(t)
@@ -197,25 +189,25 @@ struct AddItemView: View {
                         .padding(12)
                         .background(.ultraThinMaterial)
                         .clipShape(RoundedRectangle(cornerRadius: 14))
+                        .disabled(isEditingLockedType)
                     }
-                    
+
                     Spacer()
                 }
-                
+
                 if txType == .repeating {
+                    // Schedule
                     HStack {
                         Spacer()
-                        
                         VStack(alignment: .leading, spacing: 10) {
-                            
                             Text("Schedule")
                                 .font(.title3.weight(.semibold))
-                            
+
                             HStack(spacing: 10) {
                                 Text("Every")
                                     .font(.system(size: 18, weight: .semibold))
                                     .foregroundStyle(.secondary)
-                                
+
                                 TextField("1", text: everyBinding)
                                     .keyboardType(.numberPad)
                                     .focused($focusedField, equals: .every)
@@ -225,7 +217,7 @@ struct AddItemView: View {
                                     .padding(.vertical, 10)
                                     .background(.ultraThinMaterial)
                                     .clipShape(RoundedRectangle(cornerRadius: 12))
-                                
+
                                 Picker("Unit", selection: $unit) {
                                     ForEach(RecurrenceUnitUI.allCases) { u in
                                         Text(u.label(for: everyN)).tag(u)
@@ -239,21 +231,17 @@ struct AddItemView: View {
                                 .clipShape(RoundedRectangle(cornerRadius: 12))
                             }
                         }
-                        
                         Spacer()
                     }
-                    .transition(.opacity.combined(with: .move(edge: .top)))
-                    
+
                     // End date
                     HStack {
                         Spacer()
-                        
                         VStack(alignment: .leading, spacing: 10) {
-                            
                             HStack(spacing: 10) {
                                 Text("End date")
                                     .font(.title3.weight(.semibold))
-                                
+
                                 Toggle("", isOn: Binding(
                                     get: { hasEndDate },
                                     set: { on in
@@ -262,11 +250,11 @@ struct AddItemView: View {
                                     }
                                 ))
                                 .labelsHidden()
-                                .tint(createButtonColor)
+                                .tint(primaryActionColor)
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 8)
                             }
-                            
+
                             if hasEndDate {
                                 DatePicker(
                                     "",
@@ -284,177 +272,264 @@ struct AddItemView: View {
                                 .clipShape(RoundedRectangle(cornerRadius: 14))
                             }
                         }
-                        
                         Spacer()
                     }
                 }
-                
-                Button(action: { create() }) {
-                    Text(createButtonTitle)
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
+
+                // Bottom buttons: Cancel + Save/Create
+                HStack(spacing: 12) {
+                    if mode != .create {
+                        Button(action: { dismiss() }) { Text("Cancel") }
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(Color(.secondarySystemBackground))
+                            .clipShape(RoundedRectangle(cornerRadius: 18))
+                            .contentShape(Rectangle())
+                            .buttonStyle(.plain)
+                    }
+
+                    Button(action: save) {
+                        Text(primaryActionTitle)
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .foregroundStyle(.white)
+                            .background(primaryActionColor, in: RoundedRectangle(cornerRadius: 18))
+                            .clipShape(RoundedRectangle(cornerRadius: 18))
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .shadow(radius: 10, y: 6)
+                    .opacity(canSave ? 1.0 : 0.5)
+                    .disabled(!canSave)
                 }
-                .buttonStyle(.plain)
-                .foregroundStyle(.white)
-                .background(createButtonColor)
-                .clipShape(RoundedRectangle(cornerRadius: 18))
-                .shadow(radius: 10, y: 6)
-                .opacity(canCreate ? 1.0 : 0.5)
-                .disabled(!canCreate)
-                
+
                 Spacer(minLength: 10)
             }
             .padding()
-            .animation(.spring(response: 0.35, dampingFraction: 0.85), value: txType)
         }
-        .onTapGesture { focusedField = nil }
         .alert(item: $alert) { state in
-            switch state {
-            case .budgetWarning:
-                return Alert(
-                    title: Text(state.title),
-                    message: Text(state.message),
-                    primaryButton: .destructive(Text("Add anyway")) {
-                        bypassBudgetWarningOnce = true
-                        create()
-                        bypassBudgetWarningOnce = false
-                    },
-                    secondaryButton: .cancel()
-                )
-                
-            default:
-                return Alert(
-                    title: Text(state.title),
-                    message: Text(state.message),
-                    dismissButton: .default(Text("OK"))
-                )
+            Alert(
+                title: Text(state.title),
+                message: Text(state.message),
+                dismissButton: .default(Text("OK"), action: {
+                    if case .success = state { dismiss() }
+                })
+            )
+        }
+        .scrollDismissesKeyboard(.immediately)
+        .onAppear { prefillFromMode() }
+        .contentShape(Rectangle())
+        .simultaneousGesture(
+            TapGesture().onEnded { focusedField = nil }
+        )
+    }
+
+    // MARK: - Prefill
+
+    private func prefillFromMode() {
+        switch mode {
+        case .create:
+            break
+
+        case .editOneTime(let tx):
+            title = tx.title
+            selectedDate = tx.date
+            txType = .oneTime
+            let amt = tx.amount
+            isPositive = (amt >= 0)
+            amountDigits = digitsFromDecimal(absDecimal(amt))
+
+        case .editRecurring(let rule):
+            title = rule.title
+            selectedDate = rule.startDate
+            txType = .repeating
+            let amt = rule.amountPerCycle
+            isPositive = (amt >= 0)
+            amountDigits = digitsFromDecimal(absDecimal(amt))
+
+            if let end = rule.endDate {
+                hasEndDate = true
+                selectedEndDate = end
+            } else {
+                hasEndDate = false
+            }
+
+            switch rule.recurrence {
+            case .everyDays(let n):   unit = .days; everyNText = "\(n)"
+            case .everyWeeks(let n):  unit = .weeks; everyNText = "\(n)"
+            case .everyMonths(let n): unit = .months; everyNText = "\(n)"
+            case .everyYears(let n):  unit = .years; everyNText = "\(n)"
             }
         }
     }
-    
-    // MARK: - Commit / Reset / Budget helpers
-    
-    private func commit(_ tx: PendingTransaction) {
-        
+
+    // MARK: - Save/Create
+
+    private func save() {
+        guard let magnitude = parsedAmountMagnitude, magnitude > 0 else {
+            alert = .error("Enter a valid amount greater than 0.")
+            return
+        }
+
+        let finalAmount = isPositive ? magnitude : -magnitude
+        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let ledger = Ledger.shared
+
         do {
-            switch tx.txType {
-            case .oneTime:
-                try ledger.addOneTime(title: tx.title, date: tx.date, amount: tx.amount)
-                
-            case .repeating:
-                guard let recurrence = tx.recurrence else {
-                    alert = .error("Invalid recurrence settings.")
-                    return
+            switch mode {
+            case .create:
+                switch txType {
+                case .oneTime:
+                    try ledger.addOneTime(title: trimmedTitle, date: selectedDate, amount: finalAmount)
+                case .repeating:
+                    let recurrence = makeRecurrence()
+                    let end: Date? = hasEndDate ? max(selectedEndDate, selectedDate) : nil
+                    try ledger.addRecurring(
+                        title: trimmedTitle,
+                        amountPerCycle: finalAmount,
+                        startDate: selectedDate,
+                        endDate: end,
+                        recurrence: recurrence
+                    )
                 }
                 
-                try ledger.addRecurring(
-                    title: tx.title,
-                    amountPerCycle: tx.amount,
-                    startDate: tx.date,
-                    endDate: nil,
+                resetInputsForNextCreate();
+
+                alert = .success("Created \(createTransactionName).")
+
+            case .editOneTime(let tx):
+                try ledger.updateOneTime(tx, title: trimmedTitle, date: selectedDate, amount: finalAmount)
+                alert = .success("Saved \(createTransactionName).")
+
+            case .editRecurring(let rule):
+                let recurrence = makeRecurrence()
+                let endUpdate: LedgerService.EndDateUpdate = hasEndDate
+                    ? .set(max(selectedEndDate, selectedDate))
+                    : .clear
+
+                try ledger.updateRecurring(
+                    rule,
+                    title: trimmedTitle,
+                    amountPerCycle: finalAmount,
+                    startDate: selectedDate,
+                    endDate: endUpdate,
                     recurrence: recurrence
                 )
+                alert = .success("Saved \(createTransactionName).")
             }
-            
-            alert = .success(createTransactionName.capitalized + " saved.")
-            resetForm()
-            
         } catch {
-            alert = .error("Could not create transaction: \(error.localizedDescription)")
+            alert = .error(error.localizedDescription)
         }
     }
     
-    private func resetForm() {
+    private func resetInputsForNextCreate() {
         title = ""
         amountDigits = ""
         isPositive = false
         selectedDate = Date()
+        txType = .oneTime
+
         hasEndDate = false
         selectedEndDate = Date()
+
         everyNText = "1"
         unit = .days
-        txType = .oneTime
+
         focusedField = nil
     }
-    
-    private func spendingTotal(for date: Date) throws -> Decimal {
-        let overview = try ledger.dayOverview(for: date)
-        
-        // Expenses only (negative amounts), converted to positive "spend"
-        return overview.items.reduce(Decimal(0)) { partial, item in
-            item.amount < 0 ? partial + (-item.amount) : partial
+
+    private func makeRecurrence() -> Recurrence {
+        let n = everyN
+        switch unit {
+        case .days: return .everyDays(n)
+        case .weeks: return .everyWeeks(n)
+        case .months: return .everyMonths(n)
+        case .years: return .everyYears(n)
         }
     }
     
-    private func availableBudget(on date: Date) throws -> Decimal {
-        return try ledger.balanceEndOfDay(on: date)
+    private var createTransactionName: String {
+        let typeText = (txType == .oneTime) ? "one-time" : "repeating"
+        let signText = isPositive ? "income" : "expense"
+        return "\(typeText) \(signText)"
     }
-    // MARK: - Input sanitization
-    
-    private var amountCents: Int {
-        Int(amountDigits) ?? 0
+
+    // MARK: - Derived
+
+    private var headerTitle: String {
+        switch mode {
+        case .create: return "New Transaction"
+        case .editOneTime, .editRecurring: return "Edit Transaction"
+        }
     }
-    
-    private var parsedAmountMagnitude: Decimal? {
-        Decimal(amountCents) / 100
+
+    private var primaryActionTitle: String {
+        switch mode {
+        case .create: return "Create \(createTransactionName)"
+        case .editOneTime, .editRecurring: return "Save"
+        }
     }
-    
+
+    private var primaryActionColor: Color { isPositive ? .blue : .red }
+
+    private var isEditingLockedType: Bool {
+        switch mode {
+        case .create: return false
+        case .editOneTime, .editRecurring: return true
+        }
+    }
+
+    private var canSave: Bool {
+        !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        && amountCents > 0
+        && (txType == .oneTime || everyN >= 1)
+    }
+
+    private var amountCents: Int { Int(amountDigits) ?? 0 }
+    private var parsedAmountMagnitude: Decimal? { Decimal(amountCents) / 100 }
+
+    private var everyN: Int { max(1, Int(everyNText) ?? 1) }
+
+    // MARK: - Input helpers
+
     private var amountDigitsBinding: Binding<String> {
         Binding(
             get: { amountDigits },
             set: { newValue in
                 let digitsOnly = newValue.filter(\.isNumber)
                 let capped = String(digitsOnly.prefix(12))
-                
                 let trimmed = capped.drop(while: { $0 == "0" })
                 amountDigits = trimmed.isEmpty ? (capped.isEmpty ? "" : "0") : String(trimmed)
             }
         )
     }
-    
-    private static func formatNumber(_ value: Decimal) -> String {
-        let number = NSDecimalNumber(decimal: value)
-        let formatter = NumberFormatter()
-        formatter.locale = Locale(identifier: "en_GB")
-        formatter.numberStyle = .decimal
-        formatter.minimumFractionDigits = 2
-        formatter.maximumFractionDigits = 2
-        return formatter.string(from: number) ?? "0.00"
+
+    private var everyBinding: Binding<String> {
+        Binding(
+            get: { everyNText },
+            set: { newValue in
+                let digitsOnly = newValue.filter(\.isNumber)
+                let trimmed = digitsOnly.drop(while: { $0 == "0" })
+                everyNText = trimmed.isEmpty ? (digitsOnly.isEmpty ? "1" : "0") : String(trimmed)
+            }
+        )
     }
-    
-    
+
     private func formattedUKFromDigits(_ digits: String) -> String {
         let cents = Int(digits) ?? 0
         let pounds = Decimal(cents) / 100
-        
+
         let nf = NumberFormatter()
         nf.locale = Locale(identifier: "en_GB")
         nf.numberStyle = .decimal
         nf.minimumFractionDigits = 2
         nf.maximumFractionDigits = 2
-        
+
         return nf.string(from: pounds as NSDecimalNumber) ?? "0.00"
     }
-    
-    private var everyBinding: Binding<String> {
-        Binding(
-            get: { everyNText },
-            set: { newValue in
-                let cleaned = sanitizeInt(newValue)
-                everyNText = cleaned.isEmpty ? "1" : cleaned
-            }
-        )
-    }
-    
-    private func sanitizeInt(_ raw: String) -> String {
-        let digitsOnly = raw.filter { $0.isNumber }
-        let trimmed = digitsOnly.drop(while: { $0 == "0" })
-        return trimmed.isEmpty ? (digitsOnly.isEmpty ? "" : "0") : String(trimmed)
-    }
-    
-    // MARK: - UI Helpers
-    
+
     private func signButton(label: String, active: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(label)
@@ -464,121 +539,21 @@ struct AddItemView: View {
         }
         .buttonStyle(.plain)
         .foregroundStyle(active ? .white : .primary)
-        .background(active ? createButtonColor : Color(.secondarySystemBackground))
+        .background(active ? primaryActionColor : Color(.secondarySystemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(
             RoundedRectangle(cornerRadius: 12)
                 .stroke(Color(.separator), lineWidth: active ? 0 : 1)
         )
     }
-    
-    private var createTransactionName: String {
-        let typeText = (txType == .oneTime) ? "one-time" : "repeating"
-        let signText = isPositive ? "income" : "expense"
-        return "\(typeText) \(signText)"
-    }
-    private var createButtonTitle: String {
-        return "Create \(createTransactionName)"
-    }
-    
-    private var createButtonColor: Color { isPositive ? .blue : .red }
-    
-    private var everyN: Int {
-        max(1, Int(everyNText) ?? 1)
-    }
-    
-    private var canCreate: Bool {
-        !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        && amountCents > 0
-        && (txType == .oneTime || everyN >= 1)
-    }
-    
-    // MARK: - Create
-    
-    private func create(forceSave: Bool = false) {
-        guard let magnitude = parsedAmountMagnitude, magnitude > 0 else {
-            alert = .error("Enter a valid amount greater than 0.")
-            return
-        }
-        
-        let finalAmount = isPositive ? magnitude : -magnitude
-        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        
-        let recurrence: Recurrence? = {
-            guard txType == .repeating else { return nil }
-            let n = everyN
-            switch unit {
-            case .days: return .everyDays(n)
-            case .weeks: return .everyWeeks(n)
-            case .months: return .everyMonths(n)
-            case .years: return .everyYears(n)
-            }
-        }()
-        
-        let tx = PendingTransaction(
-            title: trimmedTitle,
-            date: selectedDate,
-            amount: finalAmount,
-            txType: txType,
-            recurrence: recurrence
-        )
-        
-        // Budget warning for ONE-TIME EXPENSES on the SELECTED day (not just today)
-        if !forceSave, txType == .oneTime, !isPositive {
-            do {
-                let available = try availableBudget(on: selectedDate)
-                let projectedBalance = available - magnitude  // magnitude is positive, expense reduces balance
-                
-                if projectedBalance < 0 {
-                    alert = .budgetWarning(projectedBalance: projectedBalance, availableBudget: available)
-                    return
-                }
-            } catch {
-                // if calc fails, don't block creation
-                if txType == .repeating {
-                    let recurrence: Recurrence = {
-                        let n = everyN
-                        switch unit {
-                        case .days: return .everyDays(n)
-                        case .weeks: return .everyWeeks(n)
-                        case .months: return .everyMonths(n)
-                        case .years: return .everyYears(n)
-                        }
-                    }()
-                    
-                    let end: Date? = hasEndDate ? max(selectedEndDate, selectedDate) : nil
-                    
-                    do {
-                        try ledger.addRecurring(
-                            title: trimmedTitle,
-                            amountPerCycle: finalAmount,
-                            startDate: selectedDate,
-                            endDate: end,
-                            recurrence: recurrence
-                        )
-                        
-                        alert = .success(createTransactionName.capitalized + " saved.")
-                        resetForm()
-                        return
-                        
-                    } catch {
-                        alert = .error("Could not create transaction: \(error.localizedDescription)")
-                        return
-                    }
-                }
-                
-                commit(tx)
-            }
-        }
-        
-        #Preview {
-            let tmp = FileManager.default.temporaryDirectory
-                .appendingPathComponent("preview-ledger.sqlite")
-            try? FileManager.default.removeItem(at: tmp)
-            
-            let ledger = Ledger.shared
-            
-            return RootTabView()
-        }
+
+    private func absDecimal(_ d: Decimal) -> Decimal { d < 0 ? -d : d }
+
+    private func digitsFromDecimal(_ value: Decimal) -> String {
+        let absValue = value < 0 ? -value : value
+        let centsInt = (NSDecimalNumber(decimal: absValue)
+            .multiplying(by: NSDecimalNumber(value: 100))).intValue
+        return centsInt == 0 ? "" : "\(centsInt)"
     }
 }
+
