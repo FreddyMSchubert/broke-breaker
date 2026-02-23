@@ -30,7 +30,7 @@ struct ItemDetailSheet: View {
 
             VStack(spacing: 8) {
                 HStack(spacing: 6) {
-                    Text(format2(displayAmount))
+                    Text(format(displayAmount))
                         .font(.system(size: 44, weight: .heavy, design: .rounded))
                         .monospacedDigit()
                         .foregroundStyle(displayAmount >= 0 ? .blue : .red)
@@ -205,7 +205,7 @@ struct ItemDetailSheet: View {
     private func displayDailyImpact() -> String? {
         guard let rule = recurring else { return nil }
         if case .everyDays(1) = rule.recurrence { return nil }
-        return "≈ \(format2(dailyAmount)) / day impact"
+        return "≈ \(format(dailyAmount)) / day impact"
     }
     
     private func refreshDailyAmountFromBackend() {
@@ -242,9 +242,9 @@ struct ItemDetailSheet: View {
         }
     }
 
-    private func format2(_ value: Decimal) -> String {
+    private func format(_ value: Decimal) -> String {
         let n = NSDecimalNumber(decimal: value)
-        return String(format: "%.2f", n.doubleValue)
+        return String(format: "%.2f", clampTiny(n.doubleValue))
     }
 
     private var typeLabel: String {
@@ -261,6 +261,15 @@ struct ItemDetailSheet: View {
         case .everyMonths(let n): return "Every \(n) month" + (n == 1 ? "" : "s")
         case .everyYears(let n): return "Every \(n) year" + (n == 1 ? "" : "s")
         }
+    }
+
+    private func clampTiny(_ value: Double) -> Double {
+        if value == 0 { return 0 }
+        let absVal = value < 0 ? -value : value
+        if absVal > 0 && absVal < 0.01 {
+            return value > 0 ? 0.01 : -0.01
+        }
+        return value
     }
 }
 
