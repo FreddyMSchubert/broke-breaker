@@ -197,7 +197,7 @@ extension ListOverviewView {
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .padding(8)
                                 
-                                let sortedOneTime = oneTimeItems.sorted { $0.title > $1.title }
+                                let sortedOneTime = oneTimeItems.sorted { $0.amount < $1.amount }
                                 
                                 ForEach(sortedOneTime.indices, id: \.self) { index in
                                             let item = sortedOneTime[index]
@@ -235,7 +235,7 @@ extension ListOverviewView {
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .padding(8)
                                 
-                                let sortedReccuring = recurringItems.sorted { $0.title > $1.title }
+                                let sortedReccuring = recurringItems.sorted { $0.amount < $1.amount }
                                 
                                 ForEach(sortedReccuring.indices, id: \.self) { index in
                                             let item = sortedReccuring[index]
