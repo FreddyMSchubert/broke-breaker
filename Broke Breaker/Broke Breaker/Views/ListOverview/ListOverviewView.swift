@@ -9,9 +9,8 @@ struct ListOverviewView: View {
     @GestureState private var isWeekDragging = false
 
     @State private var date: Date = .now
-    @State private var weekStart: Date = Calendar.current.date(
-        from: Calendar.current.dateComponents([.yearForWeekOfYear, .weekOfYear], from: .now))!
-    @State private var weeklyTotals: [Date: DayTotals] = [:]
+    @State private var weekStart: Date
+    @State private var weeklyTotals: [Date: DayTotals]
     @State private var weekPageIndex = 1
     @State private var weekChanging: Bool = false
     @State private var pageIndex = 1
@@ -19,6 +18,25 @@ struct ListOverviewView: View {
     @State private var refreshToken = UUID()
     
     @State private var selectedItemDay: Date = .now
+    
+    init() {
+        
+        let start = Calendar.current.date(
+            from: Calendar.current.dateComponents([.yearForWeekOfYear, .weekOfYear], from: .now)
+        )!
+        
+        var totals: [Date: DayTotals] = [:]
+        
+        for i in 0..<7 {
+            if let day = Calendar.current.date(byAdding: .day, value: i, to: start),
+               let dayTotals = try? ledger.dayTotals(for: day) {
+                totals[day] = dayTotals
+            }
+        }
+        
+        _weekStart = State(initialValue: start)
+        _weeklyTotals = State(initialValue: totals)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -179,7 +197,6 @@ extension ListOverviewView {
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .padding(8)
                                 
-                                var index = 1;
                                 ForEach(oneTimeItems.sorted { $0.title > $1.title }) { item in
                                     HStack {
                                         Text(item.title)
@@ -194,9 +211,6 @@ extension ListOverviewView {
                                     .onTapGesture {
                                         selectedItemDay = day
                                         selectedItem = item
-                                    }
-                                    if (index < recurringItems.count) {
-                                        Divider()
                                     }
                                 }
                             }
@@ -414,16 +428,25 @@ extension ListOverviewView {
                     
                     Text(day.formatted(.dateTime.day()))
                         .fontWeight(.bold)
-                        .foregroundStyle(
-                            Calendar.current.isDate(day, inSameDayAs: date)
-                            ? Color(uiColor: .systemBackground)
-                            : .primary
-                        )
-                        .colorInvert()
+                        .foregroundStyle(.primary)
                         .frame(maxWidth: .infinity, minHeight: 40)
                         .background(
+                            Group {
+                                if Calendar.current.isDate(day, inSameDayAs: date) {
+                                    Circle()
+                                        .fill(circleColour(day: day))
+                                }
+                            }
+                        )
+                        .overlay(
                             Circle()
-                                .foregroundStyle(circleColour(day: day))
+                                .stroke(
+                                    circleColour(day: day),
+                                    style: StrokeStyle(
+                                        lineWidth: 2,
+                                        dash: Calendar.current.isDate(day, inSameDayAs: .now) ? [5] : []
+                                    )
+                                )
                         )
                         .foregroundStyle(.secondary)
                 }
@@ -439,24 +462,11 @@ extension ListOverviewView {
         loadWeeklyTotals()
     }
 
-    private func changeDay(by offset: Int) {
-        if let newDate = Calendar.current.date(byAdding: .day, value: offset, to: date) {
-            date = newDate
-        }
-    }
-
     private func circleColour(day: Date) -> Color {
-        let isSelected = Calendar.current.isDate(day, inSameDayAs: date)
-        let balance = weeklyTotals[day]?.runningBalanceEndOfDay ?? 0
+        guard let balance = weeklyTotals[day]?.runningBalanceEndOfDay else {
+                return .secondary.opacity(0.3)
+            }
 
-        let circleColor: Color
-        if isSelected {
-            circleColor = colourScheme == .light
-                ? .purple.opacity(0.6)
-                : .purple
-        } else {
-            circleColor = balance >= 0 ? .blue : .red
-        }
-        return circleColor
+            return balance >= 0 ? .blue : .red
     }
 }
