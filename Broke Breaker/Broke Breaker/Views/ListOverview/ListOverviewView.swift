@@ -25,7 +25,7 @@ struct ListOverviewView: View {
         VStack(alignment: .leading, spacing: 12) {
             
             // title
-            Text("List Overview")
+            Text("Transactions")
                 .font(.largeTitle.bold())
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.top, 8)
@@ -82,10 +82,10 @@ struct ListOverviewView: View {
     }
 }
 
-// views / calander, day and oerview bar
+// views / calender, day and overview bar
 extension ListOverviewView {
     
-    // calander
+    // calender
     private var weekCalendar: some View {
         TabView(selection: $weekPageIndex) {
             ForEach(0..<3) { index in
@@ -159,7 +159,6 @@ extension ListOverviewView {
                             return false
                         }
                         
-                        // One-time Section
                         if !oneTimeItems.isEmpty {
                             Section {
                                 ForEach(oneTimeItems.sorted { $0.title > $1.title }) { item in
@@ -183,7 +182,6 @@ extension ListOverviewView {
                             }
                         }
                         
-                        // Recurring Section
                         if !recurringItems.isEmpty {
                             Section {
                                 ForEach(recurringItems.sorted { $0.title > $1.title }) { item in
@@ -306,7 +304,7 @@ extension ListOverviewView {
     }
 }
 
-// fucntions
+// functions
 extension ListOverviewView {
     
     private func updateWeek() {
