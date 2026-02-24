@@ -38,7 +38,7 @@ struct ListOverviewView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 0) {
             
             // title
             Text("Transactions")
@@ -63,7 +63,7 @@ struct ListOverviewView: View {
             .padding(.horizontal)
             
             weekCalendar
-                .padding(.horizontal)
+                .padding(4)
             Divider()
             
             // day swiper
@@ -222,14 +222,15 @@ extension ListOverviewView {
                     .frame(maxWidth: .infinity)
                 Spacer()
             }
-            Spacer()
-            if let overview {
-                overviewBar(for: day, overview: overview)
-                    .padding(.bottom, 8)
-            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .contentShape(Rectangle())
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+                if let overview {
+                    Spacer()
+                    overviewBar(for: day, overview: overview)
+                }
+            }
     }
 
     // overview bar view
@@ -290,6 +291,8 @@ extension ListOverviewView {
             Spacer()
         }
         .fontWeight(.semibold)
+        .padding(8)
+        .glassEffect(in: .rect(cornerRadius: 16))
     }
 }
 
