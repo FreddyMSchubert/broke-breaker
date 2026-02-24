@@ -1,5 +1,9 @@
 Broke Breaker/Broke Breaker.xcodeproj/project.pbxproj
 
+*.sqlite
+LedgerCLI/GRDB.swift/
+.vscode
+
 # macOS
 .DS_Store
 
