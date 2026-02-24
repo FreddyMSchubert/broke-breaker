@@ -203,7 +203,14 @@ extension ListOverviewView {
                                             let item = sortedOneTime[index]
                                     
                                     HStack {
-                                        Text(item.title)
+                                        HStack{
+                                            Text("\(item.title)")
+                                                .foregroundStyle(.primary)
+                                                .padding(.leading, 0)
+                                            Label("", systemImage: "\(Calendar.current.component(.day, from: Date())).calendar")
+                                                .foregroundStyle(.secondary)
+                                                .labelStyle(IconOnlyLabelStyle())
+                                        }
                                         Spacer()
                                         let amountDouble = NSDecimalNumber(decimal: item.amount).doubleValue
                                         let sign = amountDouble >= 0 ? "+" : ""
@@ -241,8 +248,14 @@ extension ListOverviewView {
                                             let item = sortedReccuring[index]
                                     
                                     HStack {
-                                        Label("\(item.title)", systemImage: "repeat")
-                                            .foregroundStyle(.primary)
+                                        HStack{
+                                            Text("\(item.title)")
+                                                .foregroundStyle(.primary)
+                                                .padding(.leading, 0)
+                                            Label("", systemImage: "repeat")
+                                                .foregroundStyle(.secondary)
+                                                .labelStyle(IconOnlyLabelStyle())
+                                        }
                                         Spacer()
                                         let amountDouble = NSDecimalNumber(decimal: item.amount).doubleValue
                                         let sign = amountDouble >= 0 ? "+" : ""
