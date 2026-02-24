@@ -5,7 +5,6 @@ struct ListOverviewView: View {
 
     let ledger = Ledger.shared
     
-    @Environment(\.colorScheme) var colourScheme: ColorScheme
     @GestureState private var isWeekDragging = false
 
     @State private var date: Date = .now
@@ -189,100 +188,27 @@ extension ListOverviewView {
                         }
                         
                         if !oneTimeItems.isEmpty {
-                            VStack() {
-                                Text("One-Time Transactions:")
-                                    .font(.subheadline)
-                                    .fontWeight(.semibold)
-                                    .foregroundStyle(.secondary)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .padding(8)
-                                
-                                let sortedOneTime = oneTimeItems.sorted { $0.amount < $1.amount }
-                                
-                                ForEach(sortedOneTime.indices, id: \.self) { index in
-                                            let item = sortedOneTime[index]
-                                    
-                                    HStack {
-                                        HStack{
-                                            Text("\(item.title)")
-                                                .foregroundStyle(.primary)
-                                                .padding(.leading, 0)
-                                            Label("", systemImage: "\(Calendar.current.component(.day, from: day)).calendar")
-                                                .foregroundStyle(.secondary)
-                                                .labelStyle(IconOnlyLabelStyle())
-                                        }
-                                        Spacer()
-                                        let amountDouble = NSDecimalNumber(decimal: item.amount).doubleValue
-                                        let sign = amountDouble >= 0 ? "+" : ""
-                                        Text("\(sign)\(amountDouble, format: .number.precision(.fractionLength(2)))")
-                                            .foregroundStyle(item.amount >= 0 ? .blue : .red)
-                                    }
-                                    .contentShape(Rectangle())
-                                    .padding(8)
-                                    .onTapGesture {
-                                        selectedItemDay = day
-                                        selectedItem = item
-                                    }
-                                    if index < sortedOneTime.count - 1 {
-                                        Divider()
-                                    }
+                            TransactionSectionView(
+                                title: "One-Time Transactions:",
+                                items: oneTimeItems,
+                                iconName: "\(Calendar.current.component(.day, from: day)).calendar",
+                                day: day
+                            ) { item in
+                                selectedItemDay = day
+                                selectedItem = item
                                 }
-                            }
-                            .listRowSeparator(.hidden)
-                            .padding(8)
-                            .glassEffect(in: .rect(cornerRadius: 16.0))
                         }
-                        
+
                         if !recurringItems.isEmpty {
-                            VStack() {
-                                Text("Recurring Transactions:")
-                                    .font(.subheadline)
-                                    .fontWeight(.semibold)
-                                    .foregroundStyle(.secondary)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .padding(8)
-                                
-                                let sortedReccuring = recurringItems.sorted { $0.amount < $1.amount }
-                                
-                                ForEach(sortedReccuring.indices, id: \.self) { index in
-                                            let item = sortedReccuring[index]
-                                    
-                                    HStack {
-                                        HStack{
-                                            Text("\(item.title)")
-                                                .foregroundStyle(.primary)
-                                                .padding(.leading, 0)
-                                            Label("", systemImage: "repeat")
-                                                .foregroundStyle(.secondary)
-                                                .labelStyle(IconOnlyLabelStyle())
-                                        }
-                                        Spacer()
-                                        let amountDouble = NSDecimalNumber(decimal: item.amount).doubleValue
-                                        let sign = amountDouble >= 0 ? "+" : ""
-                                        if (amountDouble < 0.01) && (amountDouble > -0.01) {
-                                            let sign = amountDouble <= 0 ? "-" : ""
-                                            Text("\(sign)0.01")
-                                                .foregroundStyle(item.amount >= 0 ? .blue : .red)
-                                        }
-                                        else {
-                                            Text("\(sign)\(amountDouble, format: .number.precision(.fractionLength(2)))")
-                                                .foregroundStyle(item.amount >= 0 ? .blue : .red)
-                                        }
-                                    }
-                                    .contentShape(Rectangle())
-                                    .padding(8)
-                                    .onTapGesture {
-                                        selectedItemDay = day
-                                        selectedItem = item
-                                    }
-                                    if index < sortedReccuring.count - 1 {
-                                        Divider()
-                                    }
-                                }
+                            TransactionSectionView(
+                                title: "Recurring Transactions:",
+                                items: recurringItems,
+                                iconName: "repeat",
+                                day: day
+                            ) { item in
+                                selectedItemDay = day
+                                selectedItem = item
                             }
-                            .padding(8)
-                            .glassEffect(in: .rect(cornerRadius: 16.0))
-                            .listRowSeparator(.hidden)
                         }
                     }
                     .listStyle(.plain)
@@ -306,6 +232,7 @@ extension ListOverviewView {
         .contentShape(Rectangle())
     }
 
+    // overview bar view
     private func overviewBar(for day: Date, overview: DayOverview) -> some View {
         
         let previousDay = Calendar.current.date(byAdding: .day, value: -1, to: day)!
@@ -374,7 +301,7 @@ extension ListOverviewView {
             from: Calendar.current.dateComponents([.yearForWeekOfYear, .weekOfYear], from: date)
         ) ?? weekStart
     }
-
+    
     private func goToToday() {
         let calendar = Calendar.current
         let today = Date()
@@ -389,8 +316,8 @@ extension ListOverviewView {
         let diff = calendar.dateComponents([.weekOfYear], from: currentWeek, to: targetWeek).weekOfYear ?? 0
         
         if calendar.isDate(currentWeek, inSameDayAs: targetWeek) {
-                date = today
-                return
+            date = today
+            return
         }
         
         guard diff != 0 else {
@@ -436,10 +363,9 @@ extension ListOverviewView {
             Calendar.current.date(byAdding: .day, value: $0, to: startOfWeek)
         }
         let letters = ["M", "T", "W", "T", "F", "S", "S"]
-
+        
         return HStack {
             ForEach(Array(days.enumerated()), id: \.offset) { index, day in
-                let day = days[index]
                 VStack(spacing: 6) {
                     Text(letters[index])
                         .foregroundStyle(
@@ -484,12 +410,80 @@ extension ListOverviewView {
         updateWeek()
         loadWeeklyTotals()
     }
-
+    
     private func circleColour(day: Date) -> Color {
-        guard let balance = weeklyTotals[day]?.runningBalanceEndOfDay else {
+        guard let balance = try? ledger.dayTotals(for: day).runningBalanceEndOfDay else {
                 return .secondary.opacity(0.3)
             }
-
-            return balance >= 0 ? .blue : .red
+        return balance >= 0 ? .blue : .red
     }
+    
+    private struct TransactionSectionView: View {
+        
+        let title: String
+        let items: [DayLineItem]
+        let iconName: String
+        let day: Date
+        let onTap: (DayLineItem) -> Void
+        
+        var body: some View {
+            VStack {
+                Text(title)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(8)
+                
+                let sortedItems = items.sorted { $0.amount > $1.amount }
+                
+                ForEach(sortedItems.indices, id: \.self) { index in
+                    let item = sortedItems[index]
+                    
+                    HStack {
+                        HStack {
+                            Text(item.title)
+                                .foregroundStyle(.primary)
+                            
+                            Label("", systemImage: iconName)
+                                .foregroundStyle(.secondary)
+                                .labelStyle(.iconOnly)
+                        }
+                        
+                        Spacer()
+                        
+                        amountView(for: item)
+                    }
+                    .contentShape(Rectangle())
+                    .padding(8)
+                    .onTapGesture {
+                        onTap(item)
+                    }
+                    
+                    if index < sortedItems.count - 1 {
+                        Divider()
+                    }
+                }
+            }
+            .padding(8)
+            .glassEffect(in: .rect(cornerRadius: 16))
+            .listRowSeparator(.hidden)
+        }
+        
+        @ViewBuilder
+        private func amountView(for item: DayLineItem) -> some View {
+            let amountDouble = NSDecimalNumber(decimal: item.amount).doubleValue
+            let sign = amountDouble >= 0 ? "+" : ""
+            
+            if abs(amountDouble) < 0.01 {
+                let smallSign = amountDouble <= 0 ? "-" : ""
+                Text("\(smallSign)0.01")
+                    .foregroundStyle(item.amount >= 0 ? .blue : .red)
+            } else {
+                Text("\(sign)\(amountDouble, format: .number.precision(.fractionLength(2)))")
+                    .foregroundStyle(item.amount >= 0 ? .blue : .red)
+            }
+        }
+    }
+    
 }
