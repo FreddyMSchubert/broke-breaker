@@ -2,14 +2,17 @@ import SwiftUI
 import SharedLedger
 
 struct ListOverviewView: View {
-
+    
     let ledger = Ledger.shared
     
     @GestureState private var isWeekDragging = false
-
+    
     @State private var date: Date = .now
-    @State private var weekStart: Date
-    @State private var weeklyTotals: [Date: DayTotals]
+    @State private var weekStart: Date = Calendar.current.date(
+        from: Calendar.current.dateComponents([.yearForWeekOfYear, .weekOfYear], from: .now)
+    ) ?? .now
+    
+    @State private var weeklyTotals: [Date: DayTotals] = [:]
     @State private var weekPageIndex = 1
     @State private var weekChanging: Bool = false
     @State private var pageIndex = 1
@@ -17,25 +20,6 @@ struct ListOverviewView: View {
     @State private var refreshToken = UUID()
     
     @State private var selectedItemDay: Date = .now
-    
-    init() {
-        
-        let start = Calendar.current.date(
-            from: Calendar.current.dateComponents([.yearForWeekOfYear, .weekOfYear], from: .now)
-        )!
-        
-        var totals: [Date: DayTotals] = [:]
-        
-        for i in 0..<7 {
-            if let day = Calendar.current.date(byAdding: .day, value: i, to: start),
-               let dayTotals = try? ledger.dayTotals(for: day) {
-                totals[day] = dayTotals
-            }
-        }
-        
-        _weekStart = State(initialValue: start)
-        _weeklyTotals = State(initialValue: totals)
-    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -92,6 +76,7 @@ struct ListOverviewView: View {
         }
         .onAppear {
             refresh()
+            loadWeeklyTotals()
         }
         .onChange(of: date) { _, newDate in
             refresh()
