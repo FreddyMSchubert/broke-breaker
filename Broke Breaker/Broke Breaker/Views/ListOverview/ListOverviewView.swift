@@ -403,7 +403,7 @@ extension ListOverviewView {
                                     circleColour(day: day),
                                     style: StrokeStyle(
                                         lineWidth: 2,
-                                        dash: (Calendar.current.isDate(day, inSameDayAs: .now) && (day != date)) ? [5] : [1000000000]
+                                        dash: (Calendar.current.isDate(day, inSameDayAs: .now) && !Calendar.current.isDate(day, inSameDayAs: date)) ? [5] : []
                                     )
                                 )
                         )
