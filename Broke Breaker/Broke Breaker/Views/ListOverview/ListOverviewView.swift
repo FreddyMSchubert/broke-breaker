@@ -122,9 +122,9 @@ extension ListOverviewView {
                 HStack {
                     Divider().opacity(isWeekDragging ? 1 : 0)
                     weekView(for: baseWeek)
-                        .tag(index)
                     Divider().opacity(isWeekDragging ? 1 : 0)
                 }
+                .tag(index)
             }
         }
         .tabViewStyle(.page(indexDisplayMode: .never))
