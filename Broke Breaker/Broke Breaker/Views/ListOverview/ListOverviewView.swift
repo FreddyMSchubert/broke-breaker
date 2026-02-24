@@ -207,7 +207,7 @@ extension ListOverviewView {
                                             Text("\(item.title)")
                                                 .foregroundStyle(.primary)
                                                 .padding(.leading, 0)
-                                            Label("", systemImage: "\(Calendar.current.component(.day, from: Date())).calendar")
+                                            Label("", systemImage: "\(Calendar.current.component(.day, from: day)).calendar")
                                                 .foregroundStyle(.secondary)
                                                 .labelStyle(IconOnlyLabelStyle())
                                         }
