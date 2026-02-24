@@ -226,11 +226,18 @@ extension ListOverviewView {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .contentShape(Rectangle())
         .safeAreaInset(edge: .bottom, spacing: 0) {
+            VStack(spacing: 0) {
                 if let overview {
-                    Spacer()
                     overviewBar(for: day, overview: overview)
+                        .padding(0)
                 }
+                Rectangle()
+                    .fill(.primary)
+                    .colorInvert()
+                    .padding(0)
+                    .frame(maxWidth: .infinity, maxHeight: 8)
             }
+        }
     }
 
     // overview bar view
