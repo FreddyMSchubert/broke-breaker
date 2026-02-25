@@ -37,7 +37,7 @@ struct TransactionEditorView: View {
     @State private var selectedEndDate: Date = Date()
     
     @State private var type: SpendType = .oneTime
-    enum SpendType: String, Hashable, CaseIterable {
+    enum SpendType: String, Hashable, CaseIterable, Equatable {
         case oneTime = "One-Time"
         case repeating = "Repeating"
         case saving = "Saving"
@@ -183,105 +183,8 @@ struct TransactionEditorView: View {
                     Spacer()
                 }
 
-                // Date
-                HStack(alignment: .center) {
-                    Spacer()
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(type == .repeating ? "Start date" : "Date")
-                            .font(.title3.weight(.semibold))
-
-                        DatePicker("", selection: $selectedDate, displayedComponents: [.date])
-                            .datePickerStyle(.compact)
-                            .labelsHidden()
-                            .padding(12)
-                            .background(.ultraThinMaterial)
-                            .clipShape(RoundedRectangle(cornerRadius: 14))
-                    }
-
-                    Spacer()
-                }
-
-                if type == .repeating {
-                    // Schedule
-                    HStack {
-                        Spacer()
-                        VStack(alignment: .leading, spacing: 10) {
-                            Text("Schedule")
-                                .font(.title3.weight(.semibold))
-
-                            HStack(spacing: 10) {
-                                Text("Every")
-                                    .font(.system(size: 18, weight: .semibold))
-                                    .foregroundStyle(.secondary)
-
-                                TextField("1", text: everyBinding)
-                                    .keyboardType(.numberPad)
-                                    .focused($focusedField, equals: .every)
-                                    .multilineTextAlignment(.center)
-                                    .font(.system(size: 18, weight: .semibold, design: .rounded))
-                                    .frame(width: 56)
-                                    .padding(.vertical, 10)
-                                    .background(.ultraThinMaterial)
-                                    .clipShape(RoundedRectangle(cornerRadius: 12))
-
-                                Picker("Unit", selection: $unit) {
-                                    ForEach(RecurrenceUnitUI.allCases) { u in
-                                        Text(u.label(for: everyN)).tag(u)
-                                    }
-                                }
-                                .pickerStyle(.menu)
-                                .padding(.horizontal, 12)
-                                .tint(.primary)
-                                .padding(.vertical, 10)
-                                .background(.ultraThinMaterial)
-                                .clipShape(RoundedRectangle(cornerRadius: 12))
-                            }
-                        }
-                        Spacer()
-                    }
-
-                    // End date
-                    HStack {
-                        Spacer()
-                        VStack(alignment: .leading, spacing: 10) {
-                            HStack(spacing: 10) {
-                                Text("End date")
-                                    .font(.title3.weight(.semibold))
-
-                                Toggle("", isOn: Binding(
-                                    get: { hasEndDate },
-                                    set: { on in
-                                        hasEndDate = on
-                                        if on { selectedEndDate = max(selectedEndDate, selectedDate) }
-                                    }
-                                ))
-                                .labelsHidden()
-                                .tint(primaryActionColor)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 8)
-                            }
-
-                            if hasEndDate {
-                                DatePicker(
-                                    "",
-                                    selection: Binding(
-                                        get: { max(selectedEndDate, selectedDate) },
-                                        set: { selectedEndDate = max($0, selectedDate) }
-                                    ),
-                                    in: selectedDate...,
-                                    displayedComponents: [.date]
-                                )
-                                .datePickerStyle(.compact)
-                                .labelsHidden()
-                                .padding(12)
-                                .background(.ultraThinMaterial)
-                                .clipShape(RoundedRectangle(cornerRadius: 14))
-                            }
-                        }
-                        Spacer()
-                    }
-                }
+                // Details (settings-style)
+                settingsDetailsList
 
                 // Bottom buttons: Cancel + Save/Create
                 HStack(spacing: 12) {
@@ -317,6 +220,8 @@ struct TransactionEditorView: View {
                     .disabled(!canSave)
                     .compositingGroup()
                 }
+                .animation(.easeInOut(duration: 0.22), value: type)
+                .animation(.easeInOut(duration: 0.22), value: hasEndDate)
 
                 Spacer(minLength: 10)
             }
@@ -337,6 +242,139 @@ struct TransactionEditorView: View {
         .simultaneousGesture(
             TapGesture().onEnded { focusedField = nil }
         )
+    }
+    
+    // MARK: - Details
+
+    private var settingsDetailsList: some View {
+        Group {
+            SettingsListCard(rows: detailsRows)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private var detailsRows: [AnyView] {
+        var rows: [AnyView] = []
+
+        // Date / Start Date
+        rows.append(AnyView(
+            SettingsListRow {
+                Text(type == .repeating ? "Start date" : "Date")
+                Spacer()
+                DatePicker("", selection: $selectedDate, displayedComponents: [.date])
+                    .labelsHidden()
+                    .datePickerStyle(.compact)
+            }
+        ))
+
+        if type == .repeating {
+            // End date toggle
+            rows.append(AnyView(
+                SettingsListRow {
+                    Text("End date")
+                    Spacer()
+                    Toggle("", isOn: Binding(
+                        get: { hasEndDate },
+                        set: { on in
+                            hasEndDate = on
+                            if on { selectedEndDate = max(selectedEndDate, selectedDate) }
+                        }
+                    ))
+                    .labelsHidden()
+                    .tint(primaryActionColor)
+                }
+            ))
+
+            // End date picker row
+            if hasEndDate {
+                rows.append(AnyView(
+                    SettingsListRow {
+                        Text("Ends on")
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        DatePicker(
+                            "",
+                            selection: Binding(
+                                get: { max(selectedEndDate, selectedDate) },
+                                set: { selectedEndDate = max($0, selectedDate) }
+                            ),
+                            in: selectedDate...,
+                            displayedComponents: [.date]
+                        )
+                        .labelsHidden()
+                        .datePickerStyle(.compact)
+                    }
+                ))
+            }
+
+            // Repeat (always last)
+            rows.append(AnyView(
+                SettingsListRow {
+                    Text("Repeat every")
+                    Spacer()
+                    HStack(spacing: 10) {
+                        TextField("1", text: everyBinding)
+                            .keyboardType(.numberPad)
+                            .focused($focusedField, equals: .every)
+                            .multilineTextAlignment(.center)
+                            .font(.system(size: 17, weight: .semibold, design: .rounded))
+                            .frame(width: 56)
+                            .padding(.vertical, 8)
+                            .background(.ultraThinMaterial)
+                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+
+                        Picker("", selection: $unit) {
+                            ForEach(RecurrenceUnitUI.allCases) { u in
+                                Text(u.label(for: everyN)).tag(u)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .tint(.primary)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 8)
+                        .background(.ultraThinMaterial)
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    }
+                }
+            ))
+        }
+
+        return rows
+    }
+
+    // MARK: - Components
+
+    private struct SettingsListCard: View {
+        let rows: [AnyView]
+
+        var body: some View {
+            VStack(spacing: 0) {
+                ForEach(rows.indices, id: \.self) { i in
+                    rows[i]
+
+                    if i < rows.count - 1 {
+                        Divider().opacity(0.7)
+                    }
+                }
+            }
+            .padding(8)
+            .glassEffect(in: .rect(cornerRadius: 16))
+            .animation(.easeInOut(duration: 0.22), value: rows.count)
+        }
+    }
+
+    private struct SettingsListRow<Content: View>: View {
+        @ViewBuilder var content: Content
+
+        var body: some View {
+            HStack {
+                content
+            }
+            .font(.system(size: 17, weight: .semibold))
+            .padding(.horizontal, 8)
+            .padding(.vertical, 10)
+            .contentShape(Rectangle())
+        }
     }
 
     // MARK: - Prefill
