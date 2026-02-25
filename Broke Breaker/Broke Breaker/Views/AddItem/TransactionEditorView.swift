@@ -95,66 +95,76 @@ struct TransactionEditorView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.top, 8)
 
-                // Title
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Title")
-                        .font(.title3.weight(.semibold))
+                VStack(alignment: .leading, spacing: 18) {
+                    // Title
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Title")
+                            .font(.title3.weight(.semibold))
 
-                    TextField("e.g. Rent, Salary, Coffee, Groceries…", text: $title)
-                        .font(.system(size: 18, weight: .medium))
-                        .textInputAutocapitalization(.words)
-                        .submitLabel(.done)
-                        .focused($focusedField, equals: .title)
-                        .padding(14)
-                        .background(.ultraThinMaterial)
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
-                }
+                        TextField("e.g. Rent, Salary, Coffee, Groceries…", text: $title)
+                            .font(.system(size: 18, weight: .medium))
+                            .textInputAutocapitalization(.words)
+                            .submitLabel(.done)
+                            .focused($focusedField, equals: .title)
+                            .padding(14)
+                            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                    .stroke(.white.opacity(0.12), lineWidth: 1)
+                            )
+                    }
 
-                // Amount
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Amount")
-                        .font(.title3.weight(.semibold))
+                    // Amount
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Amount")
+                            .font(.title3.weight(.semibold))
 
-                    HStack(spacing: 12) {
-                        VStack(spacing: 10) {
-                            signButton(label: "+", active: isPositive) { isPositive = true }
-                            signButton(label: "–", active: !isPositive) { isPositive = false }
-                        }
-                        .frame(width: 56)
-
-                        VStack(alignment: .leading, spacing: 6) {
-                            ZStack(alignment: .leading) {
-                                HStack(spacing: 0) {
-                                    Text(formattedUKFromDigits(amountDigits))
-                                        .font(.system(size: 28, weight: .semibold, design: .rounded))
-                                        .monospacedDigit()
-
-                                    if focusedField == .amount {
-                                        FakeCaret(height: 28)
-                                    }
-                                }
-                                .padding(.horizontal, 14)
-
-                                TextField("", text: amountDigitsBinding)
-                                    .font(.system(size: 28, weight: .semibold, design: .rounded))
-                                    .keyboardType(.numberPad)
-                                    .focused($focusedField, equals: .amount)
-                                    .foregroundStyle(.clear)
-                                    .tint(.clear)
-                                    .textSelection(.disabled)
-                                    .padding(.horizontal, 14)
+                        HStack(spacing: 12) {
+                            VStack(spacing: 10) {
+                                signButton(label: "+", active: isPositive) { isPositive = true }
+                                signButton(label: "–", active: !isPositive) { isPositive = false }
                             }
-                            .padding(.vertical, 14)
-                            .background(.ultraThinMaterial)
-                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                            .frame(width: 56)
 
-                            Text(isPositive ? "Income (positive)" : "Expense (negative)")
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
+                            VStack(alignment: .leading, spacing: 6) {
+                                ZStack(alignment: .leading) {
+                                    HStack(spacing: 0) {
+                                        Text(formattedUKFromDigits(amountDigits))
+                                            .font(.system(size: 28, weight: .semibold, design: .rounded))
+                                            .monospacedDigit()
+
+                                        if focusedField == .amount {
+                                            FakeCaret(height: 28)
+                                        }
+                                    }
+                                    .padding(.horizontal, 14)
+
+                                    TextField("", text: amountDigitsBinding)
+                                        .font(.system(size: 28, weight: .semibold, design: .rounded))
+                                        .keyboardType(.numberPad)
+                                        .focused($focusedField, equals: .amount)
+                                        .foregroundStyle(.clear)
+                                        .tint(.clear)
+                                        .textSelection(.disabled)
+                                        .padding(.horizontal, 14)
+                                }
+                                .padding(.vertical, 14)
+                                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                        .stroke(.white.opacity(0.12), lineWidth: 1)
+                                )
+
+                                Text(isPositive ? "Income (positive)" : "Expense (negative)")
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .frame(maxWidth: .infinity)
                         }
-                        .frame(maxWidth: .infinity)
                     }
                 }
+                .padding(22)
+                .glassEffect(in: .rect(cornerRadius: 16))
 
                 // Date + Type
                 HStack(alignment: .center) {
