@@ -276,17 +276,27 @@ struct TransactionEditorView: View {
             // End date toggle
             rows.append(AnyView(
                 SettingsListRow {
-                    Text("End date")
-                    Spacer()
-                    Toggle("", isOn: Binding(
-                        get: { hasEndDate },
-                        set: { on in
-                            hasEndDate = on
-                            if on { selectedEndDate = max(selectedEndDate, selectedDate) }
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Text("End date")
+                            Spacer()
+                            Toggle("", isOn: Binding(
+                                get: { hasEndDate },
+                                set: { on in
+                                    hasEndDate = on
+                                    if on { selectedEndDate = max(selectedEndDate, selectedDate) }
+                                }
+                            ))
+                            .labelsHidden()
+                            .tint(primaryActionColor)
                         }
-                    ))
-                    .labelsHidden()
-                    .tint(primaryActionColor)
+
+                        if !hasEndDate {
+                            Text("Optional — you can add it later.")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 }
             ))
 
