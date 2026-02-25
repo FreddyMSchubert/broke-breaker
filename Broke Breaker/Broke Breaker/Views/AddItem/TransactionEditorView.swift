@@ -174,8 +174,13 @@ struct TransactionEditorView: View {
                             .font(.title3.weight(.semibold))
                             .padding(.top, 22)
 
-                        TwoRowSegmentedPicker(options: SpendType.allCases, selection: $type)
-                            .disabled(isEditingLockedType)
+                        TwoRowSegmentedPicker(
+                            options: SpendType.allCases,
+                            selection: $type,
+                            textColor: .secondary,
+                            highlightedTextColor: primaryActionColor
+                        )
+                        .disabled(isEditingLockedType)
                     }
                     .padding(.horizontal, 22)
                     .glassEffect(in: .rect(cornerRadius: 16))
