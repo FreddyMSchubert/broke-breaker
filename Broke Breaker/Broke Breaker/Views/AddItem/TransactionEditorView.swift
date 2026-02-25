@@ -316,7 +316,11 @@ struct TransactionEditorView: View {
             rows.append(AnyView(
                 SettingsListRow {
                     Text("Repeat every")
-                    Spacer()
+                        .lineLimit(1)
+                        .layoutPriority(0)
+
+                    Spacer(minLength: 12)
+
                     HStack(spacing: 10) {
                         TextField("1", text: everyBinding)
                             .keyboardType(.numberPad)
@@ -327,10 +331,12 @@ struct TransactionEditorView: View {
                             .padding(.vertical, 8)
                             .background(.ultraThinMaterial)
                             .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                            .fixedSize(horizontal: true, vertical: false)
 
                         Picker("", selection: $unit) {
                             ForEach(RecurrenceUnitUI.allCases) { u in
                                 Text(u.label(for: everyN)).tag(u)
+                                    .lineLimit(1)
                             }
                         }
                         .pickerStyle(.menu)
@@ -339,7 +345,9 @@ struct TransactionEditorView: View {
                         .padding(.vertical, 8)
                         .background(.ultraThinMaterial)
                         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .fixedSize(horizontal: true, vertical: false)
                     }
+                    .layoutPriority(1)
                 }
             ))
         }
