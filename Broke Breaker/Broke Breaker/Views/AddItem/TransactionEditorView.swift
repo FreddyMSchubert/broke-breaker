@@ -35,13 +35,13 @@ struct TransactionEditorView: View {
     @State private var selectedDate: Date = Date()
     @State private var hasEndDate: Bool = false
     @State private var selectedEndDate: Date = Date()
-
-    enum TxType: String, CaseIterable, Identifiable {
-        case oneTime = "One-time"
+    
+    @State private var type: SpendType = .oneTime
+    enum SpendType: String, Hashable, CaseIterable {
+        case oneTime = "One-Time"
         case repeating = "Repeating"
-        var id: String { rawValue }
+        case saving = "Saving"
     }
-    @State private var txType: TxType = .oneTime
 
     enum RecurrenceUnitUI: CaseIterable, Identifiable {
         case days, weeks, months, years
@@ -165,13 +165,30 @@ struct TransactionEditorView: View {
                 }
                 .padding(22)
                 .glassEffect(in: .rect(cornerRadius: 16))
+                
+                // Type
+                HStack {
+                    Spacer()
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text("Type")
+                            .font(.title3.weight(.semibold))
+                            .padding(.top, 22)
 
-                // Date + Type
+                        TwoRowSegmentedPicker(options: SpendType.allCases, selection: $type)
+                            .disabled(isEditingLockedType)
+                    }
+                    .padding(.horizontal, 22)
+                    .glassEffect(in: .rect(cornerRadius: 16))
+                    .fixedSize(horizontal: true, vertical: true)
+                    Spacer()
+                }
+
+                // Date
                 HStack(alignment: .center) {
                     Spacer()
 
                     VStack(alignment: .leading, spacing: 8) {
-                        Text(txType == .oneTime ? "Date" : "Start date")
+                        Text(type == .repeating ? "Start date" : "Date")
                             .font(.title3.weight(.semibold))
 
                         DatePicker("", selection: $selectedDate, displayedComponents: [.date])
@@ -183,29 +200,9 @@ struct TransactionEditorView: View {
                     }
 
                     Spacer()
-                    Spacer()
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Type")
-                            .font(.title3.weight(.semibold))
-
-                        Picker("Type", selection: $txType) {
-                            ForEach(TxType.allCases) { t in
-                                Text(t.rawValue).tag(t)
-                            }
-                        }
-                        .pickerStyle(.menu)
-                        .tint(.primary)
-                        .padding(12)
-                        .background(.ultraThinMaterial)
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
-                        .disabled(isEditingLockedType)
-                    }
-
-                    Spacer()
                 }
 
-                if txType == .repeating {
+                if type == .repeating {
                     // Schedule
                     HStack {
                         Spacer()
@@ -352,7 +349,7 @@ struct TransactionEditorView: View {
         case .editOneTime(let tx):
             title = tx.title
             selectedDate = tx.date
-            txType = .oneTime
+            type = .oneTime  // (cannot infer “saving” from OneTimeTransaction, so default)
             let amt = tx.amount
             isPositive = (amt >= 0)
             amountDigits = digitsFromDecimal(absDecimal(amt))
@@ -360,7 +357,7 @@ struct TransactionEditorView: View {
         case .editRecurring(let rule):
             title = rule.title
             selectedDate = rule.startDate
-            txType = .repeating
+            type = .repeating
             let amt = rule.amountPerCycle
             isPositive = (amt >= 0)
             amountDigits = digitsFromDecimal(absDecimal(amt))
@@ -396,9 +393,10 @@ struct TransactionEditorView: View {
         do {
             switch mode {
             case .create:
-                switch txType {
-                case .oneTime:
+                switch type {
+                case .oneTime, .saving:
                     try ledger.addOneTime(title: trimmedTitle, date: selectedDate, amount: finalAmount)
+
                 case .repeating:
                     let recurrence = makeRecurrence()
                     let end: Date? = hasEndDate ? max(selectedEndDate, selectedDate) : nil
@@ -410,9 +408,8 @@ struct TransactionEditorView: View {
                         recurrence: recurrence
                     )
                 }
-                
-                resetInputsForNextCreate();
 
+                resetInputsForNextCreate()
                 alert = .success("Created \(createTransactionName).")
 
             case .editOneTime(let tx):
@@ -445,7 +442,7 @@ struct TransactionEditorView: View {
         amountDigits = ""
         isPositive = false
         selectedDate = Date()
-        txType = .oneTime
+        type = .oneTime
 
         hasEndDate = false
         selectedEndDate = Date()
@@ -467,7 +464,10 @@ struct TransactionEditorView: View {
     }
     
     private var createTransactionName: String {
-        let typeText = (txType == .oneTime) ? "one-time" : "repeating"
+        if (type == .saving) {
+            return isPositive ? "Savings Withdrawal" : "Saving";
+        }
+        let typeText = (type == .oneTime) ? "one-time" : "repeating"
         let signText = isPositive ? "income" : "expense"
         return "\(typeText) \(signText)"
     }
@@ -500,7 +500,8 @@ struct TransactionEditorView: View {
     private var canSave: Bool {
         !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         && amountCents > 0
-        && (txType == .oneTime || everyN >= 1)
+        && (type != .repeating || everyN >= 1)
+        && type != .saving // TODO: Remove when savings are implemented
     }
 
     private var amountCents: Int { Int(amountDigits) ?? 0 }
