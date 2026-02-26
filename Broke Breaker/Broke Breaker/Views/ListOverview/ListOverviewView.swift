@@ -152,7 +152,6 @@ extension ListOverviewView {
             if let overview {
                 if overview.items.isEmpty {
                     Spacer()
-                    Spacer()
                     VStack(spacing: 8) {
                         Image(systemName: "tray")
                         Text("No Transactions")
