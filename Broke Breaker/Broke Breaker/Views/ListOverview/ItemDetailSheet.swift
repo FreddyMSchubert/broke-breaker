@@ -188,6 +188,7 @@ struct ItemDetailSheet: View {
         } catch {
             oneTime = nil
             recurring = nil
+            saving = nil
         }
     }
 
