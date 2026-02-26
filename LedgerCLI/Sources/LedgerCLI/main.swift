@@ -39,6 +39,11 @@ do {
 		amount: Decimal(string: "25")!, 
 		isSavings: false
 	)
+	_ = try ledger.addOneTime(title: "Emergency fund transfer", 
+		date: Date(), 
+		amount: Decimal(string: "25")!, 
+		isSavings: true
+	)
 	let overview = try ledger.dayOverview(for: Date())
 	print("Day start:", overview.dayStart)
 	for item in overview.items {
