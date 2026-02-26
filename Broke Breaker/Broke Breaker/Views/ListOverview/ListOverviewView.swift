@@ -40,9 +40,10 @@ struct ListOverviewView: View {
                     .padding(.bottom, 1)
                     .background(Color(UIColor.tertiarySystemFill))
                     .clipShape(Capsule())
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(Calendar.current.isDate(.now, inSameDayAs: date) ? Color.primary.opacity(0.5) : Color.primary)
                     .controlSize(.mini)
                     .font(.system(size: 17))
+                    .disabled(Calendar.current.isDate(.now, inSameDayAs: date))
             }
             .padding(.horizontal)
             
