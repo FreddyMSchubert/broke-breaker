@@ -280,7 +280,7 @@ struct ItemDetailSheet: View {
             let amount: Decimal = recurring?.amountPerCycle ?? item.mainAmount
             return "Repeating \(amount >= 0 ? "Income" : "Expense")"
         case .saving:
-            let amount: Decimal = saving?.amount ?? item.savingsAmount
+            let amount: Decimal = saving?.amount ?? -item.savingsAmount
             if amount >= 0 {
                 return "Savings Withdrawal"
             } else {
