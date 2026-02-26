@@ -22,14 +22,7 @@ struct ItemDetailSheet: View {
         self.day = day
         self.item = item
         self.onChanged = onChanged
-        self.dailyAmount = {
-            switch item.source {
-            case .saving:
-                return item.savingsAmount
-            default:
-                return item.mainAmount
-            }
-        }()
+        self.dailyAmount = item.mainAmount
     }
 
     var body: some View {
