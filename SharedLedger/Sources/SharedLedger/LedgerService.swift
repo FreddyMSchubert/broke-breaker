@@ -13,6 +13,24 @@ public final class LedgerService: @unchecked Sendable {
 
 	// ----- Public Write API (same calls)
 
+    /// Adds a one-time entry. If `isSavings` is true, treats it as a savings transfer (negative amount).
+    @discardableResult
+    public func addOneTime(
+        title: String,
+        date: Date,
+        amount: Decimal,
+        isSavings: Bool
+    ) throws -> OneTimeTransaction {
+        if isSavings {
+            // Savings should reduce the available balance.
+            precondition(amount > 0, "Savings amount must be positive; it will be stored as negative.")
+            return try addSavingsTransfer(title: title, date: date, amount: amount)
+        } else {
+            // Normal path (existing implementation)
+            return try addOneTime(title: title, date: date, amount: amount)
+        }
+    }
+
 	@discardableResult
 	public func addOneTime(title: String, date: Date, amount: Decimal) throws -> OneTimeTransaction {
 		let d = dayStart(date)
@@ -36,6 +54,36 @@ public final class LedgerService: @unchecked Sendable {
             return OneTimeTransaction(id: newId, title: title, date: date, amount: amount)
         }
 	}
+
+    /// Adds a recurring entry. If `isSavings` is true, saves a negative recurring amount.
+    @discardableResult
+    public func addRecurring(
+        title: String,
+        amountPerCycle: Decimal,
+        startDate: Date,
+        endDate: Date? = nil,
+        recurrence: Recurrence,
+        isSavings: Bool
+    ) throws -> RecurringRule {
+        if isSavings {
+            precondition(amountPerCycle > 0, "Savings amount must be positive; it will be stored as negative.")
+            return try addRecurringAutosave(
+                title: title,
+                amountPerCycle: amountPerCycle,
+                startDate: startDate,
+                endDate: endDate,
+                recurrence: recurrence
+            )
+        } else {
+            return try addRecurring(
+                title: title,
+                amountPerCycle: amountPerCycle,
+                startDate: startDate,
+                endDate: endDate,
+                recurrence: recurrence
+            )
+        }
+    }
 
     @discardableResult
     public func addRecurring(
@@ -204,6 +252,36 @@ public final class LedgerService: @unchecked Sendable {
             try ensureCachedThrough(day: today(), wdb: wdb)
 		}
 	}
+
+    /// Records a transfer out of available balance into savings (negative amount).
+    @discardableResult
+    public func addSavingsTransfer(
+        title: String = "Savings Transfer",
+        date: Date = Date(),
+        amount: Decimal
+    ) throws -> OneTimeTransaction {
+        precondition(amount > 0, "Savings amount must be positive; it will be stored as negative.")
+        return try addOneTime(title: title, date: date, amount: -amount)
+    }
+
+    /// Recurring autosave (negative per cycle).
+    @discardableResult
+    public func addRecurringAutosave(
+        title: String = "Autosave",
+        amountPerCycle: Decimal,
+        startDate: Date = Date(),
+        endDate: Date? = nil,
+        recurrence: Recurrence
+    ) throws -> RecurringRule {
+        precondition(amountPerCycle > 0, "Savings amount must be positive; it will be stored as negative.")
+        return try addRecurring(
+            title: title,
+            amountPerCycle: -amountPerCycle,
+            startDate: startDate,
+            endDate: endDate,
+            recurrence: recurrence
+        )
+    }
 
 	// ----- Public Read API (same calls)
 

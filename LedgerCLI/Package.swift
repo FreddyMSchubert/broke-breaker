@@ -3,9 +3,6 @@ import PackageDescription
 
 let package = Package(
     name: "LedgerCLI",
-    platforms: [
-        .macOS(.v13)
-    ],
     products: [
         .executable(name: "LedgerCLI", targets: ["LedgerCLI"])
     ],
