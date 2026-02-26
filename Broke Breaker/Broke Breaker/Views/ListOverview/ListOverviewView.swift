@@ -276,7 +276,8 @@ extension ListOverviewView {
             }
             Spacer(minLength: 70)
             VStack(alignment: .trailing) {
-                Text("\(dayNetTotal, format: .number.precision(.fractionLength(2)))")
+                let sign = dayNetTotal >= 0 ? "+" : ""
+                Text("\(sign)\(dayNetTotal, format: .number.precision(.fractionLength(2)))")
                     .font(.title)
                     .fontWeight(.bold)
                     .foregroundStyle(dayNetTotal >= 0
