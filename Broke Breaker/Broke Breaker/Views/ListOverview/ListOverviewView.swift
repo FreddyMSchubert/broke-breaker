@@ -259,7 +259,8 @@ extension ListOverviewView {
                 Text("+\(incomingTotal, format: .number.precision(.fractionLength(2)))")
                     .foregroundStyle(.blue)
                     .lineLimit(1)
-                Text("\(outgoingTotal, format: .number.precision(.fractionLength(2)))")
+                let sign = outgoingTotal == 0 ? "-" : ""
+                Text("\(sign)\(outgoingTotal, format: .number.precision(.fractionLength(2)))")
                     .foregroundStyle(.red)
                     .lineLimit(1)
             }
