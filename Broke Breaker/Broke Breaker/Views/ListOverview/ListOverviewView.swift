@@ -214,7 +214,7 @@ extension ListOverviewView {
             VStack(spacing: 0) {
                 if let overview {
                     overviewBar(for: day, overview: overview)
-                        .padding(0)
+                        .padding(.horizontal, 8)
                 }
                 Rectangle()
                     .fill(.primary)
