@@ -28,7 +28,7 @@ struct ListOverviewView: View {
             Text("Transactions")
                 .font(.largeTitle.bold())
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.top, 8)
+                .padding(8)
                 .padding(.horizontal)
             
             // Date Picker
