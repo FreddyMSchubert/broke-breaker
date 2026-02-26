@@ -358,10 +358,11 @@ struct ContractSlide: View {
 
     private var stageText: String {
         let t = Double(progress) * holdDuration
-        if t < 3 { return "Analyzing fingerprint" }
-        if t < 6 { return "Detecting spending habits" }
-        if t < 8 { return "Keep holding" }
-        if t < 10 { return "Just a bit longer" }
+        if t < 2 { return "Analyzing fingerprint" }
+        if t < 4 { return "Detecting spending habits" }
+        if t < 6 { return "Determining solution" }
+        if t < 8 { return "The solution to your spending problems is..." }
+        if t < 10 { return "BROKE BREAKER!" }
         return ""
     }
 
@@ -461,6 +462,11 @@ struct ContractSlide: View {
         }
 
         stopTicker()
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            haptics.pulse(strength: 9999999999.0)
+        }
+
     }
 }
 
@@ -655,27 +661,35 @@ struct FloatingIconsRow: View {
 
 // MARK: - Preview
 
-
 struct HapticRiser {
     private var engine: CHHapticEngine?
     private var continuousPlayer: CHHapticAdvancedPatternPlayer?
 
-    private let impact = UIImpactFeedbackGenerator(style: .rigid)
-    private let heavyImpact = UIImpactFeedbackGenerator(style: .heavy)
+    private let touchDown = UIImpactFeedbackGenerator(style: .heavy)
     private let notify = UINotificationFeedbackGenerator()
 
-    // used to throttle extra “punches”
-    private var lastPunchBucket: Int = -1
+    private var lastParamSend: TimeInterval = 0
+    private var nextPulseTime: TimeInterval = 0
 
     mutating func prepare() {
-        impact.prepare()
-        heavyImpact.prepare()
+        touchDown.prepare()
         notify.prepare()
 
         guard CHHapticEngine.capabilitiesForHardware().supportsHaptics else { return }
+
         do {
             engine = try CHHapticEngine()
-            engine?.isAutoShutdownEnabled = true
+
+            // Keep it alive + recover if the system stops it.
+            engine?.stoppedHandler = { reason in
+                // You can log reason if you want.
+            }
+            engine?.resetHandler = { [weakEngine = engine] in
+                // Engine got reset, restart it.
+                do { try weakEngine?.start() } catch { }
+            }
+
+            engine?.isAutoShutdownEnabled = false
             try engine?.start()
         } catch {
             engine = nil
@@ -683,88 +697,96 @@ struct HapticRiser {
     }
 
     mutating func start() {
-        // immediate “yep we heard you”
-        heavyImpact.impactOccurred(intensity: 0.9)
+        touchDown.impactOccurred(intensity: 1.0)
 
-        guard let engine,
-              CHHapticEngine.capabilitiesForHardware().supportsHaptics else { return }
+        guard let engine, CHHapticEngine.capabilitiesForHardware().supportsHaptics else { return }
 
         do {
-            // long continuous event; we drive intensity/sharpness dynamically
+            // Strong baseline continuous "motor"
             let event = CHHapticEvent(
                 eventType: .hapticContinuous,
                 parameters: [
-                    CHHapticEventParameter(parameterID: .hapticIntensity, value: 0.15),
-                    CHHapticEventParameter(parameterID: .hapticSharpness, value: 0.2)
+                    // Start noticeably strong
+                    CHHapticEventParameter(parameterID: .hapticIntensity, value: 0.45),
+                    CHHapticEventParameter(parameterID: .hapticSharpness, value: 0.55)
                 ],
                 relativeTime: 0,
-                duration: 30
+                duration: 60
             )
 
             let pattern = try CHHapticPattern(events: [event], parameters: [])
             continuousPlayer = try engine.makeAdvancedPlayer(with: pattern)
             try continuousPlayer?.start(atTime: 0)
+
+            lastParamSend = 0
+            nextPulseTime = 0
         } catch {
             continuousPlayer = nil
         }
-
-        lastPunchBucket = -1
+    }
+    
+    @inline(__always)
+    func ramp(_ p: Double, shape: Double = 1.35) -> Double {
+        let x = max(0, min(1, p))
+        let s = x * x * (3 - 2 * x)     // smoothstep
+        return pow(s, shape)            // shape > 1 delays early energy slightly
     }
 
     mutating func update(progress: Double) {
+        guard let engine else { return }
+
         let p = max(0, min(1, progress))
 
-        // VERY aggressive ramp: slow start, then spicy, then ridiculous
-        let eased = pow(p, 2.4)
+        let eased = ramp(p, shape: 1.45)
 
-        // Intensity/sharpness go to max at the end
-        let intensity = Float(0.12 + 0.88 * eased)        // -> 1.0-ish
-        let sharpness = Float(0.10 + 0.90 * pow(p, 1.2))  // -> 1.0
+        // Start near 0, end at 1
+        let intensity = Float(0.02 + 0.98 * eased)   // 0.02 -> 1.0
+        let sharpness = Float(0.02 + 0.98 * eased)   // 0.02 -> 1.0
 
-        if let player = continuousPlayer {
-            do {
-                let i = CHHapticDynamicParameter(parameterID: .hapticIntensityControl,
-                                                 value: intensity,
-                                                 relativeTime: 0)
-                let s = CHHapticDynamicParameter(parameterID: .hapticSharpnessControl,
-                                                 value: sharpness,
-                                                 relativeTime: 0)
-                try player.sendParameters([i, s], atTime: 0)
-            } catch {
-                // fall through to impact punches below
+        // Throttle param sends (60Hz is overkill; 20–30Hz feels the same)
+        let now = CACurrentMediaTime()
+        if now - lastParamSend > (1.0 / 30.0) {
+            lastParamSend = now
+
+            if let player = continuousPlayer {
+                do {
+                    let i = CHHapticDynamicParameter(
+                        parameterID: .hapticIntensityControl,
+                        value: intensity,
+                        relativeTime: 0
+                    )
+                    let s = CHHapticDynamicParameter(
+                        parameterID: .hapticSharpnessControl,
+                        value: sharpness,
+                        relativeTime: 0
+                    )
+                    try player.sendParameters([i, s], atTime: 0)
+                } catch { }
             }
         }
 
-        // Add “punch” impacts as you climb (more frequent near the end)
-        // Buckets: early = sparse, late = machine-gun-ish
-        let bucketCount = (p < 0.6) ? 10 : (p < 0.85 ? 18 : 30)
-        let bucket = Int(p * Double(bucketCount))
+        // Add "rumble texture" using transients (controller-ish feel)
+        // Pulse interval shrinks as progress increases.
+        let minInterval: TimeInterval = 0.035
+        let maxInterval: TimeInterval = 0.16
+        let interval = max(minInterval, maxInterval - (maxInterval - minInterval) * eased)
 
-        if bucket != lastPunchBucket {
-            lastPunchBucket = bucket
-            let punch = CGFloat(min(1.0, 0.25 + 0.75 * eased))
-            impact.impactOccurred(intensity: punch)
-
-            // extra nasty near the end
-            if p > 0.9 {
-                heavyImpact.impactOccurred(intensity: CGFloat(min(1.0, 0.7 + 0.3 * (p - 0.9) / 0.1)))
-            }
+        if now >= nextPulseTime {
+            nextPulseTime = now + interval
+            playRumblePulse(engine: engine, strength: eased)
         }
     }
 
     mutating func release() {
-        // stop continuous immediately so release feels “dead”
         stopContinuous()
-        // small “let go” tap
-        impact.impactOccurred(intensity: 0.35)
+        // optional: tiny release cue
+        UIImpactFeedbackGenerator(style: .rigid).impactOccurred(intensity: 0.35)
     }
 
     mutating func success() {
         stopContinuous()
-        // victory stack: heavy hit + success notification
-        heavyImpact.impactOccurred(intensity: 1.0)
         notify.notificationOccurred(.success)
-        heavyImpact.impactOccurred(intensity: 1.0)
+        UIImpactFeedbackGenerator(style: .heavy).impactOccurred(intensity: 1.0)
     }
 
     mutating func cancel() {
@@ -775,6 +797,32 @@ struct HapticRiser {
     private mutating func stopContinuous() {
         do { try continuousPlayer?.stop(atTime: 0) } catch { }
         continuousPlayer = nil
+    }
+
+    private func playRumblePulse(engine: CHHapticEngine, strength: Double) {
+        guard CHHapticEngine.capabilitiesForHardware().supportsHaptics else { return }
+
+        let v = Float(0.02 + 0.98 * strength)
+        let s = Float(0.02 + 0.98 * strength)
+
+        do {
+            let pulse = CHHapticEvent(
+                eventType: .hapticTransient,
+                parameters: [
+                    CHHapticEventParameter(parameterID: .hapticIntensity, value: v),
+                    CHHapticEventParameter(parameterID: .hapticSharpness, value: s)
+                ],
+                relativeTime: 0
+            )
+            let pattern = try CHHapticPattern(events: [pulse], parameters: [])
+            let player = try engine.makePlayer(with: pattern)
+            try player.start(atTime: 0)
+        } catch { }
+    }
+    
+    mutating func pulse(strength: Double) {
+        guard let engine else { return }
+        playRumblePulse(engine: engine, strength: max(0, min(1, strength)))
     }
 }
 

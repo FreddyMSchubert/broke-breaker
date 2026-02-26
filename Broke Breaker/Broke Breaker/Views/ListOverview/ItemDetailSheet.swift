@@ -4,7 +4,6 @@ import SharedLedger
 struct ItemDetailSheet: View {
     let ledger = Ledger.shared
     @Environment(\.dismiss) private var dismiss
-    @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding: Bool = true
 
     let day: Date
     let item: DayLineItem
@@ -27,7 +26,6 @@ struct ItemDetailSheet: View {
 
     var body: some View {
         VStack(spacing: 16) {
-            Button("Reset Onboarding") { hasSeenOnboarding = false }
             Spacer(minLength: 12)
 
             VStack(spacing: 8) {

@@ -8,7 +8,7 @@ struct HomeView: View {
 
     //------Declare Data Variables----------------
     @AppStorage("isDarkMode") private var isDarkMode = false
-   
+    @State private var settingsActive = false
     
     //------Declare Data Variables----------------
     @State private var showTodayDetails = false
@@ -28,11 +28,23 @@ struct HomeView: View {
     
     private var isNegativeToday: Bool { netToday < 0 }
 
-    
-
-    
-    
     var body: some View {
+        HStack {
+            Spacer()
+            Button(action: { settingsActive = true }) {
+                Image(systemName: "gearshape")
+                    .font(.system(size: 24, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .padding(10)
+            }
+            .buttonStyle(.plain)
+            .glassEffect()
+            .sheet(isPresented: $settingsActive) {
+                SettingsView()
+            }
+        }
+        .padding([.top, .horizontal])
+        
         ZStack{
             
             LinearGradient(
@@ -666,3 +678,4 @@ struct FlowAreaChart: View {
         }
     }
 }
+
