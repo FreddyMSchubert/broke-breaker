@@ -171,6 +171,10 @@ extension ListOverviewView {
                             if case .recurring = $0.source { return true }
                             return false
                         }
+                        let savingItems = overview.items.filter {
+                            if case .saving = $0.source { return true }
+                            return false
+                        }
                         
                         if !oneTimeItems.isEmpty {
                             TransactionSectionView(
@@ -182,6 +186,18 @@ extension ListOverviewView {
                                 selectedItemDay = day
                                 selectedItem = item
                                 }
+                        }
+                        
+                        if !savingItems.isEmpty {
+                            TransactionSectionView(
+                                title: "Savings:",
+                                items: savingItems,
+                                iconName: "square.and.arrow.down",
+                                day: day
+                            ) { item in
+                                selectedItemDay = day
+                                selectedItem = item
+                            }
                         }
 
                         if !recurringItems.isEmpty {
@@ -230,20 +246,20 @@ extension ListOverviewView {
         
         let previousDay = Calendar.current.date(byAdding: .day, value: -1, to: day)!
         let previousTotals = try? ledger.dayTotals(for: previousDay)
-        let rollover = previousTotals?.runningBalanceEndOfDay ?? 0
+        let rollover = previousTotals?.runningBalanceMainEndOfDay ?? 0
         
         let incomingTotal: Double = overview.items
-            .map { NSDecimalNumber(decimal: $0.amount).doubleValue }
+            .map { NSDecimalNumber(decimal: $0.mainAmount).doubleValue }
             .filter { $0 > 0 }
             .reduce(0, +)
         
         let outgoingTotal: Double = overview.items
-            .map { NSDecimalNumber(decimal: $0.amount).doubleValue }
+            .map { NSDecimalNumber(decimal: $0.mainAmount).doubleValue }
             .filter { $0 < 0 }
             .reduce(0, +)
         
         let dayTotals = try? ledger.dayTotals(for: day)
-        let dayNetTotal: Decimal = dayTotals?.runningBalanceEndOfDay ?? 0
+        let dayNetTotal: Decimal = dayTotals?.runningBalanceMainEndOfDay ?? 0
 
         return HStack {
             Spacer()
@@ -407,7 +423,7 @@ extension ListOverviewView {
     }
     
     private func circleColour(day: Date) -> Color {
-        guard let balance = try? ledger.dayTotals(for: day).runningBalanceEndOfDay else {
+        guard let balance = try? ledger.dayTotals(for: day).runningBalanceMainEndOfDay else {
                 return .secondary.opacity(0.3)
             }
         return balance >= 0 ? .blue : .red
@@ -430,7 +446,7 @@ extension ListOverviewView {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(8)
                 
-                let sortedItems = items.sorted { $0.amount > $1.amount }
+                let sortedItems = items.sorted { $0.mainAmount > $1.mainAmount }
                 
                 ForEach(sortedItems.indices, id: \.self) { index in
                     let item = sortedItems[index]
@@ -467,16 +483,16 @@ extension ListOverviewView {
         
         @ViewBuilder
         private func amountView(for item: DayLineItem) -> some View {
-            let amountDouble = NSDecimalNumber(decimal: item.amount).doubleValue
+            let amountDouble = NSDecimalNumber(decimal: item.mainAmount).doubleValue
             let sign = amountDouble >= 0 ? "+" : ""
             
             if abs(amountDouble) < 0.01 {
                 let smallSign = amountDouble <= 0 ? "-" : ""
                 Text("\(smallSign)0.01")
-                    .foregroundStyle(item.amount >= 0 ? .blue : .red)
+                    .foregroundStyle(item.mainAmount >= 0 ? .blue : .red)
             } else {
                 Text("\(sign)\(amountDouble, format: .number.precision(.fractionLength(2)))")
-                    .foregroundStyle(item.amount >= 0 ? .blue : .red)
+                    .foregroundStyle(item.mainAmount >= 0 ? .blue : .red)
             }
         }
     }

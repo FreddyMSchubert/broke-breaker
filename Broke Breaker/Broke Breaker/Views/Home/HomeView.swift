@@ -9,12 +9,11 @@ struct HomeView: View {
     @State private var settingsActive = false
     
     @State private var balanceToday: Double = 0
-    @State private var netToday: Double = 0
     
     @State private var values: [Double] = Array(repeating: 0, count: 3)
     @State private var labels: [String] = []
     
-    private var isNegativeToday: Bool { netToday < 0 }
+    private var isNegativeToday: Bool { balanceToday < 0 }
     
     var body: some View {
         ZStack(alignment: .topTrailing) {
@@ -129,8 +128,7 @@ struct HomeView: View {
             let today = Date()
             
             let totalsToday = try ledger.dayTotals(for: today)
-            netToday = (totalsToday.netTotal as NSDecimalNumber).doubleValue
-            balanceToday = (totalsToday.runningBalanceEndOfDay as NSDecimalNumber).doubleValue
+            balanceToday = (totalsToday.runningBalanceMainEndOfDay as NSDecimalNumber).doubleValue
             
             let offsets = [-1, 0, 1]
             
@@ -141,7 +139,7 @@ struct HomeView: View {
                 let date = cal.date(byAdding: .day, value: off, to: today)!
                 let totals = try ledger.dayTotals(for: date)
                 
-                tempValues.append((totals.runningBalanceEndOfDay as NSDecimalNumber).doubleValue)
+                tempValues.append((totals.runningBalanceMainEndOfDay as NSDecimalNumber).doubleValue)
                 
                 if off == -1 {
                     tempLabels.append("Yesterday")
@@ -158,7 +156,6 @@ struct HomeView: View {
         } catch {
             print("HomeView loadRealData error:", error)
             balanceToday = 0
-            netToday = 0
             values = Array(repeating: 0, count: 3)
             labels = ["Yesterday", "Today", "Tomorrow"]
         }

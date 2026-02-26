@@ -11,6 +11,7 @@ struct ItemDetailSheet: View {
 
     @State private var oneTime: OneTimeTransaction?
     @State private var recurring: RecurringRule?
+    @State private var saving: SavingsTransaction?
 
     @State private var showDeleteConfirm = false
     @State private var showEditSheet = false
@@ -21,7 +22,14 @@ struct ItemDetailSheet: View {
         self.day = day
         self.item = item
         self.onChanged = onChanged
-        _dailyAmount = State(initialValue: item.amount)
+        self.dailyAmount = {
+            switch item.source {
+            case .saving:
+                return item.savingsAmount
+            default:
+                return item.mainAmount
+            }
+        }()
     }
 
     var body: some View {
@@ -66,6 +74,14 @@ struct ItemDetailSheet: View {
                     }
 
                     if let tx = oneTime {
+                        HStack {
+                            Text("Date")
+                            Spacer()
+                            Text(tx.date.formatted(date: .abbreviated, time: .omitted))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    if let tx = saving {
                         HStack {
                             Text("Date")
                             Spacer()
@@ -150,6 +166,9 @@ struct ItemDetailSheet: View {
             } else if let rule = recurring {
                 TransactionEditorView(mode: .editRecurring(rule))
                     .presentationDetents([.large])
+            } else if let tx = saving {
+                TransactionEditorView(mode: .editSaving(tx))
+                    .presentationDetents([.large])
             } else {
                 Text("Missing item.")
                     .presentationDetents([.medium])
@@ -163,9 +182,15 @@ struct ItemDetailSheet: View {
             case .oneTime(let id):
                 oneTime = try ledger.fetchOneTime(id: id)
                 recurring = nil
+                saving = nil
             case .recurring(let id):
                 recurring = try ledger.fetchRecurring(id: id)
                 oneTime = nil
+                saving = nil
+            case .saving(let id):
+                saving = try ledger.fetchSavings(id: id)
+                oneTime = nil
+                recurring = nil
             }
         } catch {
             oneTime = nil
@@ -180,6 +205,8 @@ struct ItemDetailSheet: View {
                 if let tx = try ledger.fetchOneTime(id: id) { try ledger.deleteOneTime(tx) }
             case .recurring(let id):
                 if let rule = try ledger.fetchRecurring(id: id) { try ledger.deleteRecurring(rule) }
+            case .saving(let id):
+                if let tx = try ledger.fetchSavings(id: id) { try ledger.deleteSavings(tx) }
             }
             dismiss()
             onChanged()
@@ -191,15 +218,18 @@ struct ItemDetailSheet: View {
     private var displayAmount: Decimal {
         switch item.source {
         case .oneTime:
-            return oneTime?.amount ?? item.amount
+            return oneTime?.amount ?? item.mainAmount
         case .recurring:
-            return recurring?.amountPerCycle ?? item.amount
+            return recurring?.amountPerCycle ?? item.mainAmount
+        case .saving:
+            return saving?.amount ?? -item.savingsAmount
         }
     }
     private var displayTitle: String {
         switch item.source {
         case .oneTime: return oneTime?.title ?? item.title
         case .recurring: return recurring?.title ?? item.title
+        case .saving: return saving?.title ?? item.title
         }
     }
     private func displayDailyImpact() -> String? {
@@ -216,12 +246,13 @@ struct ItemDetailSheet: View {
                 switch (candidate.source, item.source) {
                 case (.oneTime(let a), .oneTime(let b)): return a == b
                 case (.recurring(let a), .recurring(let b)): return a == b
+                case (.saving(let a), .saving(let b)): return a == b
                 default: return false
                 }
             }
 
             if let updated {
-                dailyAmount = updated.amount
+                dailyAmount = updated.mainAmount
             }
         } catch {
             // ignore
@@ -249,8 +280,19 @@ struct ItemDetailSheet: View {
 
     private var typeLabel: String {
         switch item.source {
-        case .oneTime: return "One-time"
-        case .recurring: return "Repeating"
+        case .oneTime:
+            let amount: Decimal = oneTime?.amount ?? item.mainAmount
+            return "One-Time \(amount >= 0 ? "Income" : "Expense")"
+        case .recurring:
+            let amount: Decimal = recurring?.amountPerCycle ?? item.mainAmount
+            return "Repeating \(amount >= 0 ? "Income" : "Expense")"
+        case .saving:
+            let amount: Decimal = saving?.amount ?? item.savingsAmount
+            if amount >= 0 {
+                return "Savings Withdrawal"
+            } else {
+                return "Saving"
+            }
         }
     }
 
