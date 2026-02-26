@@ -435,6 +435,7 @@ extension ListOverviewView {
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(8)
+                    .labelIconToTitleSpacing(4)
                 
                 let sortedItems = items.sorted { $0.amount > $1.amount }
                 
