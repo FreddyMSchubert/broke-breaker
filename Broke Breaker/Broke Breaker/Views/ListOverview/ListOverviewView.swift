@@ -269,21 +269,25 @@ extension ListOverviewView {
                 Text("Expense")
             }
             Spacer()
-            Text("=")
-                .font(.title2)
-                .fontWeight(.bold)
-            Spacer()
-            Text("\(dayNetTotal, format: .number.precision(.fractionLength(2)))")
-                .font(.title)
-                .fontWeight(.bold)
-                .foregroundStyle(dayNetTotal >= 0
-                                 ? .blue
-                                 : .red)
-                .lineLimit(1)
+            VStack(alignment: .center) {
+                Text("=")
+                    .font(.title2)
+                    .fontWeight(.bold)
+            }
+            Spacer(minLength: 70)
+            VStack(alignment: .trailing) {
+                Text("\(dayNetTotal, format: .number.precision(.fractionLength(2)))")
+                    .font(.title)
+                    .fontWeight(.bold)
+                    .foregroundStyle(dayNetTotal >= 0
+                                     ? .blue
+                                     : .red)
+                    .lineLimit(1)
+            }
             Spacer()
         }
         .fontWeight(.semibold)
-        .padding(8)
+        .padding(.vertical, 8)
         .glassEffect(in: .rect(cornerRadius: 16))
     }
 }
