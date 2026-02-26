@@ -363,7 +363,7 @@ extension ListOverviewView {
         let days = (0..<7).compactMap {
             Calendar.current.date(byAdding: .day, value: $0, to: startOfWeek)
         }
-        let letters = ["M", "T", "W", "T", "F", "S", "S"]
+        let letters = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
         
         return HStack {
             ForEach(Array(days.enumerated()), id: \.offset) { index, day in
