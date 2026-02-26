@@ -6,6 +6,7 @@ struct HomeView: View {
     let ledger = Ledger.shared
     
     @AppStorage("isDarkMode") private var isDarkMode = false
+    @State private var settingsActive = false
     
     @State private var balanceToday: Double = 0
     @State private var netToday: Double = 0
@@ -16,8 +17,8 @@ struct HomeView: View {
     private var isNegativeToday: Bool { netToday < 0 }
     
     var body: some View {
-        ZStack {
-            
+        ZStack(alignment: .topTrailing) {
+
             LinearGradient(
                 colors: isNegativeToday
                 ? [
@@ -32,33 +33,28 @@ struct HomeView: View {
                 endPoint: .bottomTrailing
             )
             .ignoresSafeArea()
-            
+
             ScrollView {
                 VStack(spacing: 30) {
-                    
-                    Text("BROKE BREAKER")
-                        .font(.system(size: 28, weight: .bold, design: .rounded))
-                        .tracking(1)
-                    
+
+                    HStack {
+                        Text("BROKE BREAKER")
+                            .font(.system(size: 28, weight: .bold, design: .rounded))
+                            .tracking(1)
+                        Spacer()
+                    }
+
                     VStack(alignment: .leading, spacing: 14) {
-                        
-                        HStack {
-                            Text("Today")
-                                .font(.headline)
-                            Spacer()
-                        }
-                        
-                        Divider().opacity(0.25)
-                        
-                        Text("Balance")
+
+                        Text("Disposable Today")
                             .font(.subheadline)
                             .opacity(0.85)
                             .frame(maxWidth: .infinity, alignment: .center)
-                        
-                        Text("£\(balanceToday, specifier: "%.2f")")
+
+                        Text("\(balanceToday, specifier: "%.2f")")
                             .font(.system(size: 40, weight: .bold))
                             .frame(maxWidth: .infinity, alignment: .center)
-                        
+
                     }
                     .padding()
                     .frame(maxWidth: .infinity)
@@ -69,12 +65,9 @@ struct HomeView: View {
                     )
                     .cornerRadius(20)
                     .shadow(radius: 10)
-                    
+
                     VStack(alignment: .leading, spacing: 16) {
-                        
-                        Text("Daily Net Trend")
-                            .font(.headline)
-                        
+
                         FlowAreaChart(
                             values: values,
                             labels: labels,
@@ -106,11 +99,25 @@ struct HomeView: View {
                         .shadow(color: isNegativeToday ? .red.opacity(0.28) : .blue.opacity(0.28),
                                 radius: 20, x: 0, y: 10)
                     }
-                    
+
                     Spacer(minLength: 12)
                 }
                 .padding()
                 .foregroundColor(.white)
+            }
+
+            Button(action: { settingsActive = true }) {
+                Image(systemName: "gearshape")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .padding(10)
+            }
+            .buttonStyle(.plain)
+            .glassEffect()
+            .padding(.top, 10)
+            .padding(.trailing, 14)
+            .sheet(isPresented: $settingsActive) {
+                SettingsView()
             }
         }
         .task { loadRealData() }
@@ -134,7 +141,7 @@ struct HomeView: View {
                 let date = cal.date(byAdding: .day, value: off, to: today)!
                 let totals = try ledger.dayTotals(for: date)
                 
-                tempValues.append((totals.netTotal as NSDecimalNumber).doubleValue)
+                tempValues.append((totals.runningBalanceEndOfDay as NSDecimalNumber).doubleValue)
                 
                 if off == -1 {
                     tempLabels.append("Yesterday")
