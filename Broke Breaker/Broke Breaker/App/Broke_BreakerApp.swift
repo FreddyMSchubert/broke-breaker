@@ -4,9 +4,9 @@ import SharedLedger
 @main
 struct Broke_BreakerApp: App {
     let ledgerService: LedgerService
+    @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
 
     init() {
-        // db stored in in documents or application support
         let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
         let dbURL = docs.appendingPathComponent("ledger.sqlite")
 
@@ -19,7 +19,15 @@ struct Broke_BreakerApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootTabView()
+            ZStack {
+                if hasSeenOnboarding {
+                    RootTabView()
+                } else {
+                    OnboardingFlow {
+                        hasSeenOnboarding = true
+                    }
+                }
+            }
         }
     }
 }
