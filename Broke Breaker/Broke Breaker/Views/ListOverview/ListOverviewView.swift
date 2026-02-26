@@ -429,7 +429,7 @@ extension ListOverviewView {
         
         var body: some View {
             VStack {
-                Text(title)
+                Label(title, systemImage: iconName)
                     .font(.subheadline)
                     .fontWeight(.semibold)
                     .foregroundStyle(.secondary)
@@ -442,14 +442,8 @@ extension ListOverviewView {
                     let item = sortedItems[index]
                     
                     HStack {
-                        HStack {
-                            Text(item.title)
-                                .foregroundStyle(.primary)
-                            
-                            Label("", systemImage: iconName)
-                                .foregroundStyle(.secondary)
-                                .labelStyle(.iconOnly)
-                        }
+                        Text(item.title)
+                            .foregroundStyle(.primary)
                         
                         Spacer()
                         
