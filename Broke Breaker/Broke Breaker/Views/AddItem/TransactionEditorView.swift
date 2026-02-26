@@ -35,13 +35,13 @@ struct TransactionEditorView: View {
     @State private var selectedDate: Date = Date()
     @State private var hasEndDate: Bool = false
     @State private var selectedEndDate: Date = Date()
-
-    enum TxType: String, CaseIterable, Identifiable {
-        case oneTime = "One-time"
+    
+    @State private var type: SpendType = .oneTime
+    enum SpendType: String, Hashable, CaseIterable, Equatable {
+        case oneTime = "One-Time"
         case repeating = "Repeating"
-        var id: String { rawValue }
+        case saving = "Saving"
     }
-    @State private var txType: TxType = .oneTime
 
     enum RecurrenceUnitUI: CaseIterable, Identifiable {
         case days, weeks, months, years
@@ -95,186 +95,101 @@ struct TransactionEditorView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.top, 8)
 
-                // Title
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Title")
-                        .font(.title3.weight(.semibold))
-
-                    TextField("e.g. Rent, Salary, Coffee, Groceries…", text: $title)
-                        .font(.system(size: 18, weight: .medium))
-                        .textInputAutocapitalization(.words)
-                        .submitLabel(.done)
-                        .focused($focusedField, equals: .title)
-                        .padding(14)
-                        .background(.ultraThinMaterial)
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
-                }
-
-                // Amount
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Amount")
-                        .font(.title3.weight(.semibold))
-
-                    HStack(spacing: 12) {
-                        VStack(spacing: 10) {
-                            signButton(label: "+", active: isPositive) { isPositive = true }
-                            signButton(label: "–", active: !isPositive) { isPositive = false }
-                        }
-                        .frame(width: 56)
-
-                        VStack(alignment: .leading, spacing: 6) {
-                            ZStack(alignment: .leading) {
-                                HStack(spacing: 0) {
-                                    Text(formattedUKFromDigits(amountDigits))
-                                        .font(.system(size: 28, weight: .semibold, design: .rounded))
-                                        .monospacedDigit()
-
-                                    if focusedField == .amount {
-                                        FakeCaret(height: 28)
-                                    }
-                                }
-                                .padding(.horizontal, 14)
-
-                                TextField("", text: amountDigitsBinding)
-                                    .font(.system(size: 28, weight: .semibold, design: .rounded))
-                                    .keyboardType(.numberPad)
-                                    .focused($focusedField, equals: .amount)
-                                    .foregroundStyle(.clear)
-                                    .tint(.clear)
-                                    .textSelection(.disabled)
-                                    .padding(.horizontal, 14)
-                            }
-                            .padding(.vertical, 14)
-                            .background(.ultraThinMaterial)
-                            .clipShape(RoundedRectangle(cornerRadius: 16))
-
-                            Text(isPositive ? "Income (positive)" : "Expense (negative)")
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                        }
-                        .frame(maxWidth: .infinity)
-                    }
-                }
-
-                // Date + Type
-                HStack(alignment: .center) {
-                    Spacer()
-
+                VStack(alignment: .leading, spacing: 18) {
+                    // Title
                     VStack(alignment: .leading, spacing: 8) {
-                        Text(txType == .oneTime ? "Date" : "Start date")
+                        Text("Title")
                             .font(.title3.weight(.semibold))
 
-                        DatePicker("", selection: $selectedDate, displayedComponents: [.date])
-                            .datePickerStyle(.compact)
-                            .labelsHidden()
-                            .padding(12)
-                            .background(.ultraThinMaterial)
-                            .clipShape(RoundedRectangle(cornerRadius: 14))
+                        TextField("e.g. Rent, Salary, Coffee, Groceries…", text: $title)
+                            .font(.system(size: 18, weight: .medium))
+                            .textInputAutocapitalization(.words)
+                            .submitLabel(.done)
+                            .focused($focusedField, equals: .title)
+                            .padding(14)
+                            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                    .stroke(.white.opacity(0.12), lineWidth: 1)
+                            )
                     }
 
-                    Spacer()
-                    Spacer()
-
+                    // Amount
                     VStack(alignment: .leading, spacing: 8) {
+                        Text("Amount")
+                            .font(.title3.weight(.semibold))
+
+                        HStack(spacing: 12) {
+                            VStack(spacing: 10) {
+                                signButton(label: "+", active: isPositive) { isPositive = true }
+                                signButton(label: "–", active: !isPositive) { isPositive = false }
+                            }
+                            .frame(width: 56)
+
+                            VStack(alignment: .leading, spacing: 6) {
+                                ZStack(alignment: .leading) {
+                                    HStack(spacing: 0) {
+                                        Text(formattedUKFromDigits(amountDigits))
+                                            .font(.system(size: 28, weight: .semibold, design: .rounded))
+                                            .monospacedDigit()
+
+                                        if focusedField == .amount {
+                                            FakeCaret(height: 28)
+                                        }
+                                    }
+                                    .padding(.horizontal, 14)
+
+                                    TextField("", text: amountDigitsBinding)
+                                        .font(.system(size: 28, weight: .semibold, design: .rounded))
+                                        .keyboardType(.numberPad)
+                                        .focused($focusedField, equals: .amount)
+                                        .foregroundStyle(.clear)
+                                        .tint(.clear)
+                                        .textSelection(.disabled)
+                                        .padding(.horizontal, 14)
+                                }
+                                .padding(.vertical, 14)
+                                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                        .stroke(.white.opacity(0.12), lineWidth: 1)
+                                )
+
+                                Text(isPositive ? "Income (positive)" : "Expense (negative)")
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .frame(maxWidth: .infinity)
+                        }
+                    }
+                }
+                .padding(22)
+                .glassEffect(in: .rect(cornerRadius: 16))
+                
+                // Type
+                HStack {
+                    Spacer()
+                    VStack(alignment: .leading, spacing: 5) {
                         Text("Type")
                             .font(.title3.weight(.semibold))
+                            .padding(.top, 22)
 
-                        Picker("Type", selection: $txType) {
-                            ForEach(TxType.allCases) { t in
-                                Text(t.rawValue).tag(t)
-                            }
-                        }
-                        .pickerStyle(.menu)
-                        .tint(.primary)
-                        .padding(12)
-                        .background(.ultraThinMaterial)
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                        TwoRowSegmentedPicker(
+                            options: SpendType.allCases,
+                            selection: $type,
+                            textColor: .secondary,
+                            highlightedTextColor: primaryActionColor
+                        )
                         .disabled(isEditingLockedType)
                     }
-
+                    .padding(.horizontal, 22)
+                    .glassEffect(in: .rect(cornerRadius: 16))
+                    .fixedSize(horizontal: true, vertical: true)
                     Spacer()
                 }
 
-                if txType == .repeating {
-                    // Schedule
-                    HStack {
-                        Spacer()
-                        VStack(alignment: .leading, spacing: 10) {
-                            Text("Schedule")
-                                .font(.title3.weight(.semibold))
-
-                            HStack(spacing: 10) {
-                                Text("Every")
-                                    .font(.system(size: 18, weight: .semibold))
-                                    .foregroundStyle(.secondary)
-
-                                TextField("1", text: everyBinding)
-                                    .keyboardType(.numberPad)
-                                    .focused($focusedField, equals: .every)
-                                    .multilineTextAlignment(.center)
-                                    .font(.system(size: 18, weight: .semibold, design: .rounded))
-                                    .frame(width: 56)
-                                    .padding(.vertical, 10)
-                                    .background(.ultraThinMaterial)
-                                    .clipShape(RoundedRectangle(cornerRadius: 12))
-
-                                Picker("Unit", selection: $unit) {
-                                    ForEach(RecurrenceUnitUI.allCases) { u in
-                                        Text(u.label(for: everyN)).tag(u)
-                                    }
-                                }
-                                .pickerStyle(.menu)
-                                .padding(.horizontal, 12)
-                                .tint(.primary)
-                                .padding(.vertical, 10)
-                                .background(.ultraThinMaterial)
-                                .clipShape(RoundedRectangle(cornerRadius: 12))
-                            }
-                        }
-                        Spacer()
-                    }
-
-                    // End date
-                    HStack {
-                        Spacer()
-                        VStack(alignment: .leading, spacing: 10) {
-                            HStack(spacing: 10) {
-                                Text("End date")
-                                    .font(.title3.weight(.semibold))
-
-                                Toggle("", isOn: Binding(
-                                    get: { hasEndDate },
-                                    set: { on in
-                                        hasEndDate = on
-                                        if on { selectedEndDate = max(selectedEndDate, selectedDate) }
-                                    }
-                                ))
-                                .labelsHidden()
-                                .tint(primaryActionColor)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 8)
-                            }
-
-                            if hasEndDate {
-                                DatePicker(
-                                    "",
-                                    selection: Binding(
-                                        get: { max(selectedEndDate, selectedDate) },
-                                        set: { selectedEndDate = max($0, selectedDate) }
-                                    ),
-                                    in: selectedDate...,
-                                    displayedComponents: [.date]
-                                )
-                                .datePickerStyle(.compact)
-                                .labelsHidden()
-                                .padding(12)
-                                .background(.ultraThinMaterial)
-                                .clipShape(RoundedRectangle(cornerRadius: 14))
-                            }
-                        }
-                        Spacer()
-                    }
-                }
+                // Details (settings-style)
+                settingsDetailsList
 
                 // Bottom buttons: Cancel + Save/Create
                 HStack(spacing: 12) {
@@ -310,6 +225,8 @@ struct TransactionEditorView: View {
                     .disabled(!canSave)
                     .compositingGroup()
                 }
+                .animation(.easeInOut(duration: 0.22), value: type)
+                .animation(.easeInOut(duration: 0.22), value: hasEndDate)
 
                 Spacer(minLength: 10)
             }
@@ -331,6 +248,157 @@ struct TransactionEditorView: View {
             TapGesture().onEnded { focusedField = nil }
         )
     }
+    
+    // MARK: - Details
+
+    private var settingsDetailsList: some View {
+        Group {
+            SettingsListCard(rows: detailsRows)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private var detailsRows: [AnyView] {
+        var rows: [AnyView] = []
+
+        // Date / Start Date
+        rows.append(AnyView(
+            SettingsListRow {
+                Text(type == .repeating ? "Start date" : "Date")
+                Spacer()
+                DatePicker("", selection: $selectedDate, displayedComponents: [.date])
+                    .labelsHidden()
+                    .datePickerStyle(.compact)
+            }
+        ))
+
+        if type == .repeating {
+            // End date toggle
+            rows.append(AnyView(
+                SettingsListRow {
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Text("End date")
+                            Spacer()
+                            Toggle("", isOn: Binding(
+                                get: { hasEndDate },
+                                set: { on in
+                                    hasEndDate = on
+                                    if on { selectedEndDate = max(selectedEndDate, selectedDate) }
+                                }
+                            ))
+                            .labelsHidden()
+                            .tint(primaryActionColor)
+                        }
+
+                        if !hasEndDate {
+                            Text("Optional — you can add it later.")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            ))
+
+            // End date picker row
+            if hasEndDate {
+                rows.append(AnyView(
+                    SettingsListRow {
+                        Text("Ends on")
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        DatePicker(
+                            "",
+                            selection: Binding(
+                                get: { max(selectedEndDate, selectedDate) },
+                                set: { selectedEndDate = max($0, selectedDate) }
+                            ),
+                            in: selectedDate...,
+                            displayedComponents: [.date]
+                        )
+                        .labelsHidden()
+                        .datePickerStyle(.compact)
+                    }
+                ))
+            }
+
+            // Repeat (always last)
+            rows.append(AnyView(
+                SettingsListRow {
+                    Text("Repeat every")
+                        .lineLimit(1)
+                        .layoutPriority(0)
+
+                    Spacer(minLength: 12)
+
+                    HStack(spacing: 10) {
+                        TextField("1", text: everyBinding)
+                            .keyboardType(.numberPad)
+                            .focused($focusedField, equals: .every)
+                            .multilineTextAlignment(.center)
+                            .font(.system(size: 17, weight: .semibold, design: .rounded))
+                            .frame(width: 56)
+                            .padding(.vertical, 8)
+                            .background(.ultraThinMaterial)
+                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                            .fixedSize(horizontal: true, vertical: false)
+
+                        Picker("", selection: $unit) {
+                            ForEach(RecurrenceUnitUI.allCases) { u in
+                                Text(u.label(for: everyN)).tag(u)
+                                    .lineLimit(1)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .tint(.primary)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 8)
+                        .background(.ultraThinMaterial)
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .fixedSize(horizontal: true, vertical: false)
+                    }
+                    .layoutPriority(1)
+                }
+            ))
+        }
+
+        return rows
+    }
+
+    // MARK: - Components
+
+    private struct SettingsListCard: View {
+        let rows: [AnyView]
+
+        var body: some View {
+            VStack(spacing: 0) {
+                ForEach(rows.indices, id: \.self) { i in
+                    rows[i]
+
+                    if i < rows.count - 1 {
+                        Divider().opacity(0.7)
+                    }
+                }
+            }
+            .padding(8)
+            .glassEffect(in: .rect(cornerRadius: 16))
+            .animation(.easeInOut(duration: 0.22), value: rows.count)
+        }
+    }
+
+    private struct SettingsListRow<Content: View>: View {
+        @ViewBuilder var content: Content
+
+        var body: some View {
+            HStack {
+                content
+            }
+            .font(.system(size: 17, weight: .semibold))
+            .padding(.horizontal, 8)
+            .padding(.vertical, 10)
+            .contentShape(Rectangle())
+        }
+    }
 
     // MARK: - Prefill
 
@@ -342,7 +410,7 @@ struct TransactionEditorView: View {
         case .editOneTime(let tx):
             title = tx.title
             selectedDate = tx.date
-            txType = .oneTime
+            type = .oneTime  // (cannot infer “saving” from OneTimeTransaction, so default)
             let amt = tx.amount
             isPositive = (amt >= 0)
             amountDigits = digitsFromDecimal(absDecimal(amt))
@@ -350,7 +418,7 @@ struct TransactionEditorView: View {
         case .editRecurring(let rule):
             title = rule.title
             selectedDate = rule.startDate
-            txType = .repeating
+            type = .repeating
             let amt = rule.amountPerCycle
             isPositive = (amt >= 0)
             amountDigits = digitsFromDecimal(absDecimal(amt))
@@ -386,9 +454,10 @@ struct TransactionEditorView: View {
         do {
             switch mode {
             case .create:
-                switch txType {
-                case .oneTime:
+                switch type {
+                case .oneTime, .saving:
                     try ledger.addOneTime(title: trimmedTitle, date: selectedDate, amount: finalAmount)
+
                 case .repeating:
                     let recurrence = makeRecurrence()
                     let end: Date? = hasEndDate ? max(selectedEndDate, selectedDate) : nil
@@ -400,9 +469,8 @@ struct TransactionEditorView: View {
                         recurrence: recurrence
                     )
                 }
-                
-                resetInputsForNextCreate();
 
+                resetInputsForNextCreate()
                 alert = .success("Created \(createTransactionName).")
 
             case .editOneTime(let tx):
@@ -435,7 +503,7 @@ struct TransactionEditorView: View {
         amountDigits = ""
         isPositive = false
         selectedDate = Date()
-        txType = .oneTime
+        type = .oneTime
 
         hasEndDate = false
         selectedEndDate = Date()
@@ -457,7 +525,10 @@ struct TransactionEditorView: View {
     }
     
     private var createTransactionName: String {
-        let typeText = (txType == .oneTime) ? "one-time" : "repeating"
+        if (type == .saving) {
+            return isPositive ? "Savings Withdrawal" : "Saving";
+        }
+        let typeText = (type == .oneTime) ? "one-time" : "repeating"
         let signText = isPositive ? "income" : "expense"
         return "\(typeText) \(signText)"
     }
@@ -490,7 +561,8 @@ struct TransactionEditorView: View {
     private var canSave: Bool {
         !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         && amountCents > 0
-        && (txType == .oneTime || everyN >= 1)
+        && (type != .repeating || everyN >= 1)
+        && type != .saving // TODO: Remove when savings are implemented
     }
 
     private var amountCents: Int { Int(amountDigits) ?? 0 }
