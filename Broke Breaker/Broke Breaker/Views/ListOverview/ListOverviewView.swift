@@ -146,7 +146,7 @@ extension ListOverviewView {
     
     // day view
     private func dayView(for day: Date) -> some View {
-        
+        _ = refreshToken
         let overview = try? ledger.dayOverview(for: day)
 
         return VStack(alignment: .leading, spacing: 8) {
@@ -424,6 +424,7 @@ extension ListOverviewView {
     }
     
     private func refresh() {
+        refreshToken = UUID()
         updateWeek()
         loadWeeklyTotals()
     }
