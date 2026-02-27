@@ -48,7 +48,7 @@ struct ListOverviewView: View {
             .padding(.horizontal)
             
             weekCalendar
-                .padding(4)
+                .padding(8)
             Divider()
             
             // day swiper
@@ -60,6 +60,7 @@ struct ListOverviewView: View {
                         .tag(index)
                 }
             }
+            .padding(.top, 8)
             .id(refreshToken)
             .tabViewStyle(.page(indexDisplayMode: .never))
             .onChange(of: pageIndex) { oldIndex, newIndex in
@@ -378,7 +379,7 @@ extension ListOverviewView {
                     
                     Text(day.formatted(.dateTime.day()))
                         .fontWeight(.bold)
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(Calendar.current.isDate(day, inSameDayAs: date) ? Color.primary : Color.secondary)
                         .frame(maxWidth: .infinity, minHeight: 40)
                         .background(
                             Group {
@@ -398,7 +399,6 @@ extension ListOverviewView {
                                     )
                                 )
                         )
-                        .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity)
                 .contentShape(Rectangle())
@@ -435,7 +435,7 @@ extension ListOverviewView {
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(8)
-                    .labelIconToTitleSpacing(4)
+                    .labelIconToTitleSpacing(8)
                 
                 let sortedItems = items.sorted { $0.amount > $1.amount }
                 
