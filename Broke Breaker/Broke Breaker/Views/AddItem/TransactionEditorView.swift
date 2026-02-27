@@ -11,6 +11,7 @@ struct TransactionEditorView: View {
         case create
         case editOneTime(OneTimeTransaction)
         case editRecurring(RecurringRule)
+        case editSaving(SavingsTransaction)
 
         static func == (lhs: Mode, rhs: Mode) -> Bool {
             switch (lhs, rhs) {
@@ -19,6 +20,8 @@ struct TransactionEditorView: View {
             case (.editOneTime, .editOneTime):
                 return true
             case (.editRecurring, .editRecurring):
+                return true
+            case (.editSaving, .editSaving):
                 return true
             default:
                 return false
@@ -94,9 +97,11 @@ struct TransactionEditorView: View {
     private enum UndoAction {
         case deleteOneTime(OneTimeTransaction)
         case deleteRecurring(RecurringRule)
+        case deleteSaving(SavingsTransaction)
 
         case revertOneTime(tx: OneTimeTransaction, oldTitle: String, oldDate: Date, oldAmount: Decimal)
         case revertRecurring(rule: RecurringRule, oldTitle: String, oldAmount: Decimal, oldStart: Date, oldEnd: Date?, oldRecurrence: Recurrence)
+        case revertSaving(tx: SavingsTransaction, oldTitle: String, oldDate: Date, oldAmount: Decimal)
     }
 
     @State private var pendingUndo: UndoAction?
@@ -447,7 +452,7 @@ struct TransactionEditorView: View {
         case .editOneTime(let tx):
             title = tx.title
             selectedDate = tx.date
-            type = .oneTime  // (cannot infer “saving” from OneTimeTransaction, so default)
+            type = .oneTime
             let amt = tx.amount
             isPositive = (amt >= 0)
             amountDigits = digitsFromDecimal(absDecimal(amt))
@@ -473,6 +478,14 @@ struct TransactionEditorView: View {
             case .everyMonths(let n): unit = .months; everyNText = "\(n)"
             case .everyYears(let n):  unit = .years; everyNText = "\(n)"
             }
+        
+        case .editSaving(let tx):
+            title = tx.title
+            selectedDate = tx.date
+            type = .saving
+            let amt = tx.amount
+            isPositive = (amt >= 0)
+            amountDigits = digitsFromDecimal(absDecimal(amt))
         }
     }
 
@@ -490,17 +503,18 @@ struct TransactionEditorView: View {
 
         do {
             pendingUndo = nil
-            pendingSuccessMessage = nil
-
-            var successMessage = ""
 
             // 1) Save + store how to undo it
             switch mode {
             case .create:
                 switch type {
-                case .oneTime, .saving:
+                case .oneTime:
                     let created = try ledger.addOneTime(title: trimmedTitle, date: selectedDate, amount: finalAmount)
                     pendingUndo = .deleteOneTime(created)
+                    
+                case .saving:
+                    let created = try ledger.addSavings(title: trimmedTitle, date: selectedDate, amount: finalAmount)
+                    pendingUndo = .deleteSaving(created)
 
                 case .repeating:
                     let recurrence = makeRecurrence()
@@ -515,7 +529,8 @@ struct TransactionEditorView: View {
                     pendingUndo = .deleteRecurring(createdRule)
                 }
 
-                successMessage = "Created \(createTransactionName)."
+                resetInputsForNextCreate()
+                alert = .success("Created \(createTransactionName).")
 
             case .editOneTime(let tx):
                 // snapshot old values for undo
@@ -524,6 +539,7 @@ struct TransactionEditorView: View {
                 let oldAmount = tx.amount
 
                 try ledger.updateOneTime(tx, title: trimmedTitle, date: selectedDate, amount: finalAmount)
+                alert = .success("Saved \(createTransactionName).")
 
                 pendingUndo = .revertOneTime(
                     tx: tx,
@@ -531,7 +547,6 @@ struct TransactionEditorView: View {
                     oldDate: oldDate,
                     oldAmount: oldAmount
                 )
-                successMessage = "Saved \(createTransactionName)."
 
             case .editRecurring(let rule):
                 // snapshot old values for undo
@@ -554,6 +569,7 @@ struct TransactionEditorView: View {
                     endDate: endUpdate,
                     recurrence: recurrence
                 )
+                alert = .success("Saved \(createTransactionName).")
 
                 pendingUndo = .revertRecurring(
                     rule: rule,
@@ -563,10 +579,11 @@ struct TransactionEditorView: View {
                     oldEnd: oldEnd,
                     oldRecurrence: oldRecurrence
                 )
-                successMessage = "Saved \(createTransactionName)."
+            case .editSaving(let tx):
+                try ledger.updateSavings(tx, title: trimmedTitle, date: selectedDate, amount: finalAmount)
+                alert = .success("Saved \(createTransactionName).")
+                pendingUndo = .revertSaving(tx: tx, oldTitle: tx.title, oldDate: tx.date, oldAmount: tx.amount)
             }
-
-            pendingSuccessMessage = successMessage
 
             // 2) Check today+future balance AFTER save
             if let hit = try ledger.firstNegativeBalanceFromToday() {
@@ -581,20 +598,41 @@ struct TransactionEditorView: View {
 
         } catch {
             pendingUndo = nil
-            pendingSuccessMessage = nil
-            alert = .error(error.localizedDescription)
+            alert = .error(userFacingMessage(for: error))
         }
     }
     
+    private func userFacingMessage(for error: Error) -> String {
+        let ns = error as NSError
+        let underlying = (ns.userInfo[NSUnderlyingErrorKey] as? Error) ?? error
+
+        if let ledgerError = underlying as? LedgerError {
+            switch ledgerError {
+            case .savingsWouldGoNegative(let dayStart):
+                let df = DateFormatter()
+                df.locale = Locale(identifier: "en_GB")
+                df.dateStyle = .medium
+                df.timeStyle = .none
+
+                return "That savings withdrawal would take your Savings pot below £0 on \(df.string(from: dayStart))."
+
+            case .cacheMissing:
+                return "Ledger cache was missing. Try again."
+            }
+        }
+
+        // fallback
+        return underlying.localizedDescription
+    }
+
     private func commitProceed() {
-        let msg = pendingSuccessMessage ?? "Saved."
+        let msg = "Saved \(createTransactionName)."
 
         if mode == .create {
             resetInputsForNextCreate()
         }
 
         pendingUndo = nil
-        pendingSuccessMessage = nil
         alert = .success(msg)
     }
 
@@ -609,6 +647,9 @@ struct TransactionEditorView: View {
 
                 case .deleteRecurring(let rule):
                     try ledger.deleteRecurring(rule)
+                    
+                case .deleteSaving(let saving):
+                    try ledger.deleteSavings(saving)
 
                 case .revertOneTime(let tx, let oldTitle, let oldDate, let oldAmount):
                     try ledger.updateOneTime(tx, title: oldTitle, date: oldDate, amount: oldAmount)
@@ -627,6 +668,8 @@ struct TransactionEditorView: View {
                         endDate: endUpdate,
                         recurrence: oldRecurrence
                     )
+                case .revertSaving(tx: let saving, oldTitle: let oldTitle, oldDate: let oldDate, oldAmount: let oldAmount):
+                    try ledger.updateSavings(saving, title: oldTitle, date: oldDate, amount: oldAmount)
                 }
             }
 
@@ -704,14 +747,14 @@ struct TransactionEditorView: View {
     private var headerTitle: String {
         switch mode {
         case .create: return "New Transaction"
-        case .editOneTime, .editRecurring: return "Edit Transaction"
+        case .editOneTime, .editRecurring, .editSaving: return "Edit Transaction"
         }
     }
 
     private var primaryActionTitle: String {
         switch mode {
         case .create: return "Create \(createTransactionName)"
-        case .editOneTime, .editRecurring: return "Save"
+        case .editOneTime, .editRecurring, .editSaving: return "Save"
         }
     }
 
@@ -720,7 +763,7 @@ struct TransactionEditorView: View {
     private var isEditingLockedType: Bool {
         switch mode {
         case .create: return false
-        case .editOneTime, .editRecurring: return true
+        case .editOneTime, .editRecurring, .editSaving: return true
         }
     }
 
@@ -728,7 +771,6 @@ struct TransactionEditorView: View {
         !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         && amountCents > 0
         && (type != .repeating || everyN >= 1)
-        && type != .saving // TODO: Remove when savings are implemented
     }
 
     private var amountCents: Int { Int(amountDigits) ?? 0 }
