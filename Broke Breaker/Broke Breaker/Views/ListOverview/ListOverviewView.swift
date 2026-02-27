@@ -14,6 +14,7 @@ struct ListOverviewView: View {
     
     @State private var weeklyTotals: [Date: DayTotals] = [:]
     @State private var weekPageIndex = 1
+    @State private var dayChanging: Bool = false
     @State private var weekChanging: Bool = false
     @State private var pageIndex = 1
     @State private var selectedItem: DayLineItem?
@@ -60,20 +61,26 @@ struct ListOverviewView: View {
                         .tag(index)
                 }
             }
-            .id(refreshToken)
             .tabViewStyle(.page(indexDisplayMode: .never))
-            .onChange(of: pageIndex) { oldIndex, newIndex in
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    let delta = newIndex - 1
-                    if delta != 0 {
-                        if let newDate = Calendar.current.date(byAdding: .day, value: delta, to: date) {
-                            date = newDate
-                        }
+            .onChange(of: pageIndex) { _, newIndex in
+                guard newIndex != 1 else { return }
+                guard !dayChanging else { return }
+                dayChanging = true
+                let delta = newIndex - 1
+
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+
+                    if let newDate = Calendar.current.date(byAdding: .day, value: delta, to: date) {
+                        date = newDate
+                    }
+                    var transaction = Transaction()
+                    transaction.disablesAnimations = true
+                    withTransaction(transaction) {
                         pageIndex = 1
                     }
+                    dayChanging = false
                 }
             }
-            
         }
         .onAppear {
             refresh()
@@ -146,7 +153,6 @@ extension ListOverviewView {
     
     // day view
     private func dayView(for day: Date) -> some View {
-        _ = refreshToken
         let overview = try? ledger.dayOverview(for: day)
 
         return VStack(alignment: .leading, spacing: 8) {
@@ -213,7 +219,7 @@ extension ListOverviewView {
                         }
                     }
                     .listStyle(.plain)
-                    
+                    .id(refreshToken)
                 }
             } else {
                 Spacer()
