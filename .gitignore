@@ -3,6 +3,9 @@ Broke Breaker/Broke Breaker.xcodeproj/project.pbxproj
 LedgerCLI/ledger.sqlite
 LedgerCLI/ledger.sqlite-shm
 LedgerCLI/ledger.sqlite-wal
+*.sqlite
+LedgerCLI/GRDB.swift/
+.vscode
 
 # macOS
 .DS_Store
