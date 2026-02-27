@@ -276,6 +276,8 @@ extension ListOverviewView {
             }
             Spacer(minLength: 70)
             VStack(alignment: .trailing) {
+                Text("Disposable Today")
+                    .font(.caption)
                 let sign = dayNetTotal >= 0 ? "+" : ""
                 Text("\(sign)\(dayNetTotal, format: .number.precision(.fractionLength(2)))")
                     .font(.title)
