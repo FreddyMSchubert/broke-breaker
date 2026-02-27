@@ -379,7 +379,7 @@ extension ListOverviewView {
                     
                     Text(day.formatted(.dateTime.day()))
                         .fontWeight(.bold)
-                        .foregroundStyle(Calendar.current.isDate(day, inSameDayAs: date) ? Color.primary : Color.secondary)
+                        .foregroundStyle(Calendar.current.isDate(day, inSameDayAs: date) ? Color(UIColor.systemBackground) : Color.primary)
                         .frame(maxWidth: .infinity, minHeight: 40)
                         .background(
                             Group {
