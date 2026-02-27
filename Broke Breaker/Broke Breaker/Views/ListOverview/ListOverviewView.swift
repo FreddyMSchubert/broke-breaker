@@ -60,7 +60,6 @@ struct ListOverviewView: View {
                         .tag(index)
                 }
             }
-            .padding(.top, 8)
             .id(refreshToken)
             .tabViewStyle(.page(indexDisplayMode: .never))
             .onChange(of: pageIndex) { oldIndex, newIndex in
@@ -198,7 +197,6 @@ extension ListOverviewView {
                         }
                     }
                     .listStyle(.plain)
-                    .padding(.top, -12)
                     
                 }
             } else {
