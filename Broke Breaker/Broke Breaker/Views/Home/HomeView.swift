@@ -110,6 +110,8 @@ struct HomeView: View {
                     .font(.system(size: 20, weight: .semibold))
                     .foregroundStyle(.white)
                     .padding(10)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .glassEffect()
