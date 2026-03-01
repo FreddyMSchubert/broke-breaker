@@ -266,38 +266,41 @@ extension ListOverviewView {
         let dayTotals = try? ledger.dayTotals(for: day)
         let dayNetTotal: Decimal = dayTotals?.runningBalanceMainEndOfDay ?? 0
 
-        return HStack {
+        return HStack(spacing: 16) {
             Spacer()
-            VStack(alignment: .trailing) {
-                HStack() {
-                    let sign = rollover >= 0 ? "+" : ""
-                    Text("\(sign)\(rollover, format: .number.precision(.fractionLength(2)))")
-                        .lineLimit(1)
-                        .foregroundStyle(rollover >= 0
-                                         ? .blue
-                                         : .red)
-                }
-                Text("+\(incomingTotal, format: .number.precision(.fractionLength(2)))")
-                    .foregroundStyle(.blue)
-                    .lineLimit(1)
-                let sign = outgoingTotal == 0 ? "-" : ""
-                Text("\(sign)\(outgoingTotal, format: .number.precision(.fractionLength(2)))")
-                    .foregroundStyle(.red)
-                    .lineLimit(1)
-            }
+            // sub totals
             VStack(alignment: .leading) {
-                Text("Rollover")
-                Text("Income")
-                Text("Expense")
+                HStack {
+                    VStack(alignment: .leading) {
+                        Text("Rollover")
+                        Text("Income")
+                        Text("Expense")
+                    }
+                    VStack(alignment: .leading) {
+                        let rolloverSign = rollover >= 0 ? "+" : ""
+                        Text("\(rolloverSign)\(rollover, format: .number.precision(.fractionLength(2)))")
+                            .lineLimit(1)
+                            .foregroundStyle(rollover >= 0
+                                             ? .blue
+                                             : .red)
+                        Text("+\(incomingTotal, format: .number.precision(.fractionLength(2)))")
+                            .foregroundStyle(.blue)
+                            .lineLimit(1)
+                        let outgoingTotalSign = outgoingTotal == 0 ? "-" : ""
+                        Text("\(outgoingTotalSign)\(outgoingTotal, format: .number.precision(.fractionLength(2)))")
+                            .foregroundStyle(.red)
+                            .lineLimit(1)
+                    }
+                }
             }
-            Spacer()
+            // equals sign
             VStack(alignment: .center) {
                 Text("=")
                     .font(.title2)
                     .fontWeight(.bold)
             }
-            Spacer(minLength: 70)
-            VStack(alignment: .trailing) {
+            // disposable today
+            VStack(alignment: .center) {
                 Text("Disposable Today")
                     .font(.caption)
                 let sign = dayNetTotal >= 0 ? "+" : ""
