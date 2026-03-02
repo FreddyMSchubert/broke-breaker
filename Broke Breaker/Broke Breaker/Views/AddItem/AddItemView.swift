@@ -429,15 +429,16 @@ struct AddItemView: View {
                     recurrence: recurrence
                 )
             }
+            
             //widget update
             let totalsToday = try ledger.dayTotals(for: Date())
-               let updatedBalance = (totalsToday.runningBalanceEndOfDay as NSDecimalNumber).doubleValue
-
-               let defaults = UserDefaults(suiteName: "group.com.freddy.brokebreaker")
-               defaults?.set(updatedBalance, forKey: "currentBalance")
-               WidgetCenter.shared.reloadAllTimelines()
+            let updatedBalance = (totalsToday.runningBalanceEndOfDay as NSDecimalNumber).doubleValue
             
-            alert = .success(createTransactionName.capitalized + " saved.")
+            let defaults = UserDefaults(suiteName: "group.com.freddy.brokebreaker")
+            defaults?.set(updatedBalance, forKey: "currentBalance")
+            WidgetCenter.shared.reloadAllTimelines()
+                
+                alert = .success(createTransactionName.capitalized + " saved.")
 
             // Reset (unchanged)
             title = ""

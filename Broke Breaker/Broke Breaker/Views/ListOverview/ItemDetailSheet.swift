@@ -5,14 +5,24 @@ struct ItemDetailSheet: View {
     let ledger = Ledger.shared
     @Environment(\.dismiss) private var dismiss
 
+    let day: Date
     let item: DayLineItem
-    let requestDelete: (DayLineItem.Source) -> Void
+    let onChanged: () -> Void
 
-    let oneTime: OneTimeTransaction?
-    let recurring: RecurringRule?
+    @State private var oneTime: OneTimeTransaction?
+    @State private var recurring: RecurringRule?
 
     @State private var showDeleteConfirm = false
     @State private var showEditSheet = false
+    
+    @State private var dailyAmount: Decimal
+    
+    init(day: Date, item: DayLineItem, onChanged: @escaping () -> Void) {
+        self.day = day
+        self.item = item
+        self.onChanged = onChanged
+        _dailyAmount = State(initialValue: item.amount)
+    }
 
     var body: some View {
         VStack(spacing: 16) {
@@ -20,7 +30,7 @@ struct ItemDetailSheet: View {
 
             VStack(spacing: 8) {
                 HStack(spacing: 6) {
-                    Text(format2(displayAmount))
+                    Text(format(displayAmount))
                         .font(.system(size: 44, weight: .heavy, design: .rounded))
                         .monospacedDigit()
                         .foregroundStyle(displayAmount >= 0 ? .blue : .red)
@@ -33,12 +43,12 @@ struct ItemDetailSheet: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .center)
 
-                Text(item.title)
+                Text(displayTitle)
                     .font(.title2.weight(.semibold))
                     .frame(maxWidth: .infinity, alignment: .center)
                     .lineLimit(2)
 
-                if let daily = approxDailyImpactText() {
+                if let daily = displayDailyImpact() {
                     Text(daily)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
@@ -118,16 +128,63 @@ struct ItemDetailSheet: View {
             .padding(.bottom, 10)
         }
         .padding(.horizontal)
+        .onAppear { reloadModels() }
         .confirmationDialog(
             "Delete this transaction?",
             isPresented: $showDeleteConfirm,
             titleVisibility: .visible
         ) {
-            // Keep your existing behavior: caller controls deletion
-            Button("Delete", role: .destructive) { requestDelete(item.source) }
-            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) { deleteNow() }
+            Button("Cancel", role: .cancel) {}
         } message: {
             Text("This can’t be undone.")
+        }
+        .sheet(isPresented: $showEditSheet, onDismiss: {
+            reloadModels()
+            refreshDailyAmountFromBackend()
+            onChanged()
+        }) {
+            if let tx = oneTime {
+                TransactionEditorView(mode: .editOneTime(tx))
+                    .presentationDetents([.large])
+            } else if let rule = recurring {
+                TransactionEditorView(mode: .editRecurring(rule))
+                    .presentationDetents([.large])
+            } else {
+                Text("Missing item.")
+                    .presentationDetents([.medium])
+            }
+        }
+    }
+    
+    private func reloadModels() {
+        do {
+            switch item.source {
+            case .oneTime(let id):
+                oneTime = try ledger.fetchOneTime(id: id)
+                recurring = nil
+            case .recurring(let id):
+                recurring = try ledger.fetchRecurring(id: id)
+                oneTime = nil
+            }
+        } catch {
+            oneTime = nil
+            recurring = nil
+        }
+    }
+
+    private func deleteNow() {
+        do {
+            switch item.source {
+            case .oneTime(let id):
+                if let tx = try ledger.fetchOneTime(id: id) { try ledger.deleteOneTime(tx) }
+            case .recurring(let id):
+                if let rule = try ledger.fetchRecurring(id: id) { try ledger.deleteRecurring(rule) }
+            }
+            dismiss()
+            onChanged()
+        } catch {
+            print("Delete failed:", error)
         }
     }
 
@@ -137,6 +194,37 @@ struct ItemDetailSheet: View {
             return oneTime?.amount ?? item.amount
         case .recurring:
             return recurring?.amountPerCycle ?? item.amount
+        }
+    }
+    private var displayTitle: String {
+        switch item.source {
+        case .oneTime: return oneTime?.title ?? item.title
+        case .recurring: return recurring?.title ?? item.title
+        }
+    }
+    private func displayDailyImpact() -> String? {
+        guard let rule = recurring else { return nil }
+        if case .everyDays(1) = rule.recurrence { return nil }
+        return "≈ \(format(dailyAmount)) / day impact"
+    }
+    
+    private func refreshDailyAmountFromBackend() {
+        do {
+            let overview = try ledger.dayOverview(for: day)
+
+            let updated = overview.items.first { candidate in
+                switch (candidate.source, item.source) {
+                case (.oneTime(let a), .oneTime(let b)): return a == b
+                case (.recurring(let a), .recurring(let b)): return a == b
+                default: return false
+                }
+            }
+
+            if let updated {
+                dailyAmount = updated.amount
+            }
+        } catch {
+            // ignore
         }
     }
 
@@ -154,15 +242,9 @@ struct ItemDetailSheet: View {
         }
     }
 
-    private func approxDailyImpactText() -> String? {
-        guard let rule = recurring else { return nil }
-        if case .everyDays(1) = rule.recurrence { return nil }
-        return "≈ \(format2(item.amount)) / day impact"
-    }
-
-    private func format2(_ value: Decimal) -> String {
+    private func format(_ value: Decimal) -> String {
         let n = NSDecimalNumber(decimal: value)
-        return String(format: "%.2f", n.doubleValue)
+        return String(format: "%.2f", clampTiny(n.doubleValue))
     }
 
     private var typeLabel: String {
@@ -179,6 +261,15 @@ struct ItemDetailSheet: View {
         case .everyMonths(let n): return "Every \(n) month" + (n == 1 ? "" : "s")
         case .everyYears(let n): return "Every \(n) year" + (n == 1 ? "" : "s")
         }
+    }
+
+    private func clampTiny(_ value: Double) -> Double {
+        if value == 0 { return 0 }
+        let absVal = value < 0 ? -value : value
+        if absVal > 0 && absVal < 0.01 {
+            return value > 0 ? 0.01 : -0.01
+        }
+        return value
     }
 }
 

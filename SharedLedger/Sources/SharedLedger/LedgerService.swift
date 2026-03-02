@@ -210,7 +210,7 @@ public final class LedgerService: @unchecked Sendable {
 	public func dayOverview(for date: Date) throws -> DayOverview {
 		let day = dayStart(date)
 
-		return try db.dbQueue.read { wdb in
+		return try db.dbQueue.write { wdb in
 			// if no entries yet or before first entry, return empty day
 			guard let ledgerStart = try earliestLedgerDay(wdb: wdb) else {
 				return DayOverview(dayStart: day, items: [], netTotal: 0)
@@ -252,7 +252,7 @@ public final class LedgerService: @unchecked Sendable {
 	public func dayTotals(for date: Date) throws -> DayTotals {
 		let day = dayStart(date)
 
-		return try db.dbQueue.read { wdb in
+		return try db.dbQueue.write { wdb in
 			guard let ledgerStart = try earliestLedgerDay(wdb: wdb) else {
 				return DayTotals(dayStart: day, netTotal: 0, runningBalanceEndOfDay: 0)
 			}
