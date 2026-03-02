@@ -9,6 +9,7 @@ struct HomeView: View {
     @State private var settingsActive = false
     
     @State private var balanceToday: Double = 0
+    @State private var savingsToday: Double = 0
     
     @State private var values: [Double] = Array(repeating: 0, count: 3)
     @State private var labels: [String] = []
@@ -51,6 +52,17 @@ struct HomeView: View {
                             .frame(maxWidth: .infinity, alignment: .center)
 
                         Text("\(balanceToday, specifier: "%.2f")")
+                            .font(.system(size: 40, weight: .bold))
+                            .frame(maxWidth: .infinity, alignment: .center)
+
+                            Divider()
+                        
+                        Text("Savings")
+                            .font(.subheadline)
+                            .opacity(0.85)
+                            .frame(maxWidth: .infinity, alignment: .center)
+
+                        Text("\(savingsToday, specifier: "%.2f")")
                             .font(.system(size: 40, weight: .bold))
                             .frame(maxWidth: .infinity, alignment: .center)
 
@@ -131,6 +143,7 @@ struct HomeView: View {
             
             let totalsToday = try ledger.dayTotals(for: today)
             balanceToday = (totalsToday.runningBalanceMainEndOfDay as NSDecimalNumber).doubleValue
+            savingsToday = (totalsToday.runningBalanceSavingsEndOfDay as NSDecimalNumber).doubleValue
             
             let offsets = [-1, 0, 1]
             
