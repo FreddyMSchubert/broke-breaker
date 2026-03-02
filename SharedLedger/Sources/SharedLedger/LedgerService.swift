@@ -887,4 +887,25 @@ public final class LedgerService: @unchecked Sendable {
         NSDecimalDivide(&result, &v, &d, .bankers)
         return result
     }
+    
+    // MARK: - Negative balance scanning
+    /// Scans forward from **today** (inclusive) and returns the first day where
+    /// `runningBalanceEndOfDay` becomes negative.
+    ///
+    /// - Parameters:
+    ///   - maxDaysAhead: Safety cap to avoid scanning forever when you have open-ended recurring rules.
+    /// - Returns: The first negative day + its end-of-day balance, or `nil` if no negative day is found.
+    public func firstNegativeBalanceFromToday(maxDaysAhead: Int = 3650) throws -> (day: Date, balanceEOD: Decimal)? {
+        let start = today()
+        let cap = max(0, maxDaysAhead)
+
+        for offset in 0...cap {
+            guard let day = calendar.date(byAdding: .day, value: offset, to: start) else { continue }
+            let totals = try dayTotals(for: day)
+            if totals.runningBalanceMainEndOfDay < 0 {
+                return (day: totals.dayStart, balanceEOD: totals.runningBalanceMainEndOfDay)
+            }
+        }
+        return nil
+    }
 }
