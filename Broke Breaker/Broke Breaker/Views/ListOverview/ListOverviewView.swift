@@ -252,6 +252,7 @@ extension ListOverviewView {
         let previousDay = Calendar.current.date(byAdding: .day, value: -1, to: day)!
         let previousTotals = try? ledger.dayTotals(for: previousDay)
         let rollover = previousTotals?.runningBalanceMainEndOfDay ?? 0
+        let savingsTotal: Decimal = (try? ledger.savingsBalanceEndOfDay(on: day)) ?? 0
         
         let incomingTotal: Double = overview.items
             .map { NSDecimalNumber(decimal: $0.mainAmount).doubleValue }
@@ -311,6 +312,14 @@ extension ListOverviewView {
                                      ? .blue
                                      : .red)
                     .lineLimit(1)
+                    .padding(.bottom, 4)
+                Text("Savings")
+                    .font(.caption)
+                Text("+\(savingsTotal, format: .number.precision(.fractionLength(2)))")
+                    .font(.title)
+                    .fontWeight(.bold)
+                    .lineLimit(1)
+                    .foregroundStyle(.blue)
             }
             Spacer()
         }
