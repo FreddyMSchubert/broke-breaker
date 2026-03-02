@@ -266,7 +266,7 @@ extension ListOverviewView {
         let dayTotals = try? ledger.dayTotals(for: day)
         let dayNetTotal: Decimal = dayTotals?.runningBalanceMainEndOfDay ?? 0
 
-        return HStack(spacing: 16) {
+        return HStack() {
             Spacer()
             // sub totals
             VStack(alignment: .leading) {
@@ -299,6 +299,7 @@ extension ListOverviewView {
                     .font(.title2)
                     .fontWeight(.bold)
             }
+                .padding(8)
             // disposable today
             VStack(alignment: .center) {
                 Text("Disposable Today")
