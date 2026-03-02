@@ -529,8 +529,7 @@ struct TransactionEditorView: View {
                     pendingUndo = .deleteRecurring(createdRule)
                 }
 
-                resetInputsForNextCreate()
-                alert = .success("Created \(createTransactionName).")
+                pendingSuccessMessage = nil
 
             case .editOneTime(let tx):
                 // snapshot old values for undo
@@ -539,7 +538,7 @@ struct TransactionEditorView: View {
                 let oldAmount = tx.amount
 
                 try ledger.updateOneTime(tx, title: trimmedTitle, date: selectedDate, amount: finalAmount)
-                alert = .success("Saved \(createTransactionName).")
+                pendingSuccessMessage = "Saved \(createTransactionName)."
 
                 pendingUndo = .revertOneTime(
                     tx: tx,
@@ -569,7 +568,7 @@ struct TransactionEditorView: View {
                     endDate: endUpdate,
                     recurrence: recurrence
                 )
-                alert = .success("Saved \(createTransactionName).")
+                pendingSuccessMessage = "Saved \(createTransactionName)."
 
                 pendingUndo = .revertRecurring(
                     rule: rule,
@@ -581,7 +580,7 @@ struct TransactionEditorView: View {
                 )
             case .editSaving(let tx):
                 try ledger.updateSavings(tx, title: trimmedTitle, date: selectedDate, amount: finalAmount)
-                alert = .success("Saved \(createTransactionName).")
+                pendingSuccessMessage = "Saved \(createTransactionName)."
                 pendingUndo = .revertSaving(tx: tx, oldTitle: tx.title, oldDate: tx.date, oldAmount: tx.amount)
             }
 
@@ -626,14 +625,18 @@ struct TransactionEditorView: View {
     }
 
     private func commitProceed() {
-        let msg = "Saved \(createTransactionName)."
-
         if mode == .create {
             resetInputsForNextCreate()
         }
 
         pendingUndo = nil
-        alert = .success(msg)
+
+        // Only show a success alert for edit flows (so create doesn't get the extra popup)
+        if mode != .create, let msg = pendingSuccessMessage {
+            alert = .success(msg)
+        }
+
+        pendingSuccessMessage = nil
     }
 
     private func commitCancelAndUndo() {
@@ -675,7 +678,6 @@ struct TransactionEditorView: View {
 
             pendingUndo = nil
             pendingSuccessMessage = nil
-            alert = .info("No changes were saved.")
 
         } catch {
             pendingUndo = nil
