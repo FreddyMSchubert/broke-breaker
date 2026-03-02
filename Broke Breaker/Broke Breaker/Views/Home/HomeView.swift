@@ -4,8 +4,8 @@ import SharedLedger
 struct HomeView: View {
     
     let ledger = Ledger.shared
-    
     @AppStorage("isDarkMode") private var isDarkMode = false
+    @AppStorage("selectedCurrencyCode") private var currencySelected = "GBP"
     @State private var settingsActive = false
     
     @State private var balanceToday: Double = 0
@@ -46,12 +46,12 @@ struct HomeView: View {
 
                     VStack(alignment: .leading, spacing: 14) {
 
-                        Text("Disposable Today")
+                        Text("Balance Today")
                             .font(.subheadline)
                             .opacity(0.85)
                             .frame(maxWidth: .infinity, alignment: .center)
 
-                        Text("\(balanceToday, specifier: "%.2f")")
+                        Text("\(Locale(identifier: "en_GB@currency=\(currencySelected)").currencySymbol ?? currencySelected)\(balanceToday, specifier: "%.2f")")
                             .font(.system(size: 40, weight: .bold))
                             .frame(maxWidth: .infinity, alignment: .center)
 
@@ -81,8 +81,9 @@ struct HomeView: View {
 
                         FlowAreaChart(
                             values: values,
-                            labels: labels,
-                            isNegativeTheme: isNegativeToday
+                               labels: labels,
+                               isNegativeTheme: isNegativeToday,
+                               currencyCode: currencySelected
                         )
                         .frame(height: 220)
                         .padding()
@@ -139,63 +140,65 @@ struct HomeView: View {
     private func loadRealData() {
         do {
             let cal = Calendar.current
-            let today = Date()
-            
+            let today = cal.startOfDay(for: Date())
+
             let totalsToday = try ledger.dayTotals(for: today)
             balanceToday = (totalsToday.runningBalanceMainEndOfDay as NSDecimalNumber).doubleValue
             savingsToday = (totalsToday.runningBalanceSavingsEndOfDay as NSDecimalNumber).doubleValue
-            
+
             let offsets = [-1, 0, 1]
-            
             var tempValues: [Double] = []
             var tempLabels: [String] = []
-            
+
             for off in offsets {
                 let date = cal.date(byAdding: .day, value: off, to: today)!
                 let totals = try ledger.dayTotals(for: date)
-                
+
                 tempValues.append((totals.runningBalanceMainEndOfDay as NSDecimalNumber).doubleValue)
-                
-                if off == -1 {
-                    tempLabels.append("Yesterday")
-                } else if off == 0 {
-                    tempLabels.append("Today")
-                } else {
-                    tempLabels.append("Tomorrow")
-                }
+
+                if off == -1 { tempLabels.append("Yesterday") }
+                else if off == 0 { tempLabels.append("Today") }
+                else { tempLabels.append("Tomorrow") }
             }
-            
+
             values = tempValues
             labels = tempLabels
-            
+
         } catch {
             print("HomeView loadRealData error:", error)
             balanceToday = 0
+            savingsToday = 0
             values = Array(repeating: 0, count: 3)
             labels = ["Yesterday", "Today", "Tomorrow"]
         }
     }
 }
 
+import SwiftUI
+
 struct FlowAreaChart: View {
-    
+
     let values: [Double]
     let labels: [String]
     let isNegativeTheme: Bool
-    
+    let currencyCode: String
+
+    @State private var selectedIndex: Int? = nil
+    @State private var isDragging: Bool = false
+
     var body: some View {
         GeometryReader { geo in
-            
+
             let labelBand: CGFloat = 28
             let chartHeight = max(geo.size.height - labelBand, 1)
-            
+
             let minValue = min(values.min() ?? 0, 0)
             let maxValue = max(values.max() ?? 0, 0)
             let range = (maxValue - minValue) == 0 ? 1 : (maxValue - minValue)
-            
+
             let zeroPosition = CGFloat((0 - minValue) / range)
             let zeroY = chartHeight - (chartHeight * zeroPosition)
-            
+
             let lineGradient = LinearGradient(
                 colors: isNegativeTheme
                 ? [
@@ -209,7 +212,7 @@ struct FlowAreaChart: View {
                 startPoint: .leading,
                 endPoint: .trailing
             )
-            
+
             let fillGradient = LinearGradient(
                 colors: isNegativeTheme
                 ? [
@@ -223,53 +226,134 @@ struct FlowAreaChart: View {
                 startPoint: .top,
                 endPoint: .bottom
             )
-            
+
             let step = geo.size.width / CGFloat(max(values.count - 1, 1))
-            
+
+            let clamp: (CGFloat, CGFloat, CGFloat) -> CGFloat = { x, mn, mx in
+                Swift.max(mn, Swift.min(mx, x))
+            }
+
+            let point: (Int) -> CGPoint = { index in
+                let x = step * CGFloat(index)
+                let pct = CGFloat((values[index] - minValue) / range)
+                let y = chartHeight - (chartHeight * pct)
+                return CGPoint(x: x, y: y)
+            }
+
+            let nearestIndex: (CGFloat) -> Int = { touchX in
+                let x = clamp(touchX, 0, geo.size.width)
+                let raw = Int(round(x / step))
+                return Swift.max(0, Swift.min(values.count - 1, raw))
+            }
+
             ZStack(alignment: .topLeading) {
-                
+
                 Path { path in
+                    guard !values.isEmpty else { return }
+
                     for i in values.indices {
-                        let x = step * CGFloat(i)
-                        let pct = CGFloat((values[i] - minValue) / range)
-                        let y = chartHeight - (chartHeight * pct)
-                        if i == 0 { path.move(to: CGPoint(x: x, y: y)) }
-                        else { path.addLine(to: CGPoint(x: x, y: y)) }
+                        let p = point(i)
+                        if i == 0 { path.move(to: p) }
+                        else { path.addLine(to: p) }
                     }
+
                     path.addLine(to: CGPoint(x: geo.size.width, y: chartHeight))
                     path.addLine(to: CGPoint(x: 0, y: chartHeight))
                     path.closeSubpath()
                 }
                 .fill(fillGradient)
-                
+
                 Path { path in
                     path.move(to: CGPoint(x: 0, y: zeroY))
                     path.addLine(to: CGPoint(x: geo.size.width, y: zeroY))
                 }
                 .stroke(Color.white.opacity(0.22), style: StrokeStyle(lineWidth: 1, dash: [6]))
-                
+
                 Path { path in
+                    guard !values.isEmpty else { return }
+
                     for i in values.indices {
-                        let x = step * CGFloat(i)
-                        let pct = CGFloat((values[i] - minValue) / range)
-                        let y = chartHeight - (chartHeight * pct)
-                        if i == 0 { path.move(to: CGPoint(x: x, y: y)) }
-                        else { path.addLine(to: CGPoint(x: x, y: y)) }
+                        let p = point(i)
+                        if i == 0 { path.move(to: p) }
+                        else { path.addLine(to: p) }
                     }
                 }
                 .stroke(lineGradient, lineWidth: 3)
-                
+
                 ForEach(values.indices, id: \.self) { i in
-                    let x = step * CGFloat(i)
-                    let pct = CGFloat((values[i] - minValue) / range)
-                    let y = chartHeight - (chartHeight * pct)
+                    let p = point(i)
+
+                    Circle()
+                        .fill(Color.white.opacity(0.25))
+                        .frame(width: 5, height: 5)
+                        .position(p)
+                }
+
+                Rectangle()
+                    .fill(Color.clear)
+                    .contentShape(Rectangle())
+                    .gesture(
+                        DragGesture(minimumDistance: 0)
+                            .onChanged { value in
+                                isDragging = true
+                                guard !values.isEmpty else { return }
+                                selectedIndex = nearestIndex(value.location.x)
+                            }
+                            .onEnded { _ in
+                                isDragging = false
+                            }
+                    )
+
+                if let i = selectedIndex, values.indices.contains(i) {
+                    let p = point(i)
+
+                    Path { path in
+                        path.move(to: CGPoint(x: p.x, y: 0))
+                        path.addLine(to: CGPoint(x: p.x, y: chartHeight))
+                    }
+                    .stroke(Color.white.opacity(0.18), lineWidth: 1)
+
                     
                     Circle()
-                        .fill(Color.white.opacity(0.9))
-                        .frame(width: 7, height: 7)
-                        .position(x: x, y: y)
+                        .fill(Color.white)
+                        .frame(width: 10, height: 10)
+                        .position(p)
+                        .shadow(radius: 8)
+
+                  
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(i < labels.count ? labels[i] : "Day \(i + 1)")
+                            .font(.caption.weight(.semibold))
+                            .foregroundColor(.white.opacity(0.85))
+
+                        Text(values[i].formatted(.currency(code: currencyCode)))
+                            .font(.headline.weight(.bold))
+                            .foregroundColor(.white)
+
+                        Text(values[i] >= 0 ? "Net positive" : "Net negative")
+                            .font(.caption2)
+                            .foregroundColor(.white.opacity(0.7))
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .fill(Color.white.opacity(0.12))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                    .stroke(Color.white.opacity(0.18), lineWidth: 1)
+                            )
+                    )
+                    .shadow(radius: 10)
+                   
+                    .position(
+                        x: clamp(p.x, 90, geo.size.width - 90),
+                          y: max(p.y - 40, 24)
+                    )
+                    .animation(.easeOut(duration: 0.15), value: selectedIndex)
                 }
-                
+
+              
                 VStack {
                     Spacer()
                     HStack(spacing: 0) {
@@ -286,7 +370,6 @@ struct FlowAreaChart: View {
         }
     }
 }
-
 #Preview {
     HomeView()
 }
