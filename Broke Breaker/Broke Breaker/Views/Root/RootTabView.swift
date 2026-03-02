@@ -11,7 +11,15 @@ struct RootTabView: View {
                 Label("Home", systemImage: "house")
                     .labelStyle(.iconOnly)
             }
-
+            
+            NavigationStack {
+                InsightsView()
+            }
+            .tabItem {
+                Label("Insights", systemImage: "chart.line.uptrend.xyaxis")
+                    .labelStyle(.iconOnly)
+                }
+            
             NavigationStack {
                 ListOverviewView()
             }
