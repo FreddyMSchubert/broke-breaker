@@ -14,6 +14,7 @@ struct ListOverviewView: View {
     
     @State private var weeklyTotals: [Date: DayTotals] = [:]
     @State private var weekPageIndex = 1
+    @State private var dayChanging: Bool = false
     @State private var weekChanging: Bool = false
     @State private var pageIndex = 1
     @State private var selectedItem: DayLineItem?
@@ -28,7 +29,7 @@ struct ListOverviewView: View {
             Text("Transactions")
                 .font(.largeTitle.bold())
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.top, 8)
+                .padding(8)
                 .padding(.horizontal)
             
             // Date Picker
@@ -40,14 +41,15 @@ struct ListOverviewView: View {
                     .padding(.bottom, 1)
                     .background(Color(UIColor.tertiarySystemFill))
                     .clipShape(Capsule())
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(Calendar.current.isDate(.now, inSameDayAs: date) ? Color.primary.opacity(0.5) : Color.primary)
                     .controlSize(.mini)
                     .font(.system(size: 17))
+                    .disabled(Calendar.current.isDate(.now, inSameDayAs: date))
             }
             .padding(.horizontal)
             
             weekCalendar
-                .padding(4)
+                .padding(8)
             Divider()
             
             // day swiper
@@ -59,20 +61,26 @@ struct ListOverviewView: View {
                         .tag(index)
                 }
             }
-            .id(refreshToken)
             .tabViewStyle(.page(indexDisplayMode: .never))
-            .onChange(of: pageIndex) { oldIndex, newIndex in
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    let delta = newIndex - 1
-                    if delta != 0 {
-                        if let newDate = Calendar.current.date(byAdding: .day, value: delta, to: date) {
-                            date = newDate
-                        }
+            .onChange(of: pageIndex) { _, newIndex in
+                guard newIndex != 1 else { return }
+                guard !dayChanging else { return }
+                dayChanging = true
+                let delta = newIndex - 1
+
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+
+                    if let newDate = Calendar.current.date(byAdding: .day, value: delta, to: date) {
+                        date = newDate
+                    }
+                    var transaction = Transaction()
+                    transaction.disablesAnimations = true
+                    withTransaction(transaction) {
                         pageIndex = 1
                     }
+                    dayChanging = false
                 }
             }
-            
         }
         .onAppear {
             refresh()
@@ -145,13 +153,11 @@ extension ListOverviewView {
     
     // day view
     private func dayView(for day: Date) -> some View {
-        
         let overview = try? ledger.dayOverview(for: day)
 
         return VStack(alignment: .leading, spacing: 8) {
             if let overview {
                 if overview.items.isEmpty {
-                    Spacer()
                     Spacer()
                     VStack(spacing: 8) {
                         Image(systemName: "tray")
@@ -213,8 +219,7 @@ extension ListOverviewView {
                         }
                     }
                     .listStyle(.plain)
-                    .padding(.top, -12)
-                    
+                    .id(refreshToken)
                 }
             } else {
                 Spacer()
@@ -230,7 +235,7 @@ extension ListOverviewView {
             VStack(spacing: 0) {
                 if let overview {
                     overviewBar(for: day, overview: overview)
-                        .padding(0)
+                        .padding(.horizontal, 8)
                 }
                 Rectangle()
                     .fill(.primary)
@@ -260,46 +265,67 @@ extension ListOverviewView {
         
         let dayTotals = try? ledger.dayTotals(for: day)
         let dayNetTotal: Decimal = dayTotals?.runningBalanceMainEndOfDay ?? 0
+        let savingsTotal: Decimal = (try? ledger.savingsBalanceEndOfDay(on: day)) ?? 0
 
-        return HStack {
+        return HStack() {
             Spacer()
-            VStack(alignment: .trailing) {
-                HStack() {
-                    let sign = rollover >= 0 ? "+" : ""
-                    Text("\(sign)\(rollover, format: .number.precision(.fractionLength(2)))")
-                        .lineLimit(1)
-                        .foregroundStyle(rollover >= 0
-                                         ? .blue
-                                         : .red)
-                }
-                Text("+\(incomingTotal, format: .number.precision(.fractionLength(2)))")
-                    .foregroundStyle(.blue)
-                    .lineLimit(1)
-                Text("\(outgoingTotal, format: .number.precision(.fractionLength(2)))")
-                    .foregroundStyle(.red)
-                    .lineLimit(1)
-            }
+            // sub totals
             VStack(alignment: .leading) {
-                Text("Rollover")
-                Text("Income")
-                Text("Expense")
+                HStack {
+                    VStack(alignment: .leading) {
+                        Text("Rollover")
+                        Text("Income")
+                        Text("Expense")
+                    }
+                    VStack(alignment: .leading) {
+                        let rolloverSign = rollover >= 0 ? "+" : ""
+                        Text("\(rolloverSign)\(rollover, format: .number.precision(.fractionLength(2)))")
+                            .lineLimit(1)
+                            .foregroundStyle(rollover >= 0
+                                             ? .blue
+                                             : .red)
+                        Text("+\(incomingTotal, format: .number.precision(.fractionLength(2)))")
+                            .foregroundStyle(.blue)
+                            .lineLimit(1)
+                        let outgoingTotalSign = outgoingTotal == 0 ? "-" : ""
+                        Text("\(outgoingTotalSign)\(outgoingTotal, format: .number.precision(.fractionLength(2)))")
+                            .foregroundStyle(.red)
+                            .lineLimit(1)
+                    }
+                }
             }
-            Spacer()
-            Text("=")
-                .font(.title2)
-                .fontWeight(.bold)
-            Spacer()
-            Text("\(dayNetTotal, format: .number.precision(.fractionLength(2)))")
-                .font(.title)
-                .fontWeight(.bold)
-                .foregroundStyle(dayNetTotal >= 0
-                                 ? .blue
-                                 : .red)
-                .lineLimit(1)
+            // equals sign
+            VStack(alignment: .center) {
+                Text("=")
+                    .font(.title2)
+                    .fontWeight(.bold)
+            }
+                .padding(8)
+            // disposable today
+            VStack(alignment: .center) {
+                Text("Disposable Today")
+                    .font(.caption)
+                let sign = dayNetTotal >= 0 ? "+" : ""
+                Text("\(sign)\(dayNetTotal, format: .number.precision(.fractionLength(2)))")
+                    .font(.title)
+                    .fontWeight(.bold)
+                    .foregroundStyle(dayNetTotal >= 0
+                                     ? .blue
+                                     : .red)
+                    .lineLimit(1)
+                    .padding(.bottom, 4)
+                Text("Savings")
+                    .font(.caption)
+                Text("+\(savingsTotal, format: .number.precision(.fractionLength(2)))")
+                    .font(.title)
+                    .fontWeight(.bold)
+                    .lineLimit(1)
+                    .foregroundStyle(.blue)
+            }
             Spacer()
         }
         .fontWeight(.semibold)
-        .padding(8)
+        .padding(.vertical, 8)
         .glassEffect(in: .rect(cornerRadius: 16))
     }
 }
@@ -373,7 +399,7 @@ extension ListOverviewView {
         let days = (0..<7).compactMap {
             Calendar.current.date(byAdding: .day, value: $0, to: startOfWeek)
         }
-        let letters = ["M", "T", "W", "T", "F", "S", "S"]
+        let letters = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
         
         return HStack {
             ForEach(Array(days.enumerated()), id: \.offset) { index, day in
@@ -388,7 +414,7 @@ extension ListOverviewView {
                     
                     Text(day.formatted(.dateTime.day()))
                         .fontWeight(.bold)
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(Calendar.current.isDate(day, inSameDayAs: date) ? Color(UIColor.systemBackground) : Color.primary)
                         .frame(maxWidth: .infinity, minHeight: 40)
                         .background(
                             Group {
@@ -408,7 +434,6 @@ extension ListOverviewView {
                                     )
                                 )
                         )
-                        .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity)
                 .contentShape(Rectangle())
@@ -418,6 +443,7 @@ extension ListOverviewView {
     }
     
     private func refresh() {
+        refreshToken = UUID()
         updateWeek()
         loadWeeklyTotals()
     }
@@ -439,12 +465,32 @@ extension ListOverviewView {
         
         var body: some View {
             VStack {
-                Text(title)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(8)
+                let incomingTotal: Double = items
+                    .map { NSDecimalNumber(decimal: $0.mainAmount).doubleValue }
+                    .filter { $0 > 0 }
+                    .reduce(0, +)
+                let outgoingTotal: Double = items
+                    .map { NSDecimalNumber(decimal: $0.mainAmount).doubleValue }
+                    .filter { $0 < 0 }
+                    .reduce(0, +)
+                
+                HStack {
+                    Label("\(title)", systemImage: iconName)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.secondary)
+                        .padding(8)
+                        .labelIconToTitleSpacing(8)
+                    Spacer()
+                    Text("\(incomingTotal + outgoingTotal,format: .number.precision(.fractionLength(2)))")
+                        .lineLimit(1)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.secondary)
+                        .foregroundStyle(incomingTotal + outgoingTotal >= 0
+                                         ? .blue
+                                         : .red)
+                }
                 
                 let sortedItems = items.sorted { $0.mainAmount > $1.mainAmount }
                 
@@ -452,14 +498,8 @@ extension ListOverviewView {
                     let item = sortedItems[index]
                     
                     HStack {
-                        HStack {
-                            Text(item.title)
-                                .foregroundStyle(.primary)
-                            
-                            Label("", systemImage: iconName)
-                                .foregroundStyle(.secondary)
-                                .labelStyle(.iconOnly)
-                        }
+                        Text(item.title)
+                            .foregroundStyle(.primary)
                         
                         Spacer()
                         
