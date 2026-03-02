@@ -265,6 +265,7 @@ extension ListOverviewView {
         
         let dayTotals = try? ledger.dayTotals(for: day)
         let dayNetTotal: Decimal = dayTotals?.runningBalanceMainEndOfDay ?? 0
+        let savingsTotal: Decimal = (try? ledger.savingsBalanceEndOfDay(on: day)) ?? 0
 
         return HStack() {
             Spacer()
@@ -313,6 +314,13 @@ extension ListOverviewView {
                                      : .red)
                     .lineLimit(1)
                     .padding(.bottom, 4)
+                Text("Savings")
+                    .font(.caption)
+                Text("+\(savingsTotal, format: .number.precision(.fractionLength(2)))")
+                    .font(.title)
+                    .fontWeight(.bold)
+                    .lineLimit(1)
+                    .foregroundStyle(.blue)
             }
             Spacer()
         }
