@@ -252,7 +252,6 @@ extension ListOverviewView {
         let previousDay = Calendar.current.date(byAdding: .day, value: -1, to: day)!
         let previousTotals = try? ledger.dayTotals(for: previousDay)
         let rollover = previousTotals?.runningBalanceMainEndOfDay ?? 0
-        let savingsTotal: Decimal = (try? ledger.savingsBalanceEndOfDay(on: day)) ?? 0
         
         let incomingTotal: Double = overview.items
             .map { NSDecimalNumber(decimal: $0.mainAmount).doubleValue }
@@ -313,13 +312,6 @@ extension ListOverviewView {
                                      : .red)
                     .lineLimit(1)
                     .padding(.bottom, 4)
-                Text("Savings")
-                    .font(.caption)
-                Text("+\(savingsTotal, format: .number.precision(.fractionLength(2)))")
-                    .font(.title)
-                    .fontWeight(.bold)
-                    .lineLimit(1)
-                    .foregroundStyle(.blue)
             }
             Spacer()
         }
@@ -464,13 +456,32 @@ extension ListOverviewView {
         
         var body: some View {
             VStack {
-                Label(title, systemImage: iconName)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(8)
-                    .labelIconToTitleSpacing(8)
+                let incomingTotal: Double = items
+                    .map { NSDecimalNumber(decimal: $0.mainAmount).doubleValue }
+                    .filter { $0 > 0 }
+                    .reduce(0, +)
+                let outgoingTotal: Double = items
+                    .map { NSDecimalNumber(decimal: $0.mainAmount).doubleValue }
+                    .filter { $0 < 0 }
+                    .reduce(0, +)
+                
+                HStack {
+                    Label("\(title)", systemImage: iconName)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.secondary)
+                        .padding(8)
+                        .labelIconToTitleSpacing(8)
+                    Spacer()
+                    Text("\(incomingTotal + outgoingTotal,format: .number.precision(.fractionLength(2)))")
+                        .lineLimit(1)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.secondary)
+                        .foregroundStyle(incomingTotal + outgoingTotal >= 0
+                                         ? .blue
+                                         : .red)
+                }
                 
                 let sortedItems = items.sorted { $0.mainAmount > $1.mainAmount }
                 
