@@ -1,5 +1,6 @@
 import Foundation
 import GRDB
+import SQLite
 
 public final class LedgerService: @unchecked Sendable {
 	private let db: LedgerDatabase
@@ -282,6 +283,40 @@ public final class LedgerService: @unchecked Sendable {
             recurrence: recurrence
         )
     }
+
+func searchTransactions(_ query: String, db: Connection) throws -> [OneTimeTransaction] {
+    // Convert user input into a SQL substring pattern
+    let pattern = "%\(query.lowercased())%"
+
+    // Define the SQL query
+    let sql = """
+    SELECT id, title, amount, count
+    FROM transactions
+    WHERE LOWER(title) LIKE ?
+    ORDER BY count DESC
+    """
+
+    // Prepare and execute the SQL query
+    let statement = try db.prepare(sql)
+
+    var results: [OneTimeTransaction] = []
+    
+    // Iterate through the rows in the query result
+    for row in try db.prepare(statement, pattern) {
+        let transaction = OneTimeTransaction(
+            id: row[0] as! Int64,            // id column
+            title: row[1] as! String,        // title column
+            date: Date(),                    // You can modify this to get actual date if it's stored in the DB
+            amount: row[2] as! Decimal,      // amount column
+            count: row[3] as! Int64         // count column
+        )
+        
+        // Add the transaction to the result array
+        results.append(transaction)
+    }
+
+    return results
+}
 
 	// ----- Public Read API (same calls)
 

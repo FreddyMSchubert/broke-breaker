@@ -58,3 +58,40 @@ do {
 	print("Error:", error)
 	exit(1)
 }
+	//testing searchTransactions
+	do {
+    // Create an in-memory database for testing purposes (use a file for production)
+    let db = try Connection(.inMemory)
+
+    // Define the table and columns
+    let transactions = Table("transactions")
+    let id = Expression<Int64>("id")
+    let title = Expression<String>("title")
+    let amount = Expression<Decimal>("amount")
+    let count = Expression<Int64>("count")
+
+    // Create the table (if it doesn't exist)
+    try db.run(transactions.create(ifNotExists: true) { t in
+        t.column(id, primaryKey: true)
+        t.column(title)
+        t.column(amount)
+        t.column(count)
+    })
+
+    // Insert sample data
+    try db.run(transactions.insert(title <- "Coffee", amount <- 3.5, count <- 5))
+    try db.run(transactions.insert(title <- "Groceries", amount <- 25.0, count <- 10))
+    try db.run(transactions.insert(title <- "Book", amount <- 12.99, count <- 3))
+    try db.run(transactions.insert(title <- "Coffee Beans", amount <- 8.75, count <- 8))
+
+    // Now you can call searchTransactions to test
+    let results = try searchTransactions("coffee", db: db)
+
+    // Print the results to verify sorting
+    for transaction in results {
+        print("Found transaction: \(transaction.title), Amount: \(transaction.amount), Count: \(transaction.count)")
+    }
+
+} catch {
+    print("Error:", error)
+} 	//end of testing searchTransactionsw
