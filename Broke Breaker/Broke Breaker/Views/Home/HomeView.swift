@@ -2,20 +2,19 @@ import SwiftUI
 import SharedLedger
 
 struct HomeView: View {
-
-    let ledger = Ledger.shared
-
-    @AppStorage("spendPercent") private var spendPercent: Double = 0.7
-    @AppStorage("allowanceDays") private var allowanceDays: Int = 3
-    @AppStorage("rolloverAllowanceMain") private var rolloverAllowanceMain: Double = 0
-    
+   
+    let leger
     @AppStorage("isDarkMode") private var isDarkMode = false
     @AppStorage("selectedCurrencyCode") private var currencySelected = "GBP"
-    @State private var settingsActive = false
-
-    @State private var dashboard = HomeDashboardData.empty
-
-    private var isNegativeToday: Bool { dashboard.allowedSpendToday < 0 }
+    @State private var settingsActive = false;
+    
+    @State private var rollingBalance: Double=0
+    @State private var rollingSavings: Double=0
+    
+    @State private var values: [Double] = Array(repeating: 0, count: 3)
+    @State private var labels: [String] = ["Yesterday", "Today", "Tomorrow"]
+    
+    private var isNegativeToday: Bool { rollingBalance < 0 }
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
@@ -52,8 +51,7 @@ struct HomeView: View {
                             .opacity(0.85)
                             .frame(maxWidth: .infinity, alignment: .center)
 
-                        Text(dashboard.allowedSpendToday.formatted(.currency(code: currencySelected)))
-                            .font(.system(size: 40, weight: .bold))
+                        Text(rollingBalance.formatted(.currency(code: currencySelected)))                            .font(.system(size: 40, weight: .bold))
                             .frame(maxWidth: .infinity, alignment: .center)
 
                         Divider()
@@ -63,8 +61,7 @@ struct HomeView: View {
                             .opacity(0.85)
                             .frame(maxWidth: .infinity, alignment: .center)
 
-                        Text(dashboard.savingsBalanceToday.formatted(.currency(code: currencySelected)))
-                            .font(.system(size: 40, weight: .bold))
+                        Text(rollingBalance.formatted(.currency(code: currencySelected)))                            .font(.system(size: 40, weight: .bold))
                             .frame(maxWidth: .infinity, alignment: .center)
 
                     }
@@ -81,8 +78,8 @@ struct HomeView: View {
                     VStack(alignment: .leading, spacing: 16) {
 
                         FlowAreaChart(
-                            values: dashboard.allowanceSeries,
-                            labels: dashboard.allowanceLabels,
+                            values: values,
+                            labels: labels,
                             isNegativeTheme: isNegativeToday,
                             currencyCode: currencySelected
                         )
@@ -134,80 +131,44 @@ struct HomeView: View {
             .padding(.top, 10)
             .padding(.trailing, 14)
             .sheet(isPresented: $settingsActive) {
-                SettingsView()
+                Text("Settings")
             }
         }
-        .task { loadDashboardData() }
-    }
+        .task { loadRealData() }    }
 
-    private func loadDashboardData() {
+    private func loadRealData() {
         do {
             let cal = Calendar.current
             let today = cal.startOfDay(for: Date())
 
-            let totalsToday = try ledger.dayTotals(for: today)
+            let totalsToday = try ledgerService.dayTotals(for: today)
+            rollingBalance = (totalsToday.runningBalanceMainEndOfDay as NSDecimalNumber).doubleValue
+            rollingSavings = (totalsToday.runningBalanceSavingsEndOfDay as NSDecimalNumber).doubleValue
 
-            let allowedSpendToday =
-                (totalsToday.runningBalanceMainEndOfDay as NSDecimalNumber).doubleValue
-
-            let savingsToday =
-                (totalsToday.runningBalanceSavingsEndOfDay as NSDecimalNumber).doubleValue
-
-            let days = max(allowanceDays, 1)
             let offsets = [-1, 0, 1]
-            var series: [Double] = []
-            var lbls: [String] = []
-
-            var rollover = rolloverAllowanceMain
+            var tempValues: [Double] = []
+            var tempLabels: [String] = []
 
             for off in offsets {
                 let d = cal.date(byAdding: .day, value: off, to: today)!
-                let o = try ledger.dayOverview(for: d)
+                let t = try ledgerService.dayTotals(for: d)
 
-                let net = (o.netTotalMain as NSDecimalNumber).doubleValue
+                tempValues.append((t.netTotalMain as NSDecimalNumber).doubleValue) // daily change
 
-                let income = max(net, 0)
-                let spend = max(-net, 0)
-
-                let addToday = (income * spendPercent) / Double(days)
-
-                rollover = rollover + addToday - spend
-
-                series.append(rollover)
-
-                lbls.append(off == -1 ? "Yesterday" : (off == 0 ? "Today" : "Tomorrow"))
+                tempLabels.append(off == -1 ? "Yesterday" : (off == 0 ? "Today" : "Tomorrow"))
             }
 
-            if let todayIndex = offsets.firstIndex(of: 0), series.indices.contains(todayIndex) {
-                rolloverAllowanceMain = series[todayIndex]
-            }
-            
-            
-            dashboard = HomeDashboardData(
-                allowedSpendToday: allowedSpendToday,
-                savingsBalanceToday: savingsToday,
-                allowanceSeries: series,
-                allowanceLabels: lbls
-            )
+            values = tempValues
+            labels = tempLabels
+
         } catch {
-            print("HomeView loadDashboardData error:", error)
-            dashboard = .empty
+            print("HomeView loadRealData error:", error)
+            rollingBalance = 0
+            rollingSavings = 0
+            values = [0, 0, 0]
+            labels = ["Yesterday", "Today", "Tomorrow"]
         }
     }
-}
-
-struct HomeDashboardData: Sendable {
-    var allowedSpendToday: Double
-    var savingsBalanceToday: Double
-    var allowanceSeries: [Double]
-    var allowanceLabels: [String]
-
-    static let empty = HomeDashboardData(
-        allowedSpendToday: 0,
-        savingsBalanceToday: 0,
-        allowanceSeries: [0, 0, 0],
-        allowanceLabels: ["Yesterday", "Today", "Tomorrow"]
-    )
 }
 
 struct FlowAreaChart: View {
