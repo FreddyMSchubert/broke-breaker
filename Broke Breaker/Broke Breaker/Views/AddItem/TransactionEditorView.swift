@@ -4,6 +4,7 @@ import SharedLedger
 struct TransactionEditorView: View {
     @Environment(\.dismiss) private var dismiss
     @FocusState private var focusedField: FocusedField?
+    @AppStorage("selectedCurrencyCode") private var currencySelected = "GBP"
 
     enum FocusedField { case title, amount, every }
 
@@ -154,7 +155,7 @@ struct TransactionEditorView: View {
                             VStack(alignment: .leading, spacing: 6) {
                                 ZStack(alignment: .leading) {
                                     HStack(spacing: 0) {
-                                        Text(formattedUKFromDigits(amountDigits))
+                                        Text("\(Locale(identifier: "en_GB@currency=\(currencySelected)").currencySymbol ?? currencySelected) \(formattedUKFromDigits(amountDigits))")
                                             .font(.system(size: 28, weight: .semibold, design: .rounded))
                                             .monospacedDigit()
 
