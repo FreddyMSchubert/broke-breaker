@@ -5,6 +5,8 @@ struct ListOverviewView: View {
     
     let ledger = Ledger.shared
     
+    @AppStorage("selectedCurrencyCode") private var currencySelected = "GBP"
+    
     @GestureState private var isWeekDragging = false
     
     @State private var date: Date = .now
@@ -187,8 +189,10 @@ extension ListOverviewView {
                                 title: "One-Time Transactions:",
                                 items: oneTimeItems,
                                 iconName: "\(Calendar.current.component(.day, from: day)).calendar",
-                                day: day
-                            ) { item in
+                                currency: currencySelected,
+                                day: day,
+                                )
+                            { item in
                                 selectedItemDay = day
                                 selectedItem = item
                                 }
@@ -199,6 +203,7 @@ extension ListOverviewView {
                                 title: "Savings:",
                                 items: savingItems,
                                 iconName: "square.and.arrow.down",
+                                currency: currencySelected,
                                 day: day
                             ) { item in
                                 selectedItemDay = day
@@ -211,6 +216,7 @@ extension ListOverviewView {
                                 title: "Recurring Transactions:",
                                 items: recurringItems,
                                 iconName: "repeat",
+                                currency: currencySelected,
                                 day: day
                             ) { item in
                                 selectedItemDay = day
@@ -282,7 +288,7 @@ extension ListOverviewView {
                         HStack {
                             Text("Rollover")
                             let rolloverSign = rollover >= 0 ? "+" : ""
-                            Text("\(rolloverSign)\(rollover, format: .number.precision(.fractionLength(2)))")
+                            Text("\(Locale(identifier: "en_GB@currency=\(currencySelected)").currencySymbol ?? currencySelected)\(rolloverSign)\(rollover, format: .number.precision(.fractionLength(2)))")
                                 .lineLimit(1)
                                 .foregroundStyle(rollover >= 0
                                                  ? .blue
@@ -291,7 +297,7 @@ extension ListOverviewView {
                         HStack {
                             Text("One Time")
                             let oneTimeTotalSign = oneTimeTotal >= 0 ? "+" : ""
-                            Text("\(oneTimeTotalSign)\(oneTimeTotal, format: .number.precision(.fractionLength(2)))")
+                            Text("\(Locale(identifier: "en_GB@currency=\(currencySelected)").currencySymbol ?? currencySelected)\(oneTimeTotalSign)\(oneTimeTotal, format: .number.precision(.fractionLength(2)))")
                                 .lineLimit(1)
                                 .foregroundStyle(oneTimeTotal >= 0
                                                  ? .blue
@@ -300,7 +306,7 @@ extension ListOverviewView {
                         HStack {
                             Text("Recurring")
                             let recurringTotalSign = recurringTotal >= 0 ? "+" : ""
-                            Text("\(recurringTotalSign)\(recurringTotal, format: .number.precision(.fractionLength(2)))")
+                            Text("\(Locale(identifier: "en_GB@currency=\(currencySelected)").currencySymbol ?? currencySelected)\(recurringTotalSign)\(recurringTotal, format: .number.precision(.fractionLength(2)))")
                                 .lineLimit(1)
                                 .foregroundStyle(recurringTotal >= 0
                                                  ? .blue
@@ -321,7 +327,7 @@ extension ListOverviewView {
                 Text("Disposable Today")
                     .font(.caption)
                 let sign = dayNetTotal >= 0 ? "+" : ""
-                Text("\(sign)\(dayNetTotal, format: .number.precision(.fractionLength(2)))")
+                Text("\(Locale(identifier: "en_GB@currency=\(currencySelected)").currencySymbol ?? currencySelected)\(sign)\(dayNetTotal, format: .number.precision(.fractionLength(2)))")
                     .font(.title)
                     .fontWeight(.bold)
                     .foregroundStyle(dayNetTotal >= 0
@@ -331,7 +337,7 @@ extension ListOverviewView {
                     .padding(.bottom, 4)
                 Text("Savings")
                     .font(.caption)
-                Text("+\(savingsTotal, format: .number.precision(.fractionLength(2)))")
+                Text("\(Locale(identifier: "en_GB@currency=\(currencySelected)").currencySymbol ?? currencySelected)+\(savingsTotal, format: .number.precision(.fractionLength(2)))")
                     .font(.title)
                     .fontWeight(.bold)
                     .lineLimit(1)
@@ -475,6 +481,7 @@ extension ListOverviewView {
         let title: String
         let items: [DayLineItem]
         let iconName: String
+        let currency: String
         let day: Date
         let onTap: (DayLineItem) -> Void
         
@@ -497,7 +504,7 @@ extension ListOverviewView {
                         .padding(8)
                         .labelIconToTitleSpacing(8)
                     Spacer()
-                    Text("\(incomingTotal + outgoingTotal,format: .number.precision(.fractionLength(2)))")
+                    Text("\(Locale(identifier: "en_GB@currency=\(currency)").currencySymbol ?? currency)\(incomingTotal + outgoingTotal,format: .number.precision(.fractionLength(2)))")
                         .lineLimit(1)
                         .font(.subheadline)
                         .fontWeight(.semibold)
@@ -546,7 +553,7 @@ extension ListOverviewView {
                 Text("\(smallSign)0.01")
                     .foregroundStyle(item.mainAmount >= 0 ? .blue : .red)
             } else {
-                Text("\(sign)\(amountDouble, format: .number.precision(.fractionLength(2)))")
+                Text("\(Locale(identifier: "en_GB@currency=\(currency)").currencySymbol ?? currency)\(sign)\(amountDouble, format: .number.precision(.fractionLength(2)))")
                     .foregroundStyle(item.mainAmount >= 0 ? .blue : .red)
             }
         }
