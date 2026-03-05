@@ -2,20 +2,21 @@ import SwiftUI
 import SharedLedger
 
 struct HomeView: View {
-    
+
     let ledger = Ledger.shared
+
+    @AppStorage("spendPercent") private var spendPercent: Double = 0.7
+    @AppStorage("allowanceDays") private var allowanceDays: Int = 3
+    @AppStorage("rolloverAllowanceMain") private var rolloverAllowanceMain: Double = 0
+    
     @AppStorage("isDarkMode") private var isDarkMode = false
     @AppStorage("selectedCurrencyCode") private var currencySelected = "GBP"
     @State private var settingsActive = false
-    
-    @State private var balanceToday: Double = 0
-    @State private var savingsToday: Double = 0
-    
-    @State private var values: [Double] = Array(repeating: 0, count: 3)
-    @State private var labels: [String] = []
-    
-    private var isNegativeToday: Bool { balanceToday < 0 }
-    
+
+    @State private var dashboard = HomeDashboardData.empty
+
+    private var isNegativeToday: Bool { dashboard.allowedSpendToday < 0 }
+
     var body: some View {
         ZStack(alignment: .topTrailing) {
 
@@ -24,11 +25,11 @@ struct HomeView: View {
                 ? [
                     Color(red: 0.22, green: 0.03, blue: 0.07),
                     Color(red: 0.52, green: 0.09, blue: 0.17)
-                  ]
+                ]
                 : [
                     Color(red: 0.03, green: 0.10, blue: 0.26),
                     Color(red: 0.08, green: 0.21, blue: 0.48)
-                  ],
+                ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -46,23 +47,23 @@ struct HomeView: View {
 
                     VStack(alignment: .leading, spacing: 14) {
 
-                        Text("Balance Today")
+                        Text("Balance")
                             .font(.subheadline)
                             .opacity(0.85)
                             .frame(maxWidth: .infinity, alignment: .center)
 
-                        Text("\(Locale(identifier: "en_GB@currency=\(currencySelected)").currencySymbol ?? currencySelected)\(balanceToday, specifier: "%.2f")")
+                        Text(dashboard.allowedSpendToday.formatted(.currency(code: currencySelected)))
                             .font(.system(size: 40, weight: .bold))
                             .frame(maxWidth: .infinity, alignment: .center)
 
-                            Divider()
-                        
+                        Divider()
+
                         Text("Savings")
                             .font(.subheadline)
                             .opacity(0.85)
                             .frame(maxWidth: .infinity, alignment: .center)
 
-                        Text("\(savingsToday, specifier: "%.2f")")
+                        Text(dashboard.savingsBalanceToday.formatted(.currency(code: currencySelected)))
                             .font(.system(size: 40, weight: .bold))
                             .frame(maxWidth: .infinity, alignment: .center)
 
@@ -80,10 +81,10 @@ struct HomeView: View {
                     VStack(alignment: .leading, spacing: 16) {
 
                         FlowAreaChart(
-                            values: values,
-                               labels: labels,
-                               isNegativeTheme: isNegativeToday,
-                               currencyCode: currencySelected
+                            values: dashboard.allowanceSeries,
+                            labels: dashboard.allowanceLabels,
+                            isNegativeTheme: isNegativeToday,
+                            currencyCode: currencySelected
                         )
                         .frame(height: 220)
                         .padding()
@@ -94,11 +95,11 @@ struct HomeView: View {
                                 ? [
                                     Color(red: 0.42, green: 0.08, blue: 0.14).opacity(0.55),
                                     Color(red: 0.22, green: 0.03, blue: 0.07).opacity(0.55)
-                                  ]
+                                ]
                                 : [
                                     Color(red: 0.10, green: 0.20, blue: 0.46).opacity(0.55),
                                     Color(red: 0.04, green: 0.10, blue: 0.26).opacity(0.55)
-                                  ],
+                                ],
                                 startPoint: .top,
                                 endPoint: .bottom
                             )
@@ -108,8 +109,10 @@ struct HomeView: View {
                                 .stroke(Color.white.opacity(0.12), lineWidth: 1)
                         )
                         .cornerRadius(20)
-                        .shadow(color: isNegativeToday ? .red.opacity(0.28) : .blue.opacity(0.28),
-                                radius: 20, x: 0, y: 10)
+                        .shadow(
+                            color: isNegativeToday ? .red.opacity(0.28) : .blue.opacity(0.28),
+                            radius: 20, x: 0, y: 10
+                        )
                     }
 
                     Spacer(minLength: 12)
@@ -134,47 +137,78 @@ struct HomeView: View {
                 SettingsView()
             }
         }
-        .task { loadRealData() }
+        .task { loadDashboardData() }
     }
-    
-    private func loadRealData() {
+
+    private func loadDashboardData() {
         do {
             let cal = Calendar.current
             let today = cal.startOfDay(for: Date())
 
             let totalsToday = try ledger.dayTotals(for: today)
-            balanceToday = (totalsToday.runningBalanceMainEndOfDay as NSDecimalNumber).doubleValue
-            savingsToday = (totalsToday.runningBalanceSavingsEndOfDay as NSDecimalNumber).doubleValue
 
+            let allowedSpendToday =
+                (totalsToday.runningBalanceMainEndOfDay as NSDecimalNumber).doubleValue
+
+            let savingsToday =
+                (totalsToday.runningBalanceSavingsEndOfDay as NSDecimalNumber).doubleValue
+
+            let days = max(allowanceDays, 1)
             let offsets = [-1, 0, 1]
-            var tempValues: [Double] = []
-            var tempLabels: [String] = []
+            var series: [Double] = []
+            var lbls: [String] = []
+
+            var rollover = rolloverAllowanceMain
 
             for off in offsets {
-                let date = cal.date(byAdding: .day, value: off, to: today)!
-                let totals = try ledger.dayTotals(for: date)
+                let d = cal.date(byAdding: .day, value: off, to: today)!
+                let o = try ledger.dayOverview(for: d)
 
-                tempValues.append((totals.runningBalanceMainEndOfDay as NSDecimalNumber).doubleValue)
+                let net = (o.netTotalMain as NSDecimalNumber).doubleValue
 
-                if off == -1 { tempLabels.append("Yesterday") }
-                else if off == 0 { tempLabels.append("Today") }
-                else { tempLabels.append("Tomorrow") }
+                let income = max(net, 0)
+                let spend = max(-net, 0)
+
+                let addToday = (income * spendPercent) / Double(days)
+
+                rollover = rollover + addToday - spend
+
+                series.append(rollover)
+
+                lbls.append(off == -1 ? "Yesterday" : (off == 0 ? "Today" : "Tomorrow"))
             }
 
-            values = tempValues
-            labels = tempLabels
-
+            if let todayIndex = offsets.firstIndex(of: 0), series.indices.contains(todayIndex) {
+                rolloverAllowanceMain = series[todayIndex]
+            }
+            
+            
+            dashboard = HomeDashboardData(
+                allowedSpendToday: allowedSpendToday,
+                savingsBalanceToday: savingsToday,
+                allowanceSeries: series,
+                allowanceLabels: lbls
+            )
         } catch {
-            print("HomeView loadRealData error:", error)
-            balanceToday = 0
-            savingsToday = 0
-            values = Array(repeating: 0, count: 3)
-            labels = ["Yesterday", "Today", "Tomorrow"]
+            print("HomeView loadDashboardData error:", error)
+            dashboard = .empty
         }
     }
 }
 
-import SwiftUI
+struct HomeDashboardData: Sendable {
+    var allowedSpendToday: Double
+    var savingsBalanceToday: Double
+    var allowanceSeries: [Double]
+    var allowanceLabels: [String]
+
+    static let empty = HomeDashboardData(
+        allowedSpendToday: 0,
+        savingsBalanceToday: 0,
+        allowanceSeries: [0, 0, 0],
+        allowanceLabels: ["Yesterday", "Today", "Tomorrow"]
+    )
+}
 
 struct FlowAreaChart: View {
 
@@ -192,8 +226,17 @@ struct FlowAreaChart: View {
             let labelBand: CGFloat = 28
             let chartHeight = max(geo.size.height - labelBand, 1)
 
-            let minValue = min(values.min() ?? 0, 0)
-            let maxValue = max(values.max() ?? 0, 0)
+            let rawMin = values.min() ?? 0
+            let rawMax = values.max() ?? 0
+
+            let anchoredMin = Swift.min(rawMin, 0)
+            let anchoredMax = Swift.max(rawMax, 0)
+
+            let baseRange = anchoredMax - anchoredMin
+            let pad = max(baseRange * 0.10, 1)
+
+            let minValue = anchoredMin - pad
+            let maxValue = anchoredMax + pad
             let range = (maxValue - minValue) == 0 ? 1 : (maxValue - minValue)
 
             let zeroPosition = CGFloat((0 - minValue) / range)
@@ -204,11 +247,11 @@ struct FlowAreaChart: View {
                 ? [
                     Color(red: 1.00, green: 0.35, blue: 0.42),
                     Color(red: 0.85, green: 0.10, blue: 0.25)
-                  ]
+                ]
                 : [
                     Color(red: 0.35, green: 0.95, blue: 1.00),
                     Color(red: 0.10, green: 0.55, blue: 1.00)
-                  ],
+                ],
                 startPoint: .leading,
                 endPoint: .trailing
             )
@@ -218,11 +261,11 @@ struct FlowAreaChart: View {
                 ? [
                     Color(red: 0.95, green: 0.22, blue: 0.30).opacity(0.35),
                     Color(red: 0.95, green: 0.22, blue: 0.30).opacity(0.05)
-                  ]
+                ]
                 : [
                     Color(red: 0.20, green: 0.70, blue: 1.00).opacity(0.35),
                     Color(red: 0.20, green: 0.70, blue: 1.00).opacity(0.05)
-                  ],
+                ],
                 startPoint: .top,
                 endPoint: .bottom
             )
@@ -282,7 +325,6 @@ struct FlowAreaChart: View {
 
                 ForEach(values.indices, id: \.self) { i in
                     let p = point(i)
-
                     Circle()
                         .fill(Color.white.opacity(0.25))
                         .frame(width: 5, height: 5)
@@ -313,14 +355,12 @@ struct FlowAreaChart: View {
                     }
                     .stroke(Color.white.opacity(0.18), lineWidth: 1)
 
-                    
                     Circle()
                         .fill(Color.white)
                         .frame(width: 10, height: 10)
                         .position(p)
                         .shadow(radius: 8)
 
-                  
                     VStack(alignment: .leading, spacing: 4) {
                         Text(i < labels.count ? labels[i] : "Day \(i + 1)")
                             .font(.caption.weight(.semibold))
@@ -345,15 +385,13 @@ struct FlowAreaChart: View {
                             )
                     )
                     .shadow(radius: 10)
-                   
                     .position(
                         x: clamp(p.x, 90, geo.size.width - 90),
-                          y: max(p.y - 40, 24)
+                        y: max(p.y - 40, 24)
                     )
                     .animation(.easeOut(duration: 0.15), value: selectedIndex)
                 }
 
-              
                 VStack {
                     Spacer()
                     HStack(spacing: 0) {
@@ -370,6 +408,7 @@ struct FlowAreaChart: View {
         }
     }
 }
+
 #Preview {
     HomeView()
 }
