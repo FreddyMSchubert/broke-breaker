@@ -261,11 +261,11 @@ extension ListOverviewView {
             if case .recurring = $0.source { return true }
             return false
         }
-        let oneTimeTotal: Double = recurringItems
+        let oneTimeTotal: Double = oneTimeItems
             .map { NSDecimalNumber(decimal: $0.mainAmount).doubleValue }
             .reduce(0, +)
         
-        let recurringTotal: Double = overview.items
+        let recurringTotal: Double = recurringItems
             .map { NSDecimalNumber(decimal: $0.mainAmount).doubleValue }
             .reduce(0, +)
         
