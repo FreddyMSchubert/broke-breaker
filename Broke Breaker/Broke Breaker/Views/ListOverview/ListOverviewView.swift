@@ -253,14 +253,20 @@ extension ListOverviewView {
         let previousTotals = try? ledger.dayTotals(for: previousDay)
         let rollover = previousTotals?.runningBalanceMainEndOfDay ?? 0
         
-        let incomingTotal: Double = overview.items
+        let oneTimeItems = overview.items.filter {
+            if case .oneTime = $0.source { return true }
+            return false
+        }
+        let recurringItems = overview.items.filter {
+            if case .recurring = $0.source { return true }
+            return false
+        }
+        let oneTimeTotal: Double = recurringItems
             .map { NSDecimalNumber(decimal: $0.mainAmount).doubleValue }
-            .filter { $0 > 0 }
             .reduce(0, +)
         
-        let outgoingTotal: Double = overview.items
+        let recurringTotal: Double = overview.items
             .map { NSDecimalNumber(decimal: $0.mainAmount).doubleValue }
-            .filter { $0 < 0 }
             .reduce(0, +)
         
         let dayTotals = try? ledger.dayTotals(for: day)
@@ -273,24 +279,33 @@ extension ListOverviewView {
             VStack(alignment: .leading) {
                 HStack {
                     VStack(alignment: .leading) {
-                        Text("Rollover")
-                        Text("Income")
-                        Text("Expense")
-                    }
-                    VStack(alignment: .leading) {
-                        let rolloverSign = rollover >= 0 ? "+" : ""
-                        Text("\(rolloverSign)\(rollover, format: .number.precision(.fractionLength(2)))")
-                            .lineLimit(1)
-                            .foregroundStyle(rollover >= 0
-                                             ? .blue
-                                             : .red)
-                        Text("+\(incomingTotal, format: .number.precision(.fractionLength(2)))")
-                            .foregroundStyle(.blue)
-                            .lineLimit(1)
-                        let outgoingTotalSign = outgoingTotal == 0 ? "-" : ""
-                        Text("\(outgoingTotalSign)\(outgoingTotal, format: .number.precision(.fractionLength(2)))")
-                            .foregroundStyle(.red)
-                            .lineLimit(1)
+                        HStack {
+                            Text("Rollover")
+                            let rolloverSign = rollover >= 0 ? "+" : ""
+                            Text("\(rolloverSign)\(rollover, format: .number.precision(.fractionLength(2)))")
+                                .lineLimit(1)
+                                .foregroundStyle(rollover >= 0
+                                                 ? .blue
+                                                 : .red)
+                        }
+                        HStack {
+                            Text("One Time")
+                            let oneTimeTotalSign = oneTimeTotal >= 0 ? "+" : ""
+                            Text("\(oneTimeTotalSign)\(oneTimeTotal, format: .number.precision(.fractionLength(2)))")
+                                .lineLimit(1)
+                                .foregroundStyle(oneTimeTotal >= 0
+                                                 ? .blue
+                                                 : .red)
+                        }
+                        HStack {
+                            Text("Recurring")
+                            let recurringTotalSign = recurringTotal >= 0 ? "+" : ""
+                            Text("\(recurringTotalSign)\(recurringTotal, format: .number.precision(.fractionLength(2)))")
+                                .lineLimit(1)
+                                .foregroundStyle(recurringTotal >= 0
+                                                 ? .blue
+                                                 : .red)
+                        }
                     }
                 }
             }
