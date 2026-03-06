@@ -3,7 +3,7 @@ import SharedLedger
 
 struct HomeView: View {
    
-    let leger
+    let ledgerService: LedgerService
     @AppStorage("isDarkMode") private var isDarkMode = false
     @AppStorage("selectedCurrencyCode") private var currencySelected = "GBP"
     @State private var settingsActive = false;
@@ -372,4 +372,5 @@ struct FlowAreaChart: View {
 
 #Preview {
     HomeView()
+    
 }
