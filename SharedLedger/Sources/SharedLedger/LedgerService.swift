@@ -1,6 +1,5 @@
 import Foundation
 import GRDB
-import SQLite
 
 public final class LedgerService: @unchecked Sendable {
 	private let db: LedgerDatabase
@@ -13,24 +12,6 @@ public final class LedgerService: @unchecked Sendable {
 	}
 
 	// ----- Public Write API (same calls)
-
-    /// Adds a one-time entry. If `isSavings` is true, treats it as a savings transfer (negative amount).
-    @discardableResult
-    public func addOneTime(
-        title: String,
-        date: Date,
-        amount: Decimal,
-        isSavings: Bool
-    ) throws -> OneTimeTransaction {
-        if isSavings {
-            // Savings should reduce the available balance.
-            precondition(amount > 0, "Savings amount must be positive; it will be stored as negative.")
-            return try addSavingsTransfer(title: title, date: date, amount: amount)
-        } else {
-            // Normal path (existing implementation)
-            return try addOneTime(title: title, date: date, amount: amount)
-        }
-    }
 
 	@discardableResult
 	public func addOneTime(title: String, date: Date, amount: Decimal) throws -> OneTimeTransaction {
@@ -55,36 +36,6 @@ public final class LedgerService: @unchecked Sendable {
             return OneTimeTransaction(id: newId, title: title, date: date, amount: amount)
         }
 	}
-
-    /// Adds a recurring entry. If `isSavings` is true, saves a negative recurring amount.
-    @discardableResult
-    public func addRecurring(
-        title: String,
-        amountPerCycle: Decimal,
-        startDate: Date,
-        endDate: Date? = nil,
-        recurrence: Recurrence,
-        isSavings: Bool
-    ) throws -> RecurringRule {
-        if isSavings {
-            precondition(amountPerCycle > 0, "Savings amount must be positive; it will be stored as negative.")
-            return try addRecurringAutosave(
-                title: title,
-                amountPerCycle: amountPerCycle,
-                startDate: startDate,
-                endDate: endDate,
-                recurrence: recurrence
-            )
-        } else {
-            return try addRecurring(
-                title: title,
-                amountPerCycle: amountPerCycle,
-                startDate: startDate,
-                endDate: endDate,
-                recurrence: recurrence
-            )
-        }
-    }
 
     @discardableResult
     public func addRecurring(
@@ -254,17 +205,6 @@ public final class LedgerService: @unchecked Sendable {
 		}
 	}
 
-    /// Records a transfer out of available balance into savings (negative amount).
-    @discardableResult
-    public func addSavingsTransfer(
-        title: String = "Savings Transfer",
-        date: Date = Date(),
-        amount: Decimal
-    ) throws -> OneTimeTransaction {
-        precondition(amount > 0, "Savings amount must be positive; it will be stored as negative.")
-        return try addOneTime(title: title, date: date, amount: -amount)
-    }
-
     /// Recurring autosave (negative per cycle).
     @discardableResult
     public func addRecurringAutosave(
@@ -284,39 +224,30 @@ public final class LedgerService: @unchecked Sendable {
         )
     }
 
-func searchTransactions(_ query: String, db: Connection) throws -> [OneTimeTransaction] {
-    // Convert user input into a SQL substring pattern
-    let pattern = "%\(query.lowercased())%"
+	public func searchTransactions(_ query: String) throws -> [String] {
 
-    // Define the SQL query
-    let sql = """
-    SELECT id, title, amount, count
-    FROM transactions
-    WHERE LOWER(title) LIKE ?
-    ORDER BY count DESC
-    """
+		let pattern = "%\(query.lowercased())%"
 
-    // Prepare and execute the SQL query
-    let statement = try db.prepare(sql)
+		let sql = """
+		SELECT title, COUNT(*) AS count
+		FROM one_time_transactions
+		WHERE LOWER(title) LIKE ?
+		GROUP BY title
+		ORDER BY count DESC
+		"""
 
-    var results: [OneTimeTransaction] = []
-    
-    // Iterate through the rows in the query result
-    for row in try db.prepare(statement, pattern) {
-        let transaction = OneTimeTransaction(
-            id: row[0] as! Int64,            // id column
-            title: row[1] as! String,        // title column
-            date: Date(),                    // You can modify this to get actual date if it's stored in the DB
-            amount: row[2] as! Decimal,      // amount column
-            count: row[3] as! Int64         // count column
-        )
-        
-        // Add the transaction to the result array
-        results.append(transaction)
-    }
+		var results: [String] = []
 
-    return results
-}
+		let rows = try db.dbQueue.read { rdb in
+			try Row.fetchAll(rdb, sql: sql, arguments: [pattern])
+		}
+
+		for row in rows {
+			results.append(row["title"])
+		}
+
+		return results
+	}
 
 	// ----- Public Read API (same calls)
 
