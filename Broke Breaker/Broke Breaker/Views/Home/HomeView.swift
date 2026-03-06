@@ -46,7 +46,7 @@ struct HomeView: View {
 
                     VStack(alignment: .leading, spacing: 14) {
 
-                        Text("Today's Budget")
+                        Text("Balance Today")
                             .font(.subheadline)
                             .opacity(0.85)
                             .frame(maxWidth: .infinity, alignment: .center)
