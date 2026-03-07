@@ -13,14 +13,6 @@ struct RootTabView: View {
             }
             
             NavigationStack {
-                InsightsView()
-            }
-            .tabItem {
-                Label("Insights", systemImage: "chart.line.uptrend.xyaxis")
-                    .labelStyle(.iconOnly)
-                }
-            
-            NavigationStack {
                 ListOverviewView()
             }
             .tabItem {
@@ -28,6 +20,14 @@ struct RootTabView: View {
                     .labelStyle(.iconOnly)
             }
 
+            NavigationStack {
+                InsightsView()
+            }
+            .tabItem {
+                Label("Insights", systemImage: "chart.line.uptrend.xyaxis")
+                    .labelStyle(.iconOnly)
+                }
+            
             NavigationStack {
                 AddItemView()
             }

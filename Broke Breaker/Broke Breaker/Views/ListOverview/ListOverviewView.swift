@@ -21,6 +21,16 @@ struct ListOverviewView: View {
     
     @State private var selectedItemDay: Date = .now
 
+    init(initialDate: Date? = nil) {
+        if let d = initialDate {
+            _date = State(initialValue: d)
+            let ws = Calendar.current.date(
+                from: Calendar.current.dateComponents([.yearForWeekOfYear, .weekOfYear], from: d)
+            ) ?? d
+            _weekStart = State(initialValue: ws)
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             
