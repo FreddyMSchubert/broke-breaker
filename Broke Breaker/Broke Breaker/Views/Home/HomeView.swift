@@ -55,17 +55,6 @@ struct HomeView: View {
                             .font(.system(size: 40, weight: .bold))
                             .frame(maxWidth: .infinity, alignment: .center)
 
-                            Divider()
-                        
-                        Text("Savings")
-                            .font(.subheadline)
-                            .opacity(0.85)
-                            .frame(maxWidth: .infinity, alignment: .center)
-
-                        Text("\(savingsToday, specifier: "%.2f")")
-                            .font(.system(size: 40, weight: .bold))
-                            .frame(maxWidth: .infinity, alignment: .center)
-
                     }
                     .padding()
                     .frame(maxWidth: .infinity)

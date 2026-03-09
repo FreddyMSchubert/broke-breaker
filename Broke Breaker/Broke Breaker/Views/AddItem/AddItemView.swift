@@ -432,7 +432,7 @@ struct AddItemView: View {
             
             //widget update
             let totalsToday = try ledger.dayTotals(for: Date())
-            let updatedBalance = (totalsToday.runningBalanceEndOfDay as NSDecimalNumber).doubleValue
+            let updatedBalance = (totalsToday.runningBalanceMainEndOfDay as NSDecimalNumber).doubleValue
             
             let defaults = UserDefaults(suiteName: "group.com.freddy.brokebreaker")
             defaults?.set(updatedBalance, forKey: "currentBalance")
