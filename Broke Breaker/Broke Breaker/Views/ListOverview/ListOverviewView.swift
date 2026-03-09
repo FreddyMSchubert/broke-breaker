@@ -356,7 +356,7 @@ extension ListOverviewView {
                 Text("Disposable Today")
                     .font(.caption)
                 let sign = dayNetTotal >= 0 ? "+" : ""
-                Text("\(Locale(identifier: "en_GB@currency=\(currencySelected)").currencySymbol ?? currencySelected)\(sign)\(dayNetTotal, format: .number.precision(.fractionLength(2)))")
+                Text("\(Locale(identifier: "en_GB@currency=\(currencySelected)").currencySymbol ?? currencySelected)\(sign)\(numberFormatter(number: dayNetTotal))")
                     .font(.title)
                     .fontWeight(.bold)
                     .foregroundStyle(dayNetTotal >= 0
@@ -367,7 +367,7 @@ extension ListOverviewView {
                 HStack {
                     Text("Savings")
                         .font(.callout)
-                    Text("\(Locale(identifier: "en_GB@currency=\(currencySelected)").currencySymbol ?? currencySelected)+\(savingsTotal, format: .number.precision(.fractionLength(2)))")
+                    Text("\(Locale(identifier: "en_GB@currency=\(currencySelected)").currencySymbol ?? currencySelected)+\(numberFormatter(number: savingsTotal))")
                         .font(.callout)
                         .fontWeight(.bold)
                         .lineLimit(1)
@@ -452,6 +452,7 @@ extension ListOverviewView {
             Calendar.current.date(byAdding: .day, value: $0, to: startOfWeek)
         }
         let letters = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+        let activeDate = Calendar.current.date(byAdding: .day, value: pageIndex - 1, to: date) ?? date
         
         return HStack {
             ForEach(Array(days.enumerated()), id: \.offset) { index, day in
@@ -466,11 +467,11 @@ extension ListOverviewView {
                     
                     Text(day.formatted(.dateTime.day()))
                         .fontWeight(.bold)
-                        .foregroundStyle(Calendar.current.isDate(day, inSameDayAs: date) ? Color(UIColor.systemBackground) : Color.primary)
+                        .foregroundStyle(Calendar.current.isDate(day, inSameDayAs: activeDate) ? Color(UIColor.systemBackground) : Color.primary)
                         .frame(maxWidth: .infinity, minHeight: 40)
                         .background(
                             Group {
-                                if Calendar.current.isDate(day, inSameDayAs: date) {
+                                if Calendar.current.isDate(day, inSameDayAs: activeDate) {
                                     Circle()
                                         .fill(circleColour(day: day))
                                 }
@@ -482,7 +483,7 @@ extension ListOverviewView {
                                     circleColour(day: day),
                                     style: StrokeStyle(
                                         lineWidth: 2,
-                                        dash: (Calendar.current.isDate(day, inSameDayAs: .now) && !Calendar.current.isDate(day, inSameDayAs: date)) ? [5] : []
+                                        dash: (Calendar.current.isDate(day, inSameDayAs: .now) && !Calendar.current.isDate(day, inSameDayAs: activeDate)) ? [5] : []
                                     )
                                 )
                         )
