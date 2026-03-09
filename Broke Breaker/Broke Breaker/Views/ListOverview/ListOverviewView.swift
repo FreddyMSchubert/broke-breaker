@@ -267,11 +267,19 @@ extension ListOverviewView {
             if case .recurring = $0.source { return true }
             return false
         }
+        let savingsItems = overview.items.filter {
+            if case .saving = $0.source { return true }
+            return false
+        }
         let oneTimeTotal: Double = oneTimeItems
             .map { NSDecimalNumber(decimal: $0.mainAmount).doubleValue }
             .reduce(0, +)
         
         let recurringTotal: Double = recurringItems
+            .map { NSDecimalNumber(decimal: $0.mainAmount).doubleValue }
+            .reduce(0, +)
+        
+        let savingsdayTotal: Double = savingsItems
             .map { NSDecimalNumber(decimal: $0.mainAmount).doubleValue }
             .reduce(0, +)
         
@@ -287,30 +295,51 @@ extension ListOverviewView {
                     VStack(alignment: .leading) {
                         HStack {
                             Text("Rollover")
+                            Spacer()
                             let rolloverSign = rollover >= 0 ? "+" : ""
-                            Text("\(Locale(identifier: "en_GB@currency=\(currencySelected)").currencySymbol ?? currencySelected)\(rolloverSign)\(rollover, format: .number.precision(.fractionLength(2)))")
+                            Text("\(Locale(identifier: "en_GB@currency=\(currencySelected)").currencySymbol ?? currencySelected)\(rolloverSign)\(numberFormatter(number: rollover))")
                                 .lineLimit(1)
                                 .foregroundStyle(rollover >= 0
                                                  ? .blue
                                                  : .red)
+                                .foregroundStyle(.primary)
                         }
                         HStack {
                             Text("One Time")
+                            Spacer()
                             let oneTimeTotalSign = oneTimeTotal >= 0 ? "+" : ""
-                            Text("\(Locale(identifier: "en_GB@currency=\(currencySelected)").currencySymbol ?? currencySelected)\(oneTimeTotalSign)\(oneTimeTotal, format: .number.precision(.fractionLength(2)))")
+                            Text("\(Locale(identifier: "en_GB@currency=\(currencySelected)").currencySymbol ?? currencySelected)\(oneTimeTotalSign)\(numberFormatter(number: Decimal(oneTimeTotal)))")
                                 .lineLimit(1)
                                 .foregroundStyle(oneTimeTotal >= 0
                                                  ? .blue
                                                  : .red)
+                                .foregroundStyle(.primary)
                         }
                         HStack {
                             Text("Recurring")
+                            Spacer()
                             let recurringTotalSign = recurringTotal >= 0 ? "+" : ""
-                            Text("\(Locale(identifier: "en_GB@currency=\(currencySelected)").currencySymbol ?? currencySelected)\(recurringTotalSign)\(recurringTotal, format: .number.precision(.fractionLength(2)))")
+                            Text("\(Locale(identifier: "en_GB@currency=\(currencySelected)").currencySymbol ?? currencySelected)\(recurringTotalSign)\(numberFormatter(number: Decimal(recurringTotal)))")
                                 .lineLimit(1)
                                 .foregroundStyle(recurringTotal >= 0
                                                  ? .blue
                                                  : .red)
+                                .foregroundStyle(.primary)
+                        }
+                        HStack {
+                            if (savingsdayTotal != 0)
+                            {
+                                Text("Savings")
+                                    .foregroundStyle(.primary)
+                                Spacer()
+                                let savingsTotalSign = savingsdayTotal >= 0 ? "+" : ""
+                                Text("\(Locale(identifier: "en_GB@currency=\(currencySelected)").currencySymbol ?? currencySelected)\(savingsTotalSign)\(numberFormatter(number: Decimal(savingsdayTotal)))")
+                                    .lineLimit(1)
+                                    .foregroundStyle(recurringTotal >= 0
+                                                     ? .blue
+                                                     : .red)
+                                    .foregroundStyle(.primary)
+                            }
                         }
                     }
                 }
@@ -335,13 +364,15 @@ extension ListOverviewView {
                                      : .red)
                     .lineLimit(1)
                     .padding(.bottom, 4)
-                Text("Savings")
-                    .font(.caption)
-                Text("\(Locale(identifier: "en_GB@currency=\(currencySelected)").currencySymbol ?? currencySelected)+\(savingsTotal, format: .number.precision(.fractionLength(2)))")
-                    .font(.title)
-                    .fontWeight(.bold)
-                    .lineLimit(1)
-                    .foregroundStyle(.blue)
+                HStack {
+                    Text("Savings")
+                        .font(.callout)
+                    Text("\(Locale(identifier: "en_GB@currency=\(currencySelected)").currencySymbol ?? currencySelected)+\(savingsTotal, format: .number.precision(.fractionLength(2)))")
+                        .font(.callout)
+                        .fontWeight(.bold)
+                        .lineLimit(1)
+                        .foregroundStyle(.blue)
+                }
             }
             Spacer()
         }
@@ -474,6 +505,26 @@ extension ListOverviewView {
                 return .secondary.opacity(0.3)
             }
         return balance >= 0 ? .blue : .red
+    }
+    
+    private func numberFormatter(number: Decimal) -> String {
+        
+        let numberDouble = NSDecimalNumber(decimal: number).doubleValue
+        let absoluteNumber = abs(numberDouble)
+        
+        let formatted: String
+        
+        if absoluteNumber >= 1_000_000_000 {
+            formatted = String(format: "%.2fB", numberDouble / 1_000_000_000)
+        } else if absoluteNumber >= 1_000_000 {
+            formatted = String(format: "%.2fM", numberDouble / 1_000_000)
+        } else if absoluteNumber >= 1_000 {
+            formatted = String(format: "%.2fK", numberDouble / 1_000)
+        } else {
+            formatted = String(format: "%.2f", numberDouble)
+        }
+        
+        return formatted
     }
     
     private struct TransactionSectionView: View {
