@@ -193,15 +193,24 @@ struct FlowAreaChart: View {
             
            
             let labelBand: CGFloat = 28
+            let topPadding: CGFloat = 16
+            let bottomPadding: CGFloat = 12
+            let leftPadding: CGFloat = 52
+
             let chartHeight = max(geo.size.height - labelBand, 1)
+            let plotHeight = max(chartHeight - topPadding - bottomPadding, 1)
 
             let minValue = min(values.min() ?? 0, 0)
             let maxValue = max(values.max() ?? 0, 0)
-            let range = (maxValue - minValue) == 0 ? 1 : (maxValue - minValue)
+            let range = (maxValue - minValue == 0) ? 1 : (maxValue - minValue)
 
-            let boundaryY=chartHeight * 0.20
-            
+            let step = (geo.size.width - leftPadding) / CGFloat(max(values.count - 1, 1))
 
+            let yPosition: (Double) -> CGFloat = { value in
+                topPadding + CGFloat((maxValue - value) / range) * plotHeight
+            }
+
+            let boundaryY = yPosition(0)
             let lineGradient = LinearGradient(
                 colors: isNegativeTheme
                 ? [
@@ -230,21 +239,19 @@ struct FlowAreaChart: View {
                 endPoint: .bottom
             )
 
-            let step = geo.size.width / CGFloat(max(values.count - 1, 1))
-
+            
+            
             let clamp: (CGFloat, CGFloat, CGFloat) -> CGFloat = { x, mn, mx in
                 Swift.max(mn, Swift.min(mx, x))
             }
 
             let point: (Int) -> CGPoint = { index in
-                let x = step * CGFloat(index)
-                let scale:CGFloat=6
-                let y = boundaryY + CGFloat(values[index]) * scale
+                let x = leftPadding + step * CGFloat(index)
+                let y = yPosition(values[index])
                 return CGPoint(x: x, y: y)
             }
-
             let nearestIndex: (CGFloat) -> Int = { touchX in
-                let x = clamp(touchX, 0, geo.size.width)
+                let x = clamp(touchX - leftPadding, 0, geo.size.width - leftPadding)
                 let raw = Int(round(x / step))
                 return Swift.max(0, Swift.min(values.count - 1, raw))
             }
@@ -261,19 +268,19 @@ struct FlowAreaChart: View {
                     }
 
                     path.addLine(to: CGPoint(x: geo.size.width, y: chartHeight))
-                    path.addLine(to: CGPoint(x: 0, y: chartHeight))
+                    path.addLine(to: CGPoint(x: leftPadding, y: chartHeight))
                     path.closeSubpath()
                 }
                 .fill(fillGradient)
                 
                 Path{ path in
-                    path.move(to: CGPoint(x:0, y:0))
-                    path.addLine(to: CGPoint(x:0, y:chartHeight))
+                    path.move(to: CGPoint(x: leftPadding, y: topPadding))
+                    path.addLine(to: CGPoint(x: leftPadding, y: topPadding + plotHeight))
                 }
                 .stroke(Color.white.opacity(0.30), lineWidth: 2)
                 
                 Path{ path in
-                    path.move(to: CGPoint(x:0, y: boundaryY))
+                    path.move(to: CGPoint(x:leftPadding, y: boundaryY))
                     path.addLine(to: CGPoint(x: geo.size.width, y: boundaryY))
                 }
                 .stroke(Color.white.opacity(0.18), lineWidth:1.8)
@@ -299,6 +306,16 @@ struct FlowAreaChart: View {
                         .position(p)
                 }
 
+                ForEach(values.indices, id: \.self) { i in
+                    Text(values[i].formatted(.currency(code: currencyCode)))
+                        .font(.caption2.weight(.semibold))
+                        .foregroundColor(.white.opacity(0.78))
+                        .frame(width: 44, alignment: .trailing)
+                        .position(
+                            x: 22,
+                            y: yPosition(values[i])
+                        )
+                }
                 Rectangle()
                     .fill(Color.clear)
                     .contentShape(Rectangle())
@@ -318,8 +335,8 @@ struct FlowAreaChart: View {
                     let p = point(i)
 
                     Path { path in
-                        path.move(to: CGPoint(x: p.x, y: 0))
-                        path.addLine(to: CGPoint(x: p.x, y: chartHeight))
+                        path.move(to: CGPoint(x: p.x, y: topPadding))
+                        path.addLine(to: CGPoint(x: p.x, y: topPadding + plotHeight))
                     }
                     .stroke(Color.white.opacity(0.18), lineWidth: 1)
 
