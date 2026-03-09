@@ -9,7 +9,14 @@ do {
 
 	_ = try ledger.addOneTime(title: "Coffee", date: Date(), amount: Decimal(string: "-3.50")!)
 	_ = try ledger.addRecurring(
-		title: "Salary",
+		title: "Coffin",
+		amountPerCycle: Decimal(string: "2000")!,
+		startDate: Calendar.current.startOfDay(for: Date()),
+		endDate: nil,
+		recurrence: .everyMonths(1)
+	)
+	_ = try ledger.addRecurring(
+		title: "Coffin",
 		amountPerCycle: Decimal(string: "2000")!,
 		startDate: Calendar.current.startOfDay(for: Date()),
 		endDate: nil,
@@ -26,13 +33,9 @@ do {
 	print("Running EOD:", totals.runningBalanceEndOfDay)
 	print("before the search")
 
-	let dbQueue = try DatabaseQueue(path: "ledger.sqlite")
+	let results = try ledger.searchTransactions("coff", type: TransactionSource.recurring(id: 0))
 
-	try dbQueue.read { db in
-    	let results = try searchTransactions("coffee", db: db)
-
-    	print(results)
-	}
+	print(results)
 
 } catch {
 	print("Error:", error)

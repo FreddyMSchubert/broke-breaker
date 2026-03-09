@@ -2,6 +2,11 @@ import Foundation
 
 public typealias PersistentIdentifier = Int64
 
+public enum TransactionSource: Sendable {
+	case oneTime(id: PersistentIdentifier)
+	case recurring(id: PersistentIdentifier)
+}
+
 // ----- BFF structs
 
 /// One line item shown for a day

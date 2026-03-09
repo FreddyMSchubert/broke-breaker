@@ -224,13 +224,20 @@ public final class LedgerService: @unchecked Sendable {
         )
     }
 
-	public func searchTransactions(_ query: String) throws -> [String] {
+	public func searchTransactions(_ query: String, type: TransactionSource) throws -> [String] {
 
 		let pattern = "%\(query.lowercased())%"
 
+		let dbTable: String = {
+			switch type {
+			case .oneTime: return "one_time_transactions"
+			case .recurring: return "recurring_rules"
+			}
+		}()
+
 		let sql = """
 		SELECT title, COUNT(*) AS count
-		FROM one_time_transactions
+		FROM \(dbTable)
 		WHERE LOWER(title) LIKE ?
 		GROUP BY title
 		ORDER BY count DESC
