@@ -46,7 +46,7 @@ struct HomeView: View {
 
                     VStack(alignment: .leading, spacing: 14) {
 
-                        Text("Balance Today")
+                        Text("Disposable Today")
                             .font(.subheadline)
                             .opacity(0.85)
                             .frame(maxWidth: .infinity, alignment: .center)
@@ -351,27 +351,21 @@ struct FlowAreaChart: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(i < labels.count ? labels[i] : "Day \(i + 1)")
                             .font(.caption.weight(.semibold))
-                            .foregroundColor(.white.opacity(0.85))
+                            .foregroundStyle(.white.opacity(0.82))
 
                         Text(values[i].formatted(.currency(code: currencyCode)))
                             .font(.headline.weight(.bold))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
 
                         Text(values[i] >= 0 ? "Net positive" : "Net negative")
                             .font(.caption2)
-                            .foregroundColor(.white.opacity(0.7))
+                            .foregroundStyle(.white.opacity(0.68))
                     }
                     .padding(.horizontal, 12)
                     .padding(.vertical, 10)
-                    .background(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .fill(Color.white.opacity(0.12))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                    .stroke(Color.white.opacity(0.18), lineWidth: 1)
-                            )
-                    )
-                    .shadow(radius: 10)
+                    .frame(minWidth: 120, alignment: .leading)
+                    .glassEffect(in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .shadow(color: .black.opacity(0.18), radius: 10, y: 6)
                    
                     .position(
                         x: clamp(p.x, 90, geo.size.width - 90),
