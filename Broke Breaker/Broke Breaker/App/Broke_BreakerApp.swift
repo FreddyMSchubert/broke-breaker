@@ -20,6 +20,7 @@ struct Broke_BreakerApp: App {
     var body: some Scene {
         WindowGroup {
             RootTabView()
+                
         }
     }
 }

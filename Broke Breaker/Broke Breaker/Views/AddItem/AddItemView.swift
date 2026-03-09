@@ -10,7 +10,6 @@ struct AddItemView: View {
         case title, amount, every
     }
 
-    // MARK: - UI State
     @State private var title: String = ""
     @State private var amountDigits: String = ""
     @State private var isPositive: Bool = false
@@ -43,7 +42,6 @@ struct AddItemView: View {
     @State private var everyNText: String = "1"
     @State private var unit: RecurrenceUnitUI = .days
 
-    // MARK: - Alerts
     private enum AlertState: Identifiable {
         case error(String)
         case success(String)
@@ -301,7 +299,6 @@ struct AddItemView: View {
         }
     }
 
-    // MARK: - Input sanitization
 
     private var amountCents: Int {
         Int(amountDigits) ?? 0
@@ -353,7 +350,6 @@ struct AddItemView: View {
         return trimmed.isEmpty ? (digitsOnly.isEmpty ? "" : "0") : String(trimmed)
     }
 
-    // MARK: - UI Helpers
 
     private func signButton(label: String, active: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
@@ -393,7 +389,6 @@ struct AddItemView: View {
         && (txType == .oneTime || everyN >= 1)
     }
 
-    // MARK: - Create
 
     private func create() {
         guard let magnitude = parsedAmountMagnitude, magnitude > 0 else {
@@ -432,7 +427,7 @@ struct AddItemView: View {
             
             //widget update
             let totalsToday = try ledger.dayTotals(for: Date())
-            let updatedBalance = (totalsToday.runningBalanceEndOfDay as NSDecimalNumber).doubleValue
+            let updatedBalance = (totalsToday.runningBalanceMainEndOfDay as NSDecimalNumber).doubleValue
             
             let defaults = UserDefaults(suiteName: "group.com.freddy.brokebreaker")
             defaults?.set(updatedBalance, forKey: "currentBalance")
