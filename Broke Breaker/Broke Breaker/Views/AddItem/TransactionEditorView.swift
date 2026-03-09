@@ -4,6 +4,7 @@ import SharedLedger
 struct TransactionEditorView: View {
     @Environment(\.dismiss) private var dismiss
     @FocusState private var focusedField: FocusedField?
+    @AppStorage("selectedCurrencyCode") private var currencySelected = "GBP"
 
     enum FocusedField { case title, amount, every }
 
@@ -11,6 +12,7 @@ struct TransactionEditorView: View {
         case create
         case editOneTime(OneTimeTransaction)
         case editRecurring(RecurringRule)
+        case editSaving(SavingsTransaction)
 
         static func == (lhs: Mode, rhs: Mode) -> Bool {
             switch (lhs, rhs) {
@@ -19,6 +21,8 @@ struct TransactionEditorView: View {
             case (.editOneTime, .editOneTime):
                 return true
             case (.editRecurring, .editRecurring):
+                return true
+            case (.editSaving, .editSaving):
                 return true
             default:
                 return false
@@ -65,23 +69,45 @@ struct TransactionEditorView: View {
     private enum AlertState: Identifiable {
         case error(String)
         case success(String)
+        case info(String)
+        case confirmNegative(String)
+
         var id: String { "\(self)" }
 
         var title: String {
             switch self {
-            case .error: return "❌ Couldn’t Save"
-            case .success: return "✅ Saved"
+            case .error: return "Couldn’t Save"
+            case .success: return "Saved"
+            case .info: return "Cancelled"
+            case .confirmNegative: return "Balance Warning"
             }
         }
+
         var message: String {
             switch self {
             case .error(let msg): return msg
             case .success(let msg): return msg
+            case .info(let msg): return msg
+            case .confirmNegative(let msg): return msg
             }
         }
     }
     @State private var alert: AlertState?
 
+    // MARK: - Pending confirmation / undo
+    private enum UndoAction {
+        case deleteOneTime(OneTimeTransaction)
+        case deleteRecurring(RecurringRule)
+        case deleteSaving(SavingsTransaction)
+
+        case revertOneTime(tx: OneTimeTransaction, oldTitle: String, oldDate: Date, oldAmount: Decimal)
+        case revertRecurring(rule: RecurringRule, oldTitle: String, oldAmount: Decimal, oldStart: Date, oldEnd: Date?, oldRecurrence: Recurrence)
+        case revertSaving(tx: SavingsTransaction, oldTitle: String, oldDate: Date, oldAmount: Decimal)
+    }
+
+    @State private var pendingUndo: UndoAction?
+    @State private var pendingSuccessMessage: String?
+    
     // MARK: - Init with prefill
     init(mode: Mode) {
         self.mode = mode
@@ -129,7 +155,7 @@ struct TransactionEditorView: View {
                             VStack(alignment: .leading, spacing: 6) {
                                 ZStack(alignment: .leading) {
                                     HStack(spacing: 0) {
-                                        Text(formattedUKFromDigits(amountDigits))
+                                        Text("\(Locale(identifier: "en_GB@currency=\(currencySelected)").currencySymbol ?? currencySelected) \(formattedUKFromDigits(amountDigits))")
                                             .font(.system(size: 28, weight: .semibold, design: .rounded))
                                             .monospacedDigit()
 
@@ -233,13 +259,30 @@ struct TransactionEditorView: View {
             .padding()
         }
         .alert(item: $alert) { state in
-            Alert(
-                title: Text(state.title),
-                message: Text(state.message),
-                dismissButton: .default(Text("OK"), action: {
-                    if case .success = state { dismiss() }
-                })
-            )
+            switch state {
+
+            case .confirmNegative:
+                return Alert(
+                    title: Text(state.title),
+                    message: Text(state.message),
+                    primaryButton: .destructive(Text("Proceed")) {
+                        commitProceed()
+                    },
+                    secondaryButton: .cancel {
+                        commitCancelAndUndo()
+                    }
+                )
+
+            default:
+                return Alert(
+                    title: Text(state.title),
+                    message: Text(state.message),
+                    dismissButton: .default(Text("OK"), action: {
+                        // Keep your current behaviour: dismiss on edit success.
+                        if mode != .create, case .success = state { dismiss() }
+                    })
+                )
+            }
         }
         .scrollDismissesKeyboard(.immediately)
         .onAppear { prefillFromMode() }
@@ -410,7 +453,7 @@ struct TransactionEditorView: View {
         case .editOneTime(let tx):
             title = tx.title
             selectedDate = tx.date
-            type = .oneTime  // (cannot infer “saving” from OneTimeTransaction, so default)
+            type = .oneTime
             let amt = tx.amount
             isPositive = (amt >= 0)
             amountDigits = digitsFromDecimal(absDecimal(amt))
@@ -436,6 +479,14 @@ struct TransactionEditorView: View {
             case .everyMonths(let n): unit = .months; everyNText = "\(n)"
             case .everyYears(let n):  unit = .years; everyNText = "\(n)"
             }
+        
+        case .editSaving(let tx):
+            title = tx.title
+            selectedDate = tx.date
+            type = .saving
+            let amt = tx.amount
+            isPositive = (amt >= 0)
+            amountDigits = digitsFromDecimal(absDecimal(amt))
         }
     }
 
@@ -452,32 +503,59 @@ struct TransactionEditorView: View {
         let ledger = Ledger.shared
 
         do {
+            pendingUndo = nil
+
+            // 1) Save + store how to undo it
             switch mode {
             case .create:
                 switch type {
-                case .oneTime, .saving:
-                    try ledger.addOneTime(title: trimmedTitle, date: selectedDate, amount: finalAmount)
+                case .oneTime:
+                    let created = try ledger.addOneTime(title: trimmedTitle, date: selectedDate, amount: finalAmount)
+                    pendingUndo = .deleteOneTime(created)
+                    
+                case .saving:
+                    let created = try ledger.addSavings(title: trimmedTitle, date: selectedDate, amount: finalAmount)
+                    pendingUndo = .deleteSaving(created)
 
                 case .repeating:
                     let recurrence = makeRecurrence()
                     let end: Date? = hasEndDate ? max(selectedEndDate, selectedDate) : nil
-                    try ledger.addRecurring(
+                    let createdRule = try ledger.addRecurring(
                         title: trimmedTitle,
                         amountPerCycle: finalAmount,
                         startDate: selectedDate,
                         endDate: end,
                         recurrence: recurrence
                     )
+                    pendingUndo = .deleteRecurring(createdRule)
                 }
 
-                resetInputsForNextCreate()
-                alert = .success("Created \(createTransactionName).")
+                pendingSuccessMessage = nil
 
             case .editOneTime(let tx):
+                // snapshot old values for undo
+                let oldTitle = tx.title
+                let oldDate = tx.date
+                let oldAmount = tx.amount
+
                 try ledger.updateOneTime(tx, title: trimmedTitle, date: selectedDate, amount: finalAmount)
-                alert = .success("Saved \(createTransactionName).")
+                pendingSuccessMessage = "Saved \(createTransactionName)."
+
+                pendingUndo = .revertOneTime(
+                    tx: tx,
+                    oldTitle: oldTitle,
+                    oldDate: oldDate,
+                    oldAmount: oldAmount
+                )
 
             case .editRecurring(let rule):
+                // snapshot old values for undo
+                let oldTitle = rule.title
+                let oldAmount = rule.amountPerCycle
+                let oldStart = rule.startDate
+                let oldEnd = rule.endDate
+                let oldRecurrence = rule.recurrence
+
                 let recurrence = makeRecurrence()
                 let endUpdate: LedgerService.EndDateUpdate = hasEndDate
                     ? .set(max(selectedEndDate, selectedDate))
@@ -491,10 +569,121 @@ struct TransactionEditorView: View {
                     endDate: endUpdate,
                     recurrence: recurrence
                 )
-                alert = .success("Saved \(createTransactionName).")
+                pendingSuccessMessage = "Saved \(createTransactionName)."
+
+                pendingUndo = .revertRecurring(
+                    rule: rule,
+                    oldTitle: oldTitle,
+                    oldAmount: oldAmount,
+                    oldStart: oldStart,
+                    oldEnd: oldEnd,
+                    oldRecurrence: oldRecurrence
+                )
+            case .editSaving(let tx):
+                try ledger.updateSavings(tx, title: trimmedTitle, date: selectedDate, amount: finalAmount)
+                pendingSuccessMessage = "Saved \(createTransactionName)."
+                pendingUndo = .revertSaving(tx: tx, oldTitle: tx.title, oldDate: tx.date, oldAmount: tx.amount)
             }
+
+            // 2) Check today+future balance AFTER save
+            if let hit = try ledger.firstNegativeBalanceFromToday() {
+                alert = .confirmNegative(
+                    negativeBalanceWarningMessage(day: hit.day, balanceEOD: hit.balanceEOD)
+                    + "\n\nProceed anyway?"
+                )
+            } else {
+                // no negative -> accept automatically
+                commitProceed()
+            }
+
         } catch {
-            alert = .error(error.localizedDescription)
+            pendingUndo = nil
+            alert = .error(userFacingMessage(for: error))
+        }
+    }
+    
+    private func userFacingMessage(for error: Error) -> String {
+        let ns = error as NSError
+        let underlying = (ns.userInfo[NSUnderlyingErrorKey] as? Error) ?? error
+
+        if let ledgerError = underlying as? LedgerError {
+            switch ledgerError {
+            case .savingsWouldGoNegative(let dayStart):
+                let df = DateFormatter()
+                df.locale = Locale(identifier: "en_GB")
+                df.dateStyle = .medium
+                df.timeStyle = .none
+
+                return "That savings withdrawal would take your Savings pot below £0 on \(df.string(from: dayStart))."
+
+            case .cacheMissing:
+                return "Ledger cache was missing. Try again."
+            }
+        }
+
+        // fallback
+        return underlying.localizedDescription
+    }
+
+    private func commitProceed() {
+        if mode == .create {
+            resetInputsForNextCreate()
+        }
+
+        pendingUndo = nil
+
+        // Only show a success alert for edit flows (so create doesn't get the extra popup)
+        if mode != .create, let msg = pendingSuccessMessage {
+            alert = .success(msg)
+        }
+
+        pendingSuccessMessage = nil
+    }
+
+    private func commitCancelAndUndo() {
+        let ledger = Ledger.shared
+
+        do {
+            if let undo = pendingUndo {
+                switch undo {
+                case .deleteOneTime(let tx):
+                    try ledger.deleteOneTime(tx)
+
+                case .deleteRecurring(let rule):
+                    try ledger.deleteRecurring(rule)
+                    
+                case .deleteSaving(let saving):
+                    try ledger.deleteSavings(saving)
+
+                case .revertOneTime(let tx, let oldTitle, let oldDate, let oldAmount):
+                    try ledger.updateOneTime(tx, title: oldTitle, date: oldDate, amount: oldAmount)
+
+                case .revertRecurring(let rule, let oldTitle, let oldAmount, let oldStart, let oldEnd, let oldRecurrence):
+                    let endUpdate: LedgerService.EndDateUpdate = {
+                        if let oldEnd { return .set(oldEnd) }
+                        return .clear
+                    }()
+
+                    try ledger.updateRecurring(
+                        rule,
+                        title: oldTitle,
+                        amountPerCycle: oldAmount,
+                        startDate: oldStart,
+                        endDate: endUpdate,
+                        recurrence: oldRecurrence
+                    )
+                case .revertSaving(tx: let saving, oldTitle: let oldTitle, oldDate: let oldDate, oldAmount: let oldAmount):
+                    try ledger.updateSavings(saving, title: oldTitle, date: oldDate, amount: oldAmount)
+                }
+            }
+
+            pendingUndo = nil
+            pendingSuccessMessage = nil
+
+        } catch {
+            pendingUndo = nil
+            pendingSuccessMessage = nil
+            alert = .error("Tried to undo but failed: \(error.localizedDescription)")
         }
     }
     
@@ -524,6 +713,29 @@ struct TransactionEditorView: View {
         }
     }
     
+    private func negativeBalanceWarningMessage(day: Date, balanceEOD: Decimal) -> String {
+        let dateText = day.formatted(date: .abbreviated, time: .omitted)
+        let moneyText = formatCurrency(balanceEOD)
+        return "Your running balance becomes negative on \(dateText).\nEnd-of-day balance: \(moneyText)"
+    }
+
+    private func formatCurrency(_ value: Decimal) -> String {
+        let nf = NumberFormatter()
+        nf.locale = Locale.current
+        nf.numberStyle = .currency
+
+        // If the locale has a currency, use it. Otherwise, fall back to a plain number.
+        if let currencyCode = Locale.current.currency?.identifier {
+            nf.currencyCode = currencyCode
+        } else {
+            nf.numberStyle = .decimal
+            nf.minimumFractionDigits = 2
+            nf.maximumFractionDigits = 2
+        }
+
+        return nf.string(from: value as NSDecimalNumber) ?? "\(value)"
+    }
+    
     private var createTransactionName: String {
         if (type == .saving) {
             return isPositive ? "Savings Withdrawal" : "Saving";
@@ -538,14 +750,14 @@ struct TransactionEditorView: View {
     private var headerTitle: String {
         switch mode {
         case .create: return "New Transaction"
-        case .editOneTime, .editRecurring: return "Edit Transaction"
+        case .editOneTime, .editRecurring, .editSaving: return "Edit Transaction"
         }
     }
 
     private var primaryActionTitle: String {
         switch mode {
         case .create: return "Create \(createTransactionName)"
-        case .editOneTime, .editRecurring: return "Save"
+        case .editOneTime, .editRecurring, .editSaving: return "Save"
         }
     }
 
@@ -554,7 +766,7 @@ struct TransactionEditorView: View {
     private var isEditingLockedType: Bool {
         switch mode {
         case .create: return false
-        case .editOneTime, .editRecurring: return true
+        case .editOneTime, .editRecurring, .editSaving: return true
         }
     }
 
@@ -562,7 +774,6 @@ struct TransactionEditorView: View {
         !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         && amountCents > 0
         && (type != .repeating || everyN >= 1)
-        && type != .saving // TODO: Remove when savings are implemented
     }
 
     private var amountCents: Int { Int(amountDigits) ?? 0 }

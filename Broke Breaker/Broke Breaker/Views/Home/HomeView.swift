@@ -9,7 +9,7 @@ struct HomeView: View {
     @State private var settingsActive = false
     
     @State private var balanceToday: Double = 0
-    @State private var netToday: Double = 0
+    @State private var savingsToday: Double = 0
     
     @State private var values: [Double] = Array(repeating: 0, count: 3)
     @State private var labels: [String] = []
@@ -55,6 +55,17 @@ struct HomeView: View {
                             .font(.system(size: 40, weight: .bold))
                             .frame(maxWidth: .infinity, alignment: .center)
 
+                            Divider()
+                        
+                        Text("Savings")
+                            .font(.subheadline)
+                            .opacity(0.85)
+                            .frame(maxWidth: .infinity, alignment: .center)
+
+                        Text("\(savingsToday, specifier: "%.2f")")
+                            .font(.system(size: 40, weight: .bold))
+                            .frame(maxWidth: .infinity, alignment: .center)
+
                     }
                     .padding()
                     .frame(maxWidth: .infinity)
@@ -74,7 +85,7 @@ struct HomeView: View {
                                isNegativeTheme: isNegativeToday,
                                currencyCode: currencySelected
                         )
-                        .frame(height: 220)
+                        .frame(height: 320)
                         .padding()
                         .frame(maxWidth: .infinity)
                         .background(
@@ -112,6 +123,8 @@ struct HomeView: View {
                     .font(.system(size: 20, weight: .semibold))
                     .foregroundStyle(.white)
                     .padding(10)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .glassEffect()
@@ -127,27 +140,29 @@ struct HomeView: View {
     private func loadRealData() {
         do {
             let cal = Calendar.current
-            let today = cal.startOfDay(for: Date())
-
-            let todayOverview = try ledger.dayOverview(for: today)
-            let todayBudget = (todayOverview.netTotal as NSDecimalNumber).doubleValue
-
-            balanceToday = todayBudget
-            netToday = todayBudget
-
+            let today = Date()
+            
+            let totalsToday = try ledger.dayTotals(for: today)
+            balanceToday = (totalsToday.runningBalanceMainEndOfDay as NSDecimalNumber).doubleValue
+            savingsToday = (totalsToday.runningBalanceSavingsEndOfDay as NSDecimalNumber).doubleValue
+            
             let offsets = [-1, 0, 1]
             var tempValues: [Double] = []
             var tempLabels: [String] = []
 
             for off in offsets {
                 let date = cal.date(byAdding: .day, value: off, to: today)!
-                let overview = try ledger.dayOverview(for: date)
-                let v = (overview.netTotal as NSDecimalNumber).doubleValue
-                tempValues.append(v)
-
-                if off == -1 { tempLabels.append("Yesterday") }
-                else if off == 0 { tempLabels.append("Today") }
-                else { tempLabels.append("Tomorrow") }
+                let totals = try ledger.dayTotals(for: date)
+                
+                tempValues.append((totals.runningBalanceMainEndOfDay as NSDecimalNumber).doubleValue)
+                
+                if off == -1 {
+                    tempLabels.append("Yesterday")
+                } else if off == 0 {
+                    tempLabels.append("Today")
+                } else {
+                    tempLabels.append("Tomorrow")
+                }
             }
 
             values = tempValues
@@ -155,7 +170,6 @@ struct HomeView: View {
         } catch {
             print("HomeView loadRealData error:", error)
             balanceToday = 0
-            netToday = 0
             values = Array(repeating: 0, count: 3)
             labels = ["Yesterday", "Today", "Tomorrow"]
         }
@@ -176,7 +190,8 @@ struct FlowAreaChart: View {
 
     var body: some View {
         GeometryReader { geo in
-
+            
+           
             let labelBand: CGFloat = 28
             let chartHeight = max(geo.size.height - labelBand, 1)
 
@@ -184,8 +199,8 @@ struct FlowAreaChart: View {
             let maxValue = max(values.max() ?? 0, 0)
             let range = (maxValue - minValue) == 0 ? 1 : (maxValue - minValue)
 
-            let zeroPosition = CGFloat((0 - minValue) / range)
-            let zeroY = chartHeight - (chartHeight * zeroPosition)
+            let boundaryY=chartHeight * 0.20
+            
 
             let lineGradient = LinearGradient(
                 colors: isNegativeTheme
@@ -223,8 +238,8 @@ struct FlowAreaChart: View {
 
             let point: (Int) -> CGPoint = { index in
                 let x = step * CGFloat(index)
-                let pct = CGFloat((values[index] - minValue) / range)
-                let y = chartHeight - (chartHeight * pct)
+                let scale:CGFloat=6
+                let y = boundaryY + CGFloat(values[index]) * scale
                 return CGPoint(x: x, y: y)
             }
 
@@ -250,13 +265,20 @@ struct FlowAreaChart: View {
                     path.closeSubpath()
                 }
                 .fill(fillGradient)
-
-                Path { path in
-                    path.move(to: CGPoint(x: 0, y: zeroY))
-                    path.addLine(to: CGPoint(x: geo.size.width, y: zeroY))
+                
+                Path{ path in
+                    path.move(to: CGPoint(x:0, y:0))
+                    path.addLine(to: CGPoint(x:0, y:chartHeight))
                 }
-                .stroke(Color.white.opacity(0.22), style: StrokeStyle(lineWidth: 1, dash: [6]))
+                .stroke(Color.white.opacity(0.30), lineWidth: 2)
+                
+                Path{ path in
+                    path.move(to: CGPoint(x:0, y: boundaryY))
+                    path.addLine(to: CGPoint(x: geo.size.width, y: boundaryY))
+                }
+                .stroke(Color.white.opacity(0.18), lineWidth:1.8)
 
+               
                 Path { path in
                     guard !values.isEmpty else { return }
 
@@ -266,7 +288,7 @@ struct FlowAreaChart: View {
                         else { path.addLine(to: p) }
                     }
                 }
-                .stroke(lineGradient, lineWidth: 3)
+                .stroke(lineGradient, lineWidth: 2)
 
                 ForEach(values.indices, id: \.self) { i in
                     let p = point(i)
