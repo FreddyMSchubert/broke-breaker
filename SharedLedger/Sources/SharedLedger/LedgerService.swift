@@ -466,6 +466,39 @@ public final class LedgerService: @unchecked Sendable {
         }
     }
 
+    	public func searchTransactions(_ query: String, type: TransactionSource) throws -> [String] {
+
+		let pattern = "%\(query.lowercased())%"
+
+		let dbTable: String = {
+			switch type {
+			case .oneTime: return "one_time_transactions"
+			case .recurring: return "recurring_rules"
+            case .saving: return "savings_transactions"
+			}
+		}()
+
+		let sql = """
+		SELECT title, COUNT(*) AS count
+		FROM \(dbTable)
+		WHERE LOWER(title) LIKE ?
+		GROUP BY title
+		ORDER BY count DESC
+		"""
+
+		var results: [String] = []
+
+		let rows = try db.dbQueue.read { rdb in
+			try Row.fetchAll(rdb, sql: sql, arguments: [pattern])
+		}
+
+		for row in rows {
+			results.append(row["title"])
+		}
+
+		return results
+	}
+
     // ----- Cache Logic
 
     private func ensureCachedThrough(day requested: Date, wdb: Database) throws {
