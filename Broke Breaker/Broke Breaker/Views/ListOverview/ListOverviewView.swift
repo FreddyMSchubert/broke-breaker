@@ -21,7 +21,8 @@ struct ListOverviewView: View {
     @State private var pageIndex = 1
     @State private var selectedItem: DayLineItem?
     @State private var refreshToken = UUID()
-    
+    @State private var lastSwitch: Date = .now
+    @State private var lastDirection: Int = 1
     @State private var selectedItemDay: Date = .now
 
     var body: some View {
@@ -66,12 +67,10 @@ struct ListOverviewView: View {
             .tabViewStyle(.page(indexDisplayMode: .never))
             .onChange(of: pageIndex) { _, newIndex in
                 guard newIndex != 1 else { return }
-                guard !dayChanging else { return }
                 dayChanging = true
                 let delta = newIndex - 1
-
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-
+                
+                if (lastSwitch > (Date.now - 0.25) && lastDirection == newIndex) {
                     if let newDate = Calendar.current.date(byAdding: .day, value: delta, to: date) {
                         date = newDate
                     }
@@ -81,6 +80,24 @@ struct ListOverviewView: View {
                         pageIndex = 1
                     }
                     dayChanging = false
+                    lastSwitch = Date.now
+                    lastDirection = newIndex
+                }
+                else {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+
+                        if let newDate = Calendar.current.date(byAdding: .day, value: delta, to: date) {
+                            date = newDate
+                        }
+                        var transaction = Transaction()
+                        transaction.disablesAnimations = true
+                        withTransaction(transaction) {
+                            pageIndex = 1
+                        }
+                        dayChanging = false
+                        lastSwitch = Date.now
+                        lastDirection = newIndex
+                    }
                 }
             }
         }
@@ -134,7 +151,7 @@ extension ListOverviewView {
             guard newIndex != 1 else { return }
             guard !weekChanging else { return }
             
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
                 let delta = newIndex - 1
                 if delta != 0 {
                     if let newWeekStart = Calendar.current.date(byAdding: .weekOfYear, value: delta, to: weekStart) {
@@ -293,9 +310,8 @@ extension ListOverviewView {
             VStack(alignment: .leading) {
                 HStack {
                     VStack(alignment: .leading) {
-                        HStack {
+                        HStack (spacing: 8) {
                             Text("Rollover")
-                            Spacer()
                             let rolloverSign = rollover >= 0 ? "+" : ""
                             Text("\(Locale(identifier: "en_GB@currency=\(currencySelected)").currencySymbol ?? currencySelected)\(rolloverSign)\(numberFormatter(number: rollover))")
                                 .lineLimit(1)
@@ -304,9 +320,8 @@ extension ListOverviewView {
                                                  : .red)
                                 .foregroundStyle(.primary)
                         }
-                        HStack {
+                        HStack (spacing: 8) {
                             Text("One Time")
-                            Spacer()
                             let oneTimeTotalSign = oneTimeTotal >= 0 ? "+" : ""
                             Text("\(Locale(identifier: "en_GB@currency=\(currencySelected)").currencySymbol ?? currencySelected)\(oneTimeTotalSign)\(numberFormatter(number: Decimal(oneTimeTotal)))")
                                 .lineLimit(1)
@@ -315,9 +330,8 @@ extension ListOverviewView {
                                                  : .red)
                                 .foregroundStyle(.primary)
                         }
-                        HStack {
+                        HStack (spacing: 8) {
                             Text("Recurring")
-                            Spacer()
                             let recurringTotalSign = recurringTotal >= 0 ? "+" : ""
                             Text("\(Locale(identifier: "en_GB@currency=\(currencySelected)").currencySymbol ?? currencySelected)\(recurringTotalSign)\(numberFormatter(number: Decimal(recurringTotal)))")
                                 .lineLimit(1)
@@ -326,12 +340,12 @@ extension ListOverviewView {
                                                  : .red)
                                 .foregroundStyle(.primary)
                         }
-                        HStack {
+                        HStack (spacing: 8) {
                             if (savingsdayTotal != 0)
                             {
                                 Text("Savings")
                                     .foregroundStyle(.primary)
-                                Spacer()
+
                                 let savingsTotalSign = savingsdayTotal >= 0 ? "+" : ""
                                 Text("\(Locale(identifier: "en_GB@currency=\(currencySelected)").currencySymbol ?? currencySelected)\(savingsTotalSign)\(numberFormatter(number: Decimal(savingsdayTotal)))")
                                     .lineLimit(1)
@@ -362,7 +376,6 @@ extension ListOverviewView {
                     .foregroundStyle(dayNetTotal >= 0
                                      ? .blue
                                      : .red)
-                    .lineLimit(1)
                     .padding(.bottom, 4)
                 HStack {
                     Text("Savings")
@@ -370,7 +383,6 @@ extension ListOverviewView {
                     Text("\(Locale(identifier: "en_GB@currency=\(currencySelected)").currencySymbol ?? currencySelected)+\(numberFormatter(number: savingsTotal))")
                         .font(.callout)
                         .fontWeight(.bold)
-                        .lineLimit(1)
                         .foregroundStyle(.blue)
                 }
             }
@@ -509,23 +521,44 @@ extension ListOverviewView {
     }
     
     private func numberFormatter(number: Decimal) -> String {
+        let absNumber = number < 0 ? -number : number
         
-        let numberDouble = NSDecimalNumber(decimal: number).doubleValue
-        let absoluteNumber = abs(numberDouble)
+        let divisor: Decimal
+        let suffix: String
         
-        let formatted: String
-        
-        if absoluteNumber >= 1_000_000_000 {
-            formatted = String(format: "%.2fB", numberDouble / 1_000_000_000)
-        } else if absoluteNumber >= 1_000_000 {
-            formatted = String(format: "%.2fM", numberDouble / 1_000_000)
-        } else if absoluteNumber >= 1_000 {
-            formatted = String(format: "%.2fK", numberDouble / 1_000)
+        if absNumber >= 1_000_000_000 {
+            divisor = 1_000_000_000
+            suffix = "B"
+        } else if absNumber >= 1_000_000 {
+            divisor = 1_000_000
+            suffix = "M"
+        } else if absNumber >= 1_000 {
+            divisor = 1_000
+            suffix = "K"
         } else {
-            formatted = String(format: "%.2f", numberDouble)
+            divisor = 1
+            suffix = ""
         }
         
-        return formatted
+        let value = number / divisor
+        
+        var valueString = NSDecimalNumber(decimal: value).stringValue
+        
+        if let dotIndex = valueString.firstIndex(of: ".") {
+            let decimalPart = valueString[valueString.index(after: dotIndex)...]
+            
+            if decimalPart.count > 2 {
+                let endIndex = valueString.index(dotIndex, offsetBy: 3)
+                valueString = String(valueString[..<endIndex])
+            } else if decimalPart.count == 1 {
+                valueString += "0"
+            }
+            
+        } else {
+            valueString += ".00"
+        }
+        
+        return valueString + suffix
     }
     
     private struct TransactionSectionView: View {
