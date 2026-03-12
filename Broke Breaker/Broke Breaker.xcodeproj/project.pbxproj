@@ -53,12 +53,20 @@
 			);
 			target = 2B148E292F3B48FD00C699BC /* BrokeBreakerWidgetExtension */;
 		};
+		2BFDCDBD2F62DDEB0060ADDF /* Exceptions for "BrokeBreakerWidget" folder in "Broke Breaker" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				widgetdatahelper.swift,
+			);
+			target = B64D557E2F2942B500F228D7 /* Broke Breaker */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		2B148E302F3B48FD00C699BC /* BrokeBreakerWidget */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
+				2BFDCDBD2F62DDEB0060ADDF /* Exceptions for "BrokeBreakerWidget" folder in "Broke Breaker" target */,
 				2B148E412F3B48FF00C699BC /* Exceptions for "BrokeBreakerWidget" folder in "BrokeBreakerWidgetExtension" target */,
 			);
 			path = BrokeBreakerWidget;

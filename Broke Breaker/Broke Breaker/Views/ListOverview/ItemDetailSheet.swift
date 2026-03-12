@@ -1,5 +1,7 @@
 import SwiftUI
 import SharedLedger
+import WidgetKit
+
 
 struct ItemDetailSheet: View {
     let ledger = Ledger.shared
@@ -181,13 +183,27 @@ struct ItemDetailSheet: View {
             case .recurring(let id):
                 if let rule = try ledger.fetchRecurring(id: id) { try ledger.deleteRecurring(rule) }
             }
+            updateWidget()
+            
             dismiss()
             onChanged()
         } catch {
             print("Delete failed:", error)
         }
     }
-
+    
+    //widget
+    
+    private func updateWidget() {
+        do {
+            let totals = try ledger.dayTotals(for: Date())
+            let balance = (totals.runningBalanceEndOfDay as NSDecimalNumber).doubleValue
+            WidgetDataHelper.updateWidgetData(balance: balance)
+        } catch {
+            print("Failed to update widget: \(error)")
+        }
+    }
+    
     private var displayAmount: Decimal {
         switch item.source {
         case .oneTime:

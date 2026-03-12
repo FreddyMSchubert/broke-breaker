@@ -433,11 +433,8 @@ struct AddItemView: View {
             //widget update
             let totalsToday = try ledger.dayTotals(for: Date())
             let updatedBalance = (totalsToday.runningBalanceEndOfDay as NSDecimalNumber).doubleValue
+            WidgetDataHelper.updateWidgetData(balance: updatedBalance)
             
-            let defaults = UserDefaults(suiteName: "group.com.freddy.brokebreaker")
-            defaults?.set(updatedBalance, forKey: "currentBalance")
-            WidgetCenter.shared.reloadAllTimelines()
-                
                 alert = .success(createTransactionName.capitalized + " saved.")
 
             // Reset (unchanged)
