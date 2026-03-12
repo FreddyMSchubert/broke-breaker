@@ -466,38 +466,37 @@ public final class LedgerService: @unchecked Sendable {
         }
     }
 
-    	public func searchTransactions(_ query: String, type: TransactionSource) throws -> [String] {
+    public func searchTransactions(_ query: String, type: TransactionSource) throws -> [String] {
+        let q = query.lowercased()
+        let exactPrefix = "\(q)%"
+        let contains = "%\(q)%"
 
-		let pattern = "%\(query.lowercased())%"
-
-		let dbTable: String = {
-			switch type {
-			case .oneTime: return "one_time_transactions"
-			case .recurring: return "recurring_rules"
+        let dbTable: String = {
+            switch type {
+            case .oneTime: return "one_time_transactions"
+            case .recurring: return "recurring_rules"
             case .saving: return "savings_transactions"
-			}
-		}()
+            }
+        }()
 
-		let sql = """
-		SELECT title, COUNT(*) AS count
-		FROM \(dbTable)
-		WHERE LOWER(title) LIKE ?
-		GROUP BY title
-		ORDER BY count DESC
-		"""
+        let sql = """
+        SELECT title, COUNT(*) AS count
+        FROM \(dbTable)
+        WHERE LOWER(title) LIKE ?
+        GROUP BY title
+        ORDER BY
+            CASE WHEN LOWER(title) LIKE ? THEN 0 ELSE 1 END,
+            count DESC,
+            title COLLATE NOCASE ASC
+        LIMIT 8
+        """
 
-		var results: [String] = []
+        let rows = try db.dbQueue.read { rdb in
+            try Row.fetchAll(rdb, sql: sql, arguments: [contains, exactPrefix])
+        }
 
-		let rows = try db.dbQueue.read { rdb in
-			try Row.fetchAll(rdb, sql: sql, arguments: [pattern])
-		}
-
-		for row in rows {
-			results.append(row["title"])
-		}
-
-		return results
-	}
+        return rows.map { $0["title"] }
+    }
 
     // ----- Cache Logic
 

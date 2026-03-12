@@ -5,6 +5,8 @@ struct TransactionEditorView: View {
     @Environment(\.dismiss) private var dismiss
     @FocusState private var focusedField: FocusedField?
     @AppStorage("selectedCurrencyCode") private var currencySelected = "GBP"
+    @State private var titleSuggestions: [String] = []
+    @State private var titleSearchTask: Task<Void, Never>?
 
     enum FocusedField { case title, amount, every }
 
@@ -127,18 +129,54 @@ struct TransactionEditorView: View {
                         Text("Title")
                             .font(.title3.weight(.semibold))
 
-                        TextField("e.g. Rent, Salary, Coffee, Groceries…", text: $title)
-                            .font(.system(size: 18, weight: .medium))
-                            .textInputAutocapitalization(.words)
-                            .submitLabel(.done)
-                            .focused($focusedField, equals: .title)
-                            .padding(14)
-                            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                    .stroke(.white.opacity(0.12), lineWidth: 1)
-                            )
+                        VStack(alignment: .leading, spacing: 8) {
+                            TextField("e.g. Rent, Salary, Coffee, Groceries…", text: $title)
+                                .font(.system(size: 18, weight: .medium))
+                                .textInputAutocapitalization(.words)
+                                .submitLabel(.done)
+                                .focused($focusedField, equals: .title)
+                                .padding(14)
+                                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                        .stroke(.white.opacity(0.12), lineWidth: 1)
+                                )
+                                .onChange(of: title) { _, newValue in
+                                    scheduleTitleAutocomplete(for: newValue)
+                                }
+                                .onChange(of: type) { _, _ in
+                                    scheduleTitleAutocomplete(for: title)
+                                }
+
+                            if shouldShowTitleSuggestions {
+                                ScrollView(.horizontal, showsIndicators: false) {
+                                    HStack(spacing: 8) {
+                                        ForEach(titleSuggestions, id: \.self) { suggestion in
+                                            Button {
+                                                applyTitleSuggestion(suggestion)
+                                            } label: {
+                                                Text(suggestion)
+                                                    .font(.subheadline.weight(.semibold))
+                                                    .lineLimit(1)
+                                                    .padding(.horizontal, 12)
+                                                    .padding(.vertical, 8)
+                                                    .background(.ultraThinMaterial)
+                                                    .clipShape(Capsule())
+                                                    .overlay(
+                                                        Capsule()
+                                                            .stroke(.white.opacity(0.12), lineWidth: 1)
+                                                    )
+                                            }
+                                            .buttonStyle(.plain)
+                                        }
+                                    }
+                                    .padding(.horizontal, 2)
+                                }
+                                .transition(.opacity.combined(with: .move(edge: .top)))
+                            }
+                        }
                     }
+                    .animation(.easeInOut(duration: 0.18), value: titleSuggestions)
 
                     // Amount
                     VStack(alignment: .leading, spacing: 8) {
@@ -288,9 +326,16 @@ struct TransactionEditorView: View {
         .onAppear { prefillFromMode() }
         .contentShape(Rectangle())
         .simultaneousGesture(
-            TapGesture().onEnded { focusedField = nil }
+            TapGesture().onEnded {
+                focusedField = nil
+                titleSuggestions = []
+            }
         )
+        .onDisappear {
+            titleSearchTask?.cancel()
+        }
     }
+    
     
     // MARK: - Details
 
@@ -446,6 +491,8 @@ struct TransactionEditorView: View {
     // MARK: - Prefill
 
     private func prefillFromMode() {
+        titleSuggestions = []
+
         switch mode {
         case .create:
             break
@@ -700,6 +747,7 @@ struct TransactionEditorView: View {
         everyNText = "1"
         unit = .days
 
+        titleSuggestions = []
         focusedField = nil
     }
 
@@ -804,6 +852,57 @@ struct TransactionEditorView: View {
                 everyNText = trimmed.isEmpty ? (digitsOnly.isEmpty ? "1" : "0") : String(trimmed)
             }
         )
+    }
+    
+    private var autocompleteSourceType: TransactionSource {
+        switch type {
+        case .oneTime: return .oneTime(id: 0)
+        case .repeating: return .recurring(id: 0)
+        case .saving: return .saving(id: 0)
+        }
+    }
+    private var shouldShowTitleSuggestions: Bool {
+        focusedField == .title && !titleSuggestions.isEmpty
+    }
+    private func applyTitleSuggestion(_ suggestion: String) {
+        title = suggestion
+        titleSuggestions = []
+        focusedField = nil
+    }
+    private func scheduleTitleAutocomplete(for rawQuery: String) {
+        titleSearchTask?.cancel()
+
+        let query = rawQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !query.isEmpty else {
+            titleSuggestions = []
+            return
+        }
+
+        titleSearchTask = Task {
+            try? await Task.sleep(nanoseconds: 180_000_000) // 180ms debounce
+            guard !Task.isCancelled else { return }
+
+            do {
+                let results = try Ledger.shared.searchTransactions(query, type: autocompleteSourceType)
+
+                guard !Task.isCancelled else { return }
+
+                let normalizedQuery = query.lowercased()
+
+                let filtered = results
+                    .filter { $0.lowercased() != normalizedQuery }
+                    .prefix(8)
+
+                await MainActor.run {
+                    titleSuggestions = Array(filtered)
+                }
+            } catch {
+                await MainActor.run {
+                    titleSuggestions = []
+                }
+            }
+        }
     }
 
     private func formattedUKFromDigits(_ digits: String) -> String {
