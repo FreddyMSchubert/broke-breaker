@@ -13,7 +13,7 @@ public final class LedgerService: @unchecked Sendable {
     // ----- Public Write API
 
     @discardableResult
-    public func addOneTime(title: String, date: Date, amount: Decimal) throws -> OneTimeTransaction {
+    public func addOneTime(title: String, date: Date, amount: Decimal, description: String) throws -> OneTimeTransaction {
         let d = dayStart(date)
 
         return try db.dbQueue.write { wdb in
@@ -22,17 +22,17 @@ public final class LedgerService: @unchecked Sendable {
 
             try wdb.execute(
                 sql: """
-                INSERT INTO one_time_transactions(title, date_seconds, amount_decimal)
-                VALUES (?, ?, ?);
+                INSERT INTO one_time_transactions(title, date_seconds, amount_decimal, description)
+                VALUES (?, ?, ?, ?);
                 """,
-                arguments: [title, seconds, amountStr]
+                arguments: [title, seconds, amountStr, description]
             )
 
             let newId = wdb.lastInsertedRowID
             try invalidateCache(from: d, wdb: wdb)
             try ensureCachedThrough(day: recomputeTarget(wdb: wdb), wdb: wdb)
 
-            return OneTimeTransaction(id: newId, title: title, date: date, amount: amount)
+            return OneTimeTransaction(id: newId, title: title, date: date, amount: amount, description: description)
         }
     }
 
@@ -42,7 +42,8 @@ public final class LedgerService: @unchecked Sendable {
         amountPerCycle: Decimal,
         startDate: Date,
         endDate: Date?,
-        recurrence: Recurrence
+        recurrence: Recurrence,
+        description: String
     ) throws -> RecurringRule {
         try db.dbQueue.write { wdb in
             let startSec = LedgerDatabase.dateToSeconds(startDate)
@@ -62,10 +63,10 @@ public final class LedgerService: @unchecked Sendable {
                 sql: """
                 INSERT INTO recurring_rules(
                     title, amount_per_cycle_decimal, start_date_seconds, end_date_seconds,
-                    recurrence_unit, recurrence_interval
-                ) VALUES (?, ?, ?, ?, ?, ?);
+                    recurrence_unit, recurrence_interval, description
+                ) VALUES (?, ?, ?, ?, ?, ?, ?);
                 """,
-                arguments: [title, amountStr, startSec, endSec as DatabaseValueConvertible?, unit, interval]
+                arguments: [title, amountStr, startSec, endSec as DatabaseValueConvertible?, unit, interval, description]
             )
 
             let newId = wdb.lastInsertedRowID
@@ -80,7 +81,8 @@ public final class LedgerService: @unchecked Sendable {
                 amountPerCycle: amountPerCycle,
                 startDate: startDate,
                 endDate: endDate,
-                recurrence: recurrence
+                recurrence: recurrence,
+                description: description
             )
         }
     }
@@ -88,7 +90,7 @@ public final class LedgerService: @unchecked Sendable {
     /// Savings transfer (one-time).
     /// `amount` is MAIN pot delta; savings delta is `-amount`.
     @discardableResult
-    public func addSavings(title: String, date: Date, amount: Decimal) throws -> SavingsTransaction {
+    public func addSavings(title: String, date: Date, amount: Decimal, description: String) throws -> SavingsTransaction {
         let d = dayStart(date)
 
         return try db.dbQueue.write { wdb in
@@ -97,10 +99,10 @@ public final class LedgerService: @unchecked Sendable {
 
             try wdb.execute(
                 sql: """
-                INSERT INTO savings_transactions(title, date_seconds, amount_decimal)
-                VALUES (?, ?, ?);
+                INSERT INTO savings_transactions(title, date_seconds, amount_decimal, description)
+                VALUES (?, ?, ?, ?);
                 """,
-                arguments: [title, seconds, amountStr]
+                arguments: [title, seconds, amountStr, description]
             )
 
             let newId = wdb.lastInsertedRowID
@@ -110,7 +112,7 @@ public final class LedgerService: @unchecked Sendable {
             try invalidateCache(from: d, wdb: wdb)
             try ensureCachedThrough(day: recomputeTarget(wdb: wdb), wdb: wdb)
 
-            return SavingsTransaction(id: newId, title: title, date: date, amount: amount)
+            return SavingsTransaction(id: newId, title: title, date: date, amount: amount, description: description)
         }
     }
 
@@ -301,6 +303,7 @@ public final class LedgerService: @unchecked Sendable {
                         title: rule.title,
                         mainAmount: amt,
                         savingsAmount: 0,
+                        description: rule.description,
                         source: .recurring(id: rule.id)
                     ))
                 }
@@ -311,7 +314,8 @@ public final class LedgerService: @unchecked Sendable {
                     title: tx.title,
                     mainAmount: tx.amount,
                     savingsAmount: 0,
-                    source: .oneTime(id: tx.id)
+                    source: .oneTime(id: tx.id),
+                    description: tx.description
                 ))
             }
 
@@ -320,6 +324,7 @@ public final class LedgerService: @unchecked Sendable {
                     title: tx.title,
                     mainAmount: tx.amount,
                     savingsAmount: -tx.amount,
+                    description: tx.description,
                     source: .saving(id: tx.id)
                 ))
             }
@@ -380,11 +385,11 @@ public final class LedgerService: @unchecked Sendable {
     }
 
     public func fetchOneTime(id: PersistentIdentifier) throws -> OneTimeTransaction? {
-        try db.dbQueue.read { rdb in
+        try db.dbQueue.read { rdb -> OneTimeTransaction? in
             guard let row = try Row.fetchOne(
                 rdb,
                 sql: """
-                SELECT id, title, date_seconds, amount_decimal
+                SELECT id, title, date_seconds, amount_decimal, description
                 FROM one_time_transactions
                 WHERE id = ?;
                 """,
@@ -395,23 +400,25 @@ public final class LedgerService: @unchecked Sendable {
             let title: String = row["title"]
             let dateSec: Int64 = row["date_seconds"]
             let amountStr: String = row["amount_decimal"]
+            let description: String = row["description"]
 
             return OneTimeTransaction(
                 id: id,
                 title: title,
                 date: LedgerDatabase.secondsToDate(dateSec),
-                amount: LedgerDatabase.stringToDecimal(amountStr)
+                amount: LedgerDatabase.stringToDecimal(amountStr),
+                description: description
             )
         }
     }
 
     public func fetchRecurring(id: PersistentIdentifier) throws -> RecurringRule? {
-        try db.dbQueue.read { rdb in
+        try db.dbQueue.read { rdb -> RecurringRule? in
             guard let row = try Row.fetchOne(
                 rdb,
                 sql: """
                 SELECT id, title, amount_per_cycle_decimal, start_date_seconds, end_date_seconds,
-                    recurrence_unit, recurrence_interval
+                    recurrence_unit, recurrence_interval, description
                 FROM recurring_rules
                 WHERE id = ?;
                 """,
@@ -425,6 +432,7 @@ public final class LedgerService: @unchecked Sendable {
             let endSec: Int64? = row["end_date_seconds"]
             let unit: Int = row["recurrence_unit"]
             let interval: Int = row["recurrence_interval"]
+            let description: String = row["description"]
 
             let rule = RecurringRule(
                 id: id,
@@ -432,7 +440,8 @@ public final class LedgerService: @unchecked Sendable {
                 amountPerCycle: LedgerDatabase.stringToDecimal(amountStr),
                 startDate: LedgerDatabase.secondsToDate(startSec),
                 endDate: endSec.map(LedgerDatabase.secondsToDate),
-                recurrence: .everyMonths(1)
+                recurrence: .everyMonths(1),
+                description: description
             )
             rule.recurrenceUnit = unit
             rule.recurrenceInterval = interval
@@ -445,7 +454,7 @@ public final class LedgerService: @unchecked Sendable {
             guard let row = try Row.fetchOne(
                 rdb,
                 sql: """
-                SELECT id, title, date_seconds, amount_decimal
+                SELECT id, title, date_seconds, amount_decimal, description
                 FROM savings_transactions
                 WHERE id = ?;
                 """,
@@ -456,12 +465,14 @@ public final class LedgerService: @unchecked Sendable {
             let title: String = row["title"]
             let dateSec: Int64 = row["date_seconds"]
             let amountStr: String = row["amount_decimal"]
+            let description: String = row["description"]
 
             return SavingsTransaction(
                 id: id,
                 title: title,
                 date: LedgerDatabase.secondsToDate(dateSec),
-                amount: LedgerDatabase.stringToDecimal(amountStr)
+                amount: LedgerDatabase.stringToDecimal(amountStr),
+                description: description
             )
         }
     }
@@ -736,7 +747,7 @@ public final class LedgerService: @unchecked Sendable {
     private func fetchAllRecurringRules(wdb: Database) throws -> [RecurringRule] {
         let rows = try Row.fetchAll(wdb, sql: """
             SELECT id, title, amount_per_cycle_decimal, start_date_seconds, end_date_seconds,
-                   recurrence_unit, recurrence_interval
+                   recurrence_unit, recurrence_interval, description
             FROM recurring_rules;
         """)
 
@@ -748,6 +759,7 @@ public final class LedgerService: @unchecked Sendable {
             let endSec: Int64? = row["end_date_seconds"]
             let unit: Int = row["recurrence_unit"]
             let interval: Int = row["recurrence_interval"]
+            let description: String = row["description"]
 
             let rule = RecurringRule(
                 id: id,
@@ -755,7 +767,8 @@ public final class LedgerService: @unchecked Sendable {
                 amountPerCycle: LedgerDatabase.stringToDecimal(amountStr),
                 startDate: LedgerDatabase.secondsToDate(startSec),
                 endDate: endSec.map(LedgerDatabase.secondsToDate),
-                recurrence: .everyMonths(1)
+                recurrence: .everyMonths(1),
+                description: description
             )
             rule.recurrenceUnit = unit
             rule.recurrenceInterval = interval
@@ -773,7 +786,7 @@ public final class LedgerService: @unchecked Sendable {
         let rows = try Row.fetchAll(
             wdb,
             sql: """
-            SELECT id, title, date_seconds, amount_decimal
+            SELECT id, title, date_seconds, amount_decimal, description
             FROM one_time_transactions
             WHERE date_seconds >= ? AND date_seconds < ?
             ORDER BY date_seconds ASC;
@@ -786,12 +799,14 @@ public final class LedgerService: @unchecked Sendable {
             let title: String = row["title"]
             let dateSec: Int64 = row["date_seconds"]
             let amountStr: String = row["amount_decimal"]
+            let description: String = row["description"]
 
             return OneTimeTransaction(
                 id: id,
                 title: title,
                 date: LedgerDatabase.secondsToDate(dateSec),
-                amount: LedgerDatabase.stringToDecimal(amountStr)
+                amount: LedgerDatabase.stringToDecimal(amountStr),
+                description: description
             )
         }
     }
@@ -806,7 +821,7 @@ public final class LedgerService: @unchecked Sendable {
         let rows = try Row.fetchAll(
             wdb,
             sql: """
-            SELECT id, title, date_seconds, amount_decimal
+            SELECT id, title, date_seconds, amount_decimal, description
             FROM savings_transactions
             WHERE date_seconds >= ? AND date_seconds < ?
             ORDER BY date_seconds ASC;
@@ -819,12 +834,14 @@ public final class LedgerService: @unchecked Sendable {
             let title: String = row["title"]
             let dateSec: Int64 = row["date_seconds"]
             let amountStr: String = row["amount_decimal"]
+            let description: String = row["description"]
 
             return SavingsTransaction(
                 id: id,
                 title: title,
                 date: LedgerDatabase.secondsToDate(dateSec),
-                amount: LedgerDatabase.stringToDecimal(amountStr)
+                amount: LedgerDatabase.stringToDecimal(amountStr),
+                description: description
             )
         }
     }
@@ -917,7 +934,7 @@ public final class LedgerService: @unchecked Sendable {
         var v = value
         var d = Decimal(divisor)
         var result = Decimal()
-        NSDecimalDivide(&result, &v, &d, .bankers)
+        _ = NSDecimalDivide(&result, &v, &d, .bankers)
         return result
     }
     

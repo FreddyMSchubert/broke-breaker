@@ -29,11 +29,14 @@ public struct DayLineItem: Identifiable, Sendable {
 
     public let source: Source
 
-    public init(title: String, mainAmount: Decimal, savingsAmount: Decimal, source: Source) {
+    public let description: String 
+
+    public init(title: String, mainAmount: Decimal, savingsAmount: Decimal, source: Source, description: String) {
         self.title = title
         self.mainAmount = mainAmount
         self.savingsAmount = savingsAmount
         self.source = source
+        self.description = description
     }
 }
 
@@ -70,12 +73,14 @@ public final class OneTimeTransaction: @unchecked Sendable {
     public var title: String
     public var date: Date
     public var amount: Decimal // main pot delta
+    public var description: String
 
-    public init(id: PersistentIdentifier, title: String, date: Date, amount: Decimal) {
+    public init(id: PersistentIdentifier, title: String, date: Date, amount: Decimal, description: String) {
         self.id = id
         self.title = title
         self.date = date
         self.amount = amount
+        self.description = description
     }
 }
 
@@ -85,6 +90,7 @@ public final class RecurringRule: @unchecked Sendable {
     public var amountPerCycle: Decimal
     public var startDate: Date
     public var endDate: Date?
+    public var description: String
 
     // 0=days, 1=weeks, 2=months, 3=years
     public var recurrenceUnit: Int
@@ -96,13 +102,15 @@ public final class RecurringRule: @unchecked Sendable {
         amountPerCycle: Decimal,
         startDate: Date,
         endDate: Date?,
-        recurrence: Recurrence
+        recurrence: Recurrence,
+        description: String
     ) {
         self.id = id
         self.title = title
         self.amountPerCycle = amountPerCycle
         self.startDate = startDate
         self.endDate = endDate
+        self.description = description
 
         switch recurrence {
         case .everyDays(let n):

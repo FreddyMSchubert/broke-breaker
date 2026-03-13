@@ -6,9 +6,9 @@ let dbPath = "./ledger.sqlite"
 do {
 	let ledger = try LedgerService(databasePath: dbPath)
 
-	_ = try ledger.addOneTime(title: "Coffee", date: Date(), amount: Decimal(string: "-3.50")!)
-	_ = try ledger.addOneTime(title: "Coffin", date: Date(), amount: Decimal(string: "-300.50")!)
-	_ = try ledger.addOneTime(title: "Coffin", date: Date(), amount: Decimal(string: "-300.50")!)
+	_ = try ledger.addOneTime(title: "Coffee", date: Date(), amount: Decimal(string: "-3.50"), description: "i got some black sheep coffee")
+	/*_ = try ledger.addOneTime(title: "Coffin", date: Date(), amount: Decimal(string: "-300.50"), description: "someone died")
+	_ = try ledger.addOneTime(title: "Coffin", date: Date(), amount: Decimal(string: "-300.50"), description: "someone else died")
 	_ = try ledger.addRecurring(
 		title: "Salary",
 		amountPerCycle: Decimal(string: "2000")!,
@@ -26,8 +26,8 @@ do {
 
 	let totals = try ledger.dayTotals(for: Date())
 	print("Running EOD:", totals.runningBalanceMainEndOfDay, totals.runningBalanceSavingsEndOfDay)
-
-	let results = try ledger.searchTransactions("coff", type: TransactionSource.oneTime(id: 0))
+*/
+	//let results = try ledger.searchTransactions("coff", type: TransactionSource.oneTime(id: 0))
 
 	print(results)
 } catch {
