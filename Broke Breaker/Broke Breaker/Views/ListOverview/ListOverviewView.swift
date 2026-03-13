@@ -21,9 +21,12 @@ struct ListOverviewView: View {
     @State private var pageIndex = 1
     @State private var selectedItem: DayLineItem?
     @State private var refreshToken = UUID()
-    @State private var lastSwitch: Date = .now
-    @State private var lastDirection: Int = 1
     @State private var selectedItemDay: Date = .now
+    
+    @State private var lastDaySwitch: Date = .now
+    @State private var lastDayDirection: Int = 1
+    @State private var lastWeekSwitch: Date = .now
+    @State private var lastWeekDirection: Int = 1
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -70,7 +73,7 @@ struct ListOverviewView: View {
                 dayChanging = true
                 let delta = newIndex - 1
                 
-                if (lastSwitch > (Date.now - 0.25) && lastDirection == newIndex) {
+                if (lastDaySwitch > (Date.now - 0.25) && lastDayDirection == newIndex) {
                     if let newDate = Calendar.current.date(byAdding: .day, value: delta, to: date) {
                         date = newDate
                     }
@@ -79,9 +82,6 @@ struct ListOverviewView: View {
                     withTransaction(transaction) {
                         pageIndex = 1
                     }
-                    dayChanging = false
-                    lastSwitch = Date.now
-                    lastDirection = newIndex
                 }
                 else {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
@@ -94,11 +94,10 @@ struct ListOverviewView: View {
                         withTransaction(transaction) {
                             pageIndex = 1
                         }
-                        dayChanging = false
-                        lastSwitch = Date.now
-                        lastDirection = newIndex
                     }
                 }
+                dayChanging = false
+                lastDaySwitch = Date.now
             }
         }
         .onAppear {
@@ -151,7 +150,7 @@ extension ListOverviewView {
             guard newIndex != 1 else { return }
             guard !weekChanging else { return }
             
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                 let delta = newIndex - 1
                 if delta != 0 {
                     if let newWeekStart = Calendar.current.date(byAdding: .weekOfYear, value: delta, to: weekStart) {
@@ -528,13 +527,13 @@ extension ListOverviewView {
         
         if absNumber >= 1_000_000_000 {
             divisor = 1_000_000_000
-            suffix = "B"
+            suffix = "b"
         } else if absNumber >= 1_000_000 {
             divisor = 1_000_000
-            suffix = "M"
+            suffix = "m"
         } else if absNumber >= 1_000 {
             divisor = 1_000
-            suffix = "K"
+            suffix = "k"
         } else {
             divisor = 1
             suffix = ""
