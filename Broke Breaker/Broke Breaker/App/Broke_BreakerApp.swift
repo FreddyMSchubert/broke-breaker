@@ -20,21 +20,10 @@ struct Broke_BreakerApp: App {
     
     var body: some Scene {
         WindowGroup {
-            RootTabView()
-                .onAppear {
-                    updateWidget()
-                }
-        }
-    }
-    
-    private func updateWidget() {
-        do {
-            let totals = try Ledger.shared.dayTotals(for: Date())
-            let balance = (totals.runningBalanceEndOfDay as NSDecimalNumber).doubleValue
-            WidgetDataHelper.updateWidgetData(balance: balance)
+            AppRootView()
             
-        } catch {
-            print("Failed to update widget on app launch: \(error)")
+            
+            
         }
     }
 }
