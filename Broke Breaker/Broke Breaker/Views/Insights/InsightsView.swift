@@ -1,7 +1,7 @@
 import SwiftUI
 import SharedLedger
 
-enum Period: String, CaseIterable { case weekly = "Weekly", monthly = "Monthly" }
+enum Period: String, CaseIterable { case weekly = "Weekly", monthly = "Monthly", biannual = "Biannual" }
 enum ChartMode: String, CaseIterable { case line = "Line", bars = "Bars" }
 
 struct InsightsView: View {
@@ -32,8 +32,9 @@ struct InsightsView: View {
                     HStack(spacing: 12) {
                         // Period menu
                         Menu {
-                            Button(action: { period = .weekly }) { Label("Weekly", systemImage: period == .weekly ? "checkmark" : "") }
-                            Button(action: { period = .monthly }) { Label("Monthly", systemImage: period == .monthly ? "checkmark" : "") }
+                            ForEach(Period.allCases, id: \.self) { p in
+                                Button(action: { period = p }) { Label(p.rawValue, systemImage: period == p ? "checkmark" : "") }
+                            }
                         } label: {
                             HStack(spacing: 8) {
                                 Text(period.rawValue)
@@ -89,19 +90,41 @@ struct InsightsView: View {
                         Group {
                             switch chartMode {
                             case .line:
-                                InsightsLineChart(points: chartPointsLine(), formatter: chartLabelFormatter(), tapEnabledDates: interactiveDates()) { date in
-                                    selectedDateForNavigation = date
-                                    navigateToList = true
+                                if period == .monthly {
+                                    let dayCount = currentMonthDaysCount()
+                                    let perDayWidth: CGFloat = 36
+                                    ScrollView(.horizontal, showsIndicators: false) {
+                                        InsightsLineChart(points: chartPointsLine(), formatter: chartLabelFormatter(), tapEnabledDates: interactiveDates()) { date in
+                                            NotificationCenter.default.post(name: .showListForDate, object: date)
+                                        }
+                                        .frame(width: CGFloat(dayCount) * perDayWidth, height: 180)
+                                    }
+                                    .padding(.top, 6)
+                                } else {
+                                    InsightsLineChart(points: chartPointsLine(), formatter: chartLabelFormatter(), tapEnabledDates: interactiveDates()) { date in
+                                        NotificationCenter.default.post(name: .showListForDate, object: date)
+                                    }
+                                    .frame(height: 180)
+                                    .padding(.top, 6)
                                 }
-                                .frame(height: 180)
-                                .padding(.top, 6)
                             case .bars:
-                                SpendingBarChart(bins: spendingBins(), formatter: chartLabelFormatter()) { date in
-                                    selectedDateForNavigation = date
-                                    navigateToList = true
+                                if period == .monthly {
+                                    let dayCount = currentMonthDaysCount()
+                                    let perDayWidth: CGFloat = 36
+                                    ScrollView(.horizontal, showsIndicators: false) {
+                                        SpendingBarChart(bins: spendingBins(), formatter: chartLabelFormatter()) { date in
+                                            NotificationCenter.default.post(name: .showListForDate, object: date)
+                                        }
+                                        .frame(width: CGFloat(dayCount) * perDayWidth, height: 180)
+                                    }
+                                    .padding(.top, 6)
+                                } else {
+                                    SpendingBarChart(bins: spendingBins(), formatter: chartLabelFormatter()) { date in
+                                        NotificationCenter.default.post(name: .showListForDate, object: date)
+                                    }
+                                    .frame(height: 180)
+                                    .padding(.top, 6)
                                 }
-                                .frame(height: 180)
-                                .padding(.top, 6)
                             }
                         }
                     }
@@ -123,19 +146,41 @@ struct InsightsView: View {
                         Group {
                             switch chartMode {
                             case .line:
-                                InsightsLineChart(points: chartPointsSavingsLine(), formatter: chartLabelFormatter(), tapEnabledDates: interactiveSavingsDates()) { date in
-                                    selectedDateForNavigation = date
-                                    navigateToList = true
+                                if period == .monthly {
+                                    let dayCount = currentMonthDaysCount()
+                                    let perDayWidth: CGFloat = 36
+                                    ScrollView(.horizontal, showsIndicators: false) {
+                                        InsightsLineChart(points: chartPointsSavingsLine(), formatter: chartLabelFormatter(), tapEnabledDates: interactiveSavingsDates()) { date in
+                                            NotificationCenter.default.post(name: .showListForDate, object: date)
+                                        }
+                                        .frame(width: CGFloat(dayCount) * perDayWidth, height: 180)
+                                    }
+                                    .padding(.top, 6)
+                                } else {
+                                    InsightsLineChart(points: chartPointsSavingsLine(), formatter: chartLabelFormatter(), tapEnabledDates: interactiveSavingsDates()) { date in
+                                        NotificationCenter.default.post(name: .showListForDate, object: date)
+                                    }
+                                    .frame(height: 180)
+                                    .padding(.top, 6)
                                 }
-                                .frame(height: 180)
-                                .padding(.top, 6)
                             case .bars:
-                                SpendingBarChart(bins: savingsBins(), formatter: chartLabelFormatter()) { date in
-                                    selectedDateForNavigation = date
-                                    navigateToList = true
+                                if period == .monthly {
+                                    let dayCount = currentMonthDaysCount()
+                                    let perDayWidth: CGFloat = 36
+                                    ScrollView(.horizontal, showsIndicators: false) {
+                                        SpendingBarChart(bins: savingsBins(), formatter: chartLabelFormatter()) { date in
+                                            NotificationCenter.default.post(name: .showListForDate, object: date)
+                                        }
+                                        .frame(width: CGFloat(dayCount) * perDayWidth, height: 180)
+                                    }
+                                    .padding(.top, 6)
+                                } else {
+                                    SpendingBarChart(bins: savingsBins(), formatter: chartLabelFormatter()) { date in
+                                        NotificationCenter.default.post(name: .showListForDate, object: date)
+                                    }
+                                    .frame(height: 180)
+                                    .padding(.top, 6)
                                 }
-                                .frame(height: 180)
-                                .padding(.top, 6)
                             }
                         }
                     }
@@ -147,9 +192,6 @@ struct InsightsView: View {
                 .padding(.horizontal)
             }
             .onAppear { loadWeeklyTotals() }
-            .navigationDestination(isPresented: $navigateToList) {
-                ListOverviewView(initialDate: selectedDateForNavigation ?? Date())
-            }
         }
     }
 
@@ -205,6 +247,14 @@ extension InsightsView {
                 weekStart = newMonth
                 loadWeeklyTotals()
             }
+        case .biannual:
+            var comps = cal.dateComponents([.year, .month], from: weekStart)
+            comps.day = 1
+            let anchor = cal.date(from: comps) ?? weekStart
+            if let newMonth = cal.date(byAdding: .month, value: offset, to: anchor) {
+                weekStart = newMonth
+                loadWeeklyTotals()
+            }
         }
     }
 
@@ -231,6 +281,15 @@ extension InsightsView {
             let df = DateFormatter()
             df.dateFormat = "MMM yyyy"
             return "\(df.string(from: start)) – \(df.string(from: end))"
+        case .biannual:
+            let cal = Calendar.current
+            var comps = cal.dateComponents([.year, .month], from: weekStart)
+            comps.day = 1
+            let anchor = cal.date(from: comps) ?? weekStart
+            let start = cal.date(byAdding: .month, value: -5, to: anchor) ?? anchor
+            let df = DateFormatter()
+            df.dateFormat = "MMM yyyy"
+            return "\(df.string(from: start)) – \(df.string(from: anchor))"
         }
     }
 
@@ -309,6 +368,26 @@ extension InsightsView {
             let monthDays = (0..<(cal.range(of: .day, in: .month, for: start)?.count ?? 30)).compactMap { cal.date(byAdding: .day, value: $0, to: start) }.map { cal.startOfDay(for: $0) }
             if monthDays.contains(today) { return today }
             return monthDays.first ?? today
+        case .biannual:
+            var comps = cal.dateComponents([.year, .month], from: weekStart)
+            comps.day = 1
+            let anchor = cal.date(from: comps) ?? weekStart
+            let months = (0...5).compactMap { back -> Date? in
+                cal.date(byAdding: .month, value: -(5 - back), to: anchor)
+            }
+            let monthDays = months.flatMap { month -> [Date] in
+                let next = cal.date(byAdding: .month, value: 1, to: month) ?? month
+                var days: [Date] = []
+                var d = month
+                while d < next {
+                    days.append(cal.startOfDay(for: d))
+                    d = cal.date(byAdding: .day, value: 1, to: d) ?? d
+                    if d == month { break }
+                }
+                return days
+            }
+            if monthDays.contains(today) { return today }
+            return monthDays.first ?? today
         }
     }
 
@@ -335,6 +414,18 @@ extension InsightsView {
                 let val = NSDecimalNumber(decimal: end - anchorEnd).doubleValue
                 return (day, val)
             }
+        case .biannual:
+            var comps = cal.dateComponents([.year, .month], from: weekStart)
+            comps.day = 1
+            let anchor = cal.date(from: comps) ?? weekStart
+            let months = (0...5).compactMap { back -> Date? in
+                cal.date(byAdding: .month, value: -(5 - back), to: anchor)
+            }
+            return months.map { m in
+                let end = (try? ledger.dayTotals(for: m).runningBalanceMainEndOfDay) ?? 0
+                let val = NSDecimalNumber(decimal: end - anchorEnd).doubleValue
+                return (m, val)
+            }
         }
     }
 
@@ -353,7 +444,21 @@ extension InsightsView {
             var comps = cal.dateComponents([.year, .month], from: weekStart)
             comps.day = 1
             let monthStart = cal.date(from: comps) ?? weekStart
-            let months = (0..<6).compactMap { cal.date(byAdding: .month, value: -((5 - $0)), to: monthStart) }
+            let range = cal.range(of: .day, in: .month, for: monthStart) ?? 1..<31
+            let days = range.compactMap { cal.date(byAdding: .day, value: $0 - 1, to: monthStart) }
+            return days.map { day in
+                if let overview = try? ledger.dayOverview(for: day) {
+                    let net = overview.items.map { NSDecimalNumber(decimal: $0.mainAmount).doubleValue }.reduce(0, +)
+                    return (day, net)
+                } else { return (day, 0) }
+            }
+        case .biannual:
+            var comps = cal.dateComponents([.year, .month], from: weekStart)
+            comps.day = 1
+            let anchor = cal.date(from: comps) ?? weekStart
+            let months = (0...5).compactMap { back -> Date? in
+                cal.date(byAdding: .month, value: -(5 - back), to: anchor)
+            }
             return months.map { m in
                 let next = cal.date(byAdding: .month, value: 1, to: m) ?? m
                 var sum: Double = 0
@@ -405,14 +510,34 @@ extension InsightsView {
             var comps = cal.dateComponents([.year, .month], from: weekStart)
             comps.day = 1
             let monthStart = cal.date(from: comps) ?? weekStart
-            let months = (0..<6).compactMap { cal.date(byAdding: .month, value: -((5 - $0)), to: monthStart) }
+            let range = cal.range(of: .day, in: .month, for: monthStart) ?? 1..<31
+            let days = range.compactMap { cal.date(byAdding: .day, value: $0 - 1, to: monthStart) }
+            return days.map { day in
+                if let overview = try? ledger.dayOverview(for: day) {
+                    let sum = overview.items
+                        .map { NSDecimalNumber(decimal: $0.savingsAmount).doubleValue }
+                        .filter { $0 > 0 }
+                        .reduce(0, +)
+                    return (day, sum)
+                } else { return (day, 0) }
+            }
+        case .biannual:
+            var comps = cal.dateComponents([.year, .month], from: weekStart)
+            comps.day = 1
+            let anchor = cal.date(from: comps) ?? weekStart
+            let months = (0...5).compactMap { back -> Date? in
+                cal.date(byAdding: .month, value: -(5 - back), to: anchor)
+            }
             return months.map { m in
                 let next = cal.date(byAdding: .month, value: 1, to: m) ?? m
                 var sum: Double = 0
                 var d = m
                 while d < next {
                     if let ov = try? ledger.dayOverview(for: d) {
-                        sum += ov.items.map { NSDecimalNumber(decimal: $0.savingsAmount).doubleValue }.filter { $0 > 0 }.reduce(0, +)
+                        sum += ov.items
+                            .map { NSDecimalNumber(decimal: $0.savingsAmount).doubleValue }
+                            .filter { $0 > 0 }
+                            .reduce(0, +)
                     }
                     d = cal.date(byAdding: .day, value: 1, to: d) ?? d
                     if d == m { break }
@@ -437,7 +562,21 @@ extension InsightsView {
             var comps = cal.dateComponents([.year, .month], from: weekStart)
             comps.day = 1
             let monthStart = cal.date(from: comps) ?? weekStart
-            let months = (0..<6).compactMap { cal.date(byAdding: .month, value: -((5 - $0)), to: monthStart) }
+            let range = cal.range(of: .day, in: .month, for: monthStart) ?? 1..<31
+            let days = range.compactMap { cal.date(byAdding: .day, value: $0 - 1, to: monthStart) }
+            return days.map { day in
+                if let overview = try? ledger.dayOverview(for: day) {
+                    let net = overview.items.map { NSDecimalNumber(decimal: $0.savingsAmount).doubleValue }.reduce(0, +)
+                    return (day, net)
+                } else { return (day, 0) }
+            }
+        case .biannual:
+            var comps = cal.dateComponents([.year, .month], from: weekStart)
+            comps.day = 1
+            let anchor = cal.date(from: comps) ?? weekStart
+            let months = (0...5).compactMap { back -> Date? in
+                cal.date(byAdding: .month, value: -(5 - back), to: anchor)
+            }
             return months.map { m in
                 let next = cal.date(byAdding: .month, value: 1, to: m) ?? m
                 var sum: Double = 0
@@ -496,6 +635,13 @@ extension InsightsView {
             let start = cal.date(byAdding: .month, value: -5, to: monthStart) ?? monthStart
             let end = cal.date(byAdding: DateComponents(month: 1, day: -1), to: monthStart) ?? monthStart
             return (start, end)
+        case .biannual:
+            var comps = cal.dateComponents([.year, .month], from: weekStart)
+            comps.day = 1
+            let anchor = cal.date(from: comps) ?? weekStart
+            let start = cal.date(byAdding: .month, value: -5, to: anchor) ?? anchor
+            let end = cal.date(byAdding: DateComponents(month: 1, day: -1), to: anchor) ?? anchor
+            return (start, end)
         }
     }
     
@@ -517,6 +663,15 @@ extension InsightsView {
             day = next
         }
         return (income, expense)
+    }
+    
+    private func currentMonthDaysCount() -> Int {
+        let cal = Calendar.current
+        var comps = cal.dateComponents([.year, .month], from: weekStart)
+        comps.day = 1
+        let monthStart = cal.date(from: comps) ?? weekStart
+        let range = cal.range(of: .day, in: .month, for: monthStart) ?? 1..<31
+        return range.count
     }
 }
 
@@ -704,6 +859,19 @@ extension InsightsView {
                 let baseY = h - 22 // leave space for labels underneath
 
                 ZStack(alignment: .bottomLeading) {
+                    // Full-column transparent hit areas (above labels)
+                    HStack(alignment: .bottom, spacing: spacing) {
+                        ForEach(0..<bins.count, id: \.self) { i in
+                            // Column frame spans from top down to just above the label row
+                            Rectangle()
+                                .fill(Color.clear)
+                                .frame(width: barW, height: max(0, baseY - 4))
+                                .contentShape(Rectangle())
+                                .onTapGesture { onTap?(bins[i].0) }
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
                     // Bars
                     HStack(alignment: .bottom, spacing: spacing) {
                         ForEach(0..<bins.count, id: \.self) { i in
@@ -745,6 +913,8 @@ extension InsightsView {
         case .weekly:
             df.dateFormat = "E"
         case .monthly:
+            df.dateFormat = "d"
+        case .biannual:
             df.dateFormat = "MMM"
         }
         return df
@@ -770,7 +940,24 @@ extension InsightsView {
             var comps = cal.dateComponents([.year, .month], from: weekStart)
             comps.day = 1
             let monthStart = cal.date(from: comps) ?? weekStart
-            let months = (0..<6).compactMap { cal.date(byAdding: .month, value: -((5 - $0)), to: monthStart) }
+            let range = cal.range(of: .day, in: .month, for: monthStart) ?? 1..<31
+            let days = range.compactMap { cal.date(byAdding: .day, value: $0 - 1, to: monthStart) }
+            return days.map { day in
+                if let overview = try? ledger.dayOverview(for: day) {
+                    let sum = overview.items
+                        .map { NSDecimalNumber(decimal: $0.mainAmount).doubleValue }
+                        .filter { $0 < 0 }
+                        .reduce(0) { $0 + abs($1) }
+                    return (day, sum)
+                } else { return (day, 0) }
+            }
+        case .biannual:
+            var comps = cal.dateComponents([.year, .month], from: weekStart)
+            comps.day = 1
+            let anchor = cal.date(from: comps) ?? weekStart
+            let months = (0...5).compactMap { back -> Date? in
+                cal.date(byAdding: .month, value: -(5 - back), to: anchor)
+            }
             return months.map { m in
                 let next = cal.date(byAdding: .month, value: 1, to: m) ?? m
                 var sum: Double = 0
@@ -789,5 +976,9 @@ extension InsightsView {
             }
         }
     }
+}
+
+extension Notification.Name {
+    static let showListForDate = Notification.Name("ShowListForDate")
 }
 
