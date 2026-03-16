@@ -4,6 +4,7 @@ import SharedLedger
 struct ItemDetailSheet: View {
     let ledger = Ledger.shared
     @Environment(\.dismiss) private var dismiss
+    @AppStorage("selectedCurrencyCode") private var currencySelected = "GBP"
 
     let day: Date
     let item: DayLineItem
@@ -31,7 +32,7 @@ struct ItemDetailSheet: View {
 
             VStack(spacing: 8) {
                 HStack(spacing: 6) {
-                    Text(format(displayAmount))
+                    Text("\(Locale(identifier: "en_GB@currency=\(currencySelected)").currencySymbol ?? currencySelected) \(format(displayAmount))")
                         .font(.system(size: 44, weight: .heavy, design: .rounded))
                         .monospacedDigit()
                         .foregroundStyle(displayAmount >= 0 ? .blue : .red)

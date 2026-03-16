@@ -466,6 +466,38 @@ public final class LedgerService: @unchecked Sendable {
         }
     }
 
+    public func searchTransactions(_ query: String, type: TransactionSource) throws -> [String] {
+        let q = query.lowercased()
+        let exactPrefix = "\(q)%"
+        let contains = "%\(q)%"
+
+        let dbTable: String = {
+            switch type {
+            case .oneTime: return "one_time_transactions"
+            case .recurring: return "recurring_rules"
+            case .saving: return "savings_transactions"
+            }
+        }()
+
+        let sql = """
+        SELECT title, COUNT(*) AS count
+        FROM \(dbTable)
+        WHERE LOWER(title) LIKE ?
+        GROUP BY title
+        ORDER BY
+            CASE WHEN LOWER(title) LIKE ? THEN 0 ELSE 1 END,
+            count DESC,
+            title COLLATE NOCASE ASC
+        LIMIT 8
+        """
+
+        let rows = try db.dbQueue.read { rdb in
+            try Row.fetchAll(rdb, sql: sql, arguments: [contains, exactPrefix])
+        }
+
+        return rows.map { $0["title"] }
+    }
+
     // ----- Cache Logic
 
     private func ensureCachedThrough(day requested: Date, wdb: Database) throws {
@@ -886,5 +918,26 @@ public final class LedgerService: @unchecked Sendable {
         var result = Decimal()
         NSDecimalDivide(&result, &v, &d, .bankers)
         return result
+    }
+    
+    // MARK: - Negative balance scanning
+    /// Scans forward from **today** (inclusive) and returns the first day where
+    /// `runningBalanceEndOfDay` becomes negative.
+    ///
+    /// - Parameters:
+    ///   - maxDaysAhead: Safety cap to avoid scanning forever when you have open-ended recurring rules.
+    /// - Returns: The first negative day + its end-of-day balance, or `nil` if no negative day is found.
+    public func firstNegativeBalanceFromToday(maxDaysAhead: Int = 3650) throws -> (day: Date, balanceEOD: Decimal)? {
+        let start = today()
+        let cap = max(0, maxDaysAhead)
+
+        for offset in 0...cap {
+            guard let day = calendar.date(byAdding: .day, value: offset, to: start) else { continue }
+            let totals = try dayTotals(for: day)
+            if totals.runningBalanceMainEndOfDay < 0 {
+                return (day: totals.dayStart, balanceEOD: totals.runningBalanceMainEndOfDay)
+            }
+        }
+        return nil
     }
 }

@@ -4,6 +4,9 @@ import SharedLedger
 struct TransactionEditorView: View {
     @Environment(\.dismiss) private var dismiss
     @FocusState private var focusedField: FocusedField?
+    @AppStorage("selectedCurrencyCode") private var currencySelected = "GBP"
+    @State private var titleSuggestions: [String] = []
+    @State private var titleSearchTask: Task<Void, Never>?
 
     enum FocusedField { case title, amount, every }
 
@@ -68,23 +71,45 @@ struct TransactionEditorView: View {
     private enum AlertState: Identifiable {
         case error(String)
         case success(String)
+        case info(String)
+        case confirmNegative(String)
+
         var id: String { "\(self)" }
 
         var title: String {
             switch self {
-            case .error: return "❌ Couldn’t Save"
-            case .success: return "✅ Saved"
+            case .error: return "Couldn’t Save"
+            case .success: return "Saved"
+            case .info: return "Cancelled"
+            case .confirmNegative: return "Balance Warning"
             }
         }
+
         var message: String {
             switch self {
             case .error(let msg): return msg
             case .success(let msg): return msg
+            case .info(let msg): return msg
+            case .confirmNegative(let msg): return msg
             }
         }
     }
     @State private var alert: AlertState?
 
+    // MARK: - Pending confirmation / undo
+    private enum UndoAction {
+        case deleteOneTime(OneTimeTransaction)
+        case deleteRecurring(RecurringRule)
+        case deleteSaving(SavingsTransaction)
+
+        case revertOneTime(tx: OneTimeTransaction, oldTitle: String, oldDate: Date, oldAmount: Decimal)
+        case revertRecurring(rule: RecurringRule, oldTitle: String, oldAmount: Decimal, oldStart: Date, oldEnd: Date?, oldRecurrence: Recurrence)
+        case revertSaving(tx: SavingsTransaction, oldTitle: String, oldDate: Date, oldAmount: Decimal)
+    }
+
+    @State private var pendingUndo: UndoAction?
+    @State private var pendingSuccessMessage: String?
+    
     // MARK: - Init with prefill
     init(mode: Mode) {
         self.mode = mode
@@ -104,18 +129,54 @@ struct TransactionEditorView: View {
                         Text("Title")
                             .font(.title3.weight(.semibold))
 
-                        TextField("e.g. Rent, Salary, Coffee, Groceries…", text: $title)
-                            .font(.system(size: 18, weight: .medium))
-                            .textInputAutocapitalization(.words)
-                            .submitLabel(.done)
-                            .focused($focusedField, equals: .title)
-                            .padding(14)
-                            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                    .stroke(.white.opacity(0.12), lineWidth: 1)
-                            )
+                        VStack(alignment: .leading, spacing: 8) {
+                            TextField("e.g. Rent, Salary, Coffee, Groceries…", text: $title)
+                                .font(.system(size: 18, weight: .medium))
+                                .textInputAutocapitalization(.words)
+                                .submitLabel(.done)
+                                .focused($focusedField, equals: .title)
+                                .padding(14)
+                                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                        .stroke(.white.opacity(0.12), lineWidth: 1)
+                                )
+                                .onChange(of: title) { _, newValue in
+                                    scheduleTitleAutocomplete(for: newValue)
+                                }
+                                .onChange(of: type) { _, _ in
+                                    scheduleTitleAutocomplete(for: title)
+                                }
+
+                            if shouldShowTitleSuggestions {
+                                ScrollView(.horizontal, showsIndicators: false) {
+                                    HStack(spacing: 8) {
+                                        ForEach(titleSuggestions, id: \.self) { suggestion in
+                                            Button {
+                                                applyTitleSuggestion(suggestion)
+                                            } label: {
+                                                Text(suggestion)
+                                                    .font(.subheadline.weight(.semibold))
+                                                    .lineLimit(1)
+                                                    .padding(.horizontal, 12)
+                                                    .padding(.vertical, 8)
+                                                    .background(.ultraThinMaterial)
+                                                    .clipShape(Capsule())
+                                                    .overlay(
+                                                        Capsule()
+                                                            .stroke(.white.opacity(0.12), lineWidth: 1)
+                                                    )
+                                            }
+                                            .buttonStyle(.plain)
+                                        }
+                                    }
+                                    .padding(.horizontal, 2)
+                                }
+                                .transition(.opacity.combined(with: .move(edge: .top)))
+                            }
+                        }
                     }
+                    .animation(.easeInOut(duration: 0.18), value: titleSuggestions)
 
                     // Amount
                     VStack(alignment: .leading, spacing: 8) {
@@ -132,7 +193,7 @@ struct TransactionEditorView: View {
                             VStack(alignment: .leading, spacing: 6) {
                                 ZStack(alignment: .leading) {
                                     HStack(spacing: 0) {
-                                        Text(formattedUKFromDigits(amountDigits))
+                                        Text("\(Locale(identifier: "en_GB@currency=\(currencySelected)").currencySymbol ?? currencySelected) \(formattedUKFromDigits(amountDigits))")
                                             .font(.system(size: 28, weight: .semibold, design: .rounded))
                                             .monospacedDigit()
 
@@ -236,21 +297,45 @@ struct TransactionEditorView: View {
             .padding()
         }
         .alert(item: $alert) { state in
-            Alert(
-                title: Text(state.title),
-                message: Text(state.message),
-                dismissButton: .default(Text("OK"), action: {
-                    if case .success = state { dismiss() }
-                })
-            )
+            switch state {
+
+            case .confirmNegative:
+                return Alert(
+                    title: Text(state.title),
+                    message: Text(state.message),
+                    primaryButton: .destructive(Text("Proceed")) {
+                        commitProceed()
+                    },
+                    secondaryButton: .cancel {
+                        commitCancelAndUndo()
+                    }
+                )
+
+            default:
+                return Alert(
+                    title: Text(state.title),
+                    message: Text(state.message),
+                    dismissButton: .default(Text("OK"), action: {
+                        // Keep your current behaviour: dismiss on edit success.
+                        if mode != .create, case .success = state { dismiss() }
+                    })
+                )
+            }
         }
         .scrollDismissesKeyboard(.immediately)
         .onAppear { prefillFromMode() }
         .contentShape(Rectangle())
         .simultaneousGesture(
-            TapGesture().onEnded { focusedField = nil }
+            TapGesture().onEnded {
+                focusedField = nil
+                titleSuggestions = []
+            }
         )
+        .onDisappear {
+            titleSearchTask?.cancel()
+        }
     }
+    
     
     // MARK: - Details
 
@@ -406,6 +491,8 @@ struct TransactionEditorView: View {
     // MARK: - Prefill
 
     private func prefillFromMode() {
+        titleSuggestions = []
+
         switch mode {
         case .create:
             break
@@ -463,40 +550,64 @@ struct TransactionEditorView: View {
         let ledger = Ledger.shared
 
         do {
+            pendingUndo = nil
+
+            // 1) Save + store how to undo it
             switch mode {
             case .create:
                 switch type {
                 case .oneTime:
-                    try ledger.addOneTime(title: trimmedTitle, date: selectedDate, amount: finalAmount)
+                    let created = try ledger.addOneTime(title: trimmedTitle, date: selectedDate, amount: finalAmount)
+                    pendingUndo = .deleteOneTime(created)
                     
                 case .saving:
-                    try ledger.addSavings(title: trimmedTitle, date: selectedDate, amount: finalAmount)
-                    
+                    let created = try ledger.addSavings(title: trimmedTitle, date: selectedDate, amount: finalAmount)
+                    pendingUndo = .deleteSaving(created)
+
                 case .repeating:
                     let recurrence = makeRecurrence()
                     let end: Date? = hasEndDate ? max(selectedEndDate, selectedDate) : nil
-                    try ledger.addRecurring(
+                    let createdRule = try ledger.addRecurring(
                         title: trimmedTitle,
                         amountPerCycle: finalAmount,
                         startDate: selectedDate,
                         endDate: end,
                         recurrence: recurrence
                     )
+                    pendingUndo = .deleteRecurring(createdRule)
                 }
-                
-                resetInputsForNextCreate()
-                alert = .success("Created \(createTransactionName).")
-                
+
+                pendingSuccessMessage = nil
+
             case .editOneTime(let tx):
+                // snapshot old values for undo
+                let oldTitle = tx.title
+                let oldDate = tx.date
+                let oldAmount = tx.amount
+
                 try ledger.updateOneTime(tx, title: trimmedTitle, date: selectedDate, amount: finalAmount)
-                alert = .success("Saved \(createTransactionName).")
-                
+                pendingSuccessMessage = "Saved \(createTransactionName)."
+
+                pendingUndo = .revertOneTime(
+                    tx: tx,
+                    oldTitle: oldTitle,
+                    oldDate: oldDate,
+                    oldAmount: oldAmount
+                )
+
             case .editRecurring(let rule):
+                // snapshot old values for undo
+                let oldTitle = rule.title
+                let oldAmount = rule.amountPerCycle
+                let oldStart = rule.startDate
+                let oldEnd = rule.endDate
+                let oldRecurrence = rule.recurrence
+
                 let recurrence = makeRecurrence()
                 let endUpdate: LedgerService.EndDateUpdate = hasEndDate
-                ? .set(max(selectedEndDate, selectedDate))
-                : .clear
-                
+                    ? .set(max(selectedEndDate, selectedDate))
+                    : .clear
+
                 try ledger.updateRecurring(
                     rule,
                     title: trimmedTitle,
@@ -505,14 +616,35 @@ struct TransactionEditorView: View {
                     endDate: endUpdate,
                     recurrence: recurrence
                 )
-                alert = .success("Saved \(createTransactionName).")
-                
-                
+                pendingSuccessMessage = "Saved \(createTransactionName)."
+
+                pendingUndo = .revertRecurring(
+                    rule: rule,
+                    oldTitle: oldTitle,
+                    oldAmount: oldAmount,
+                    oldStart: oldStart,
+                    oldEnd: oldEnd,
+                    oldRecurrence: oldRecurrence
+                )
             case .editSaving(let tx):
                 try ledger.updateSavings(tx, title: trimmedTitle, date: selectedDate, amount: finalAmount)
-                alert = .success("Saved \(createTransactionName).")
+                pendingSuccessMessage = "Saved \(createTransactionName)."
+                pendingUndo = .revertSaving(tx: tx, oldTitle: tx.title, oldDate: tx.date, oldAmount: tx.amount)
             }
+
+            // 2) Check today+future balance AFTER save
+            if let hit = try ledger.firstNegativeBalanceFromToday() {
+                alert = .confirmNegative(
+                    negativeBalanceWarningMessage(day: hit.day, balanceEOD: hit.balanceEOD)
+                    + "\n\nProceed anyway?"
+                )
+            } else {
+                // no negative -> accept automatically
+                commitProceed()
+            }
+
         } catch {
+            pendingUndo = nil
             alert = .error(userFacingMessage(for: error))
         }
     }
@@ -539,6 +671,68 @@ struct TransactionEditorView: View {
         // fallback
         return underlying.localizedDescription
     }
+
+    private func commitProceed() {
+        if mode == .create {
+            resetInputsForNextCreate()
+        }
+
+        pendingUndo = nil
+
+        // Only show a success alert for edit flows (so create doesn't get the extra popup)
+        if mode != .create, let msg = pendingSuccessMessage {
+            alert = .success(msg)
+        }
+
+        pendingSuccessMessage = nil
+    }
+
+    private func commitCancelAndUndo() {
+        let ledger = Ledger.shared
+
+        do {
+            if let undo = pendingUndo {
+                switch undo {
+                case .deleteOneTime(let tx):
+                    try ledger.deleteOneTime(tx)
+
+                case .deleteRecurring(let rule):
+                    try ledger.deleteRecurring(rule)
+                    
+                case .deleteSaving(let saving):
+                    try ledger.deleteSavings(saving)
+
+                case .revertOneTime(let tx, let oldTitle, let oldDate, let oldAmount):
+                    try ledger.updateOneTime(tx, title: oldTitle, date: oldDate, amount: oldAmount)
+
+                case .revertRecurring(let rule, let oldTitle, let oldAmount, let oldStart, let oldEnd, let oldRecurrence):
+                    let endUpdate: LedgerService.EndDateUpdate = {
+                        if let oldEnd { return .set(oldEnd) }
+                        return .clear
+                    }()
+
+                    try ledger.updateRecurring(
+                        rule,
+                        title: oldTitle,
+                        amountPerCycle: oldAmount,
+                        startDate: oldStart,
+                        endDate: endUpdate,
+                        recurrence: oldRecurrence
+                    )
+                case .revertSaving(tx: let saving, oldTitle: let oldTitle, oldDate: let oldDate, oldAmount: let oldAmount):
+                    try ledger.updateSavings(saving, title: oldTitle, date: oldDate, amount: oldAmount)
+                }
+            }
+
+            pendingUndo = nil
+            pendingSuccessMessage = nil
+
+        } catch {
+            pendingUndo = nil
+            pendingSuccessMessage = nil
+            alert = .error("Tried to undo but failed: \(error.localizedDescription)")
+        }
+    }
     
     private func resetInputsForNextCreate() {
         title = ""
@@ -553,6 +747,7 @@ struct TransactionEditorView: View {
         everyNText = "1"
         unit = .days
 
+        titleSuggestions = []
         focusedField = nil
     }
 
@@ -564,6 +759,29 @@ struct TransactionEditorView: View {
         case .months: return .everyMonths(n)
         case .years: return .everyYears(n)
         }
+    }
+    
+    private func negativeBalanceWarningMessage(day: Date, balanceEOD: Decimal) -> String {
+        let dateText = day.formatted(date: .abbreviated, time: .omitted)
+        let moneyText = formatCurrency(balanceEOD)
+        return "Your running balance becomes negative on \(dateText).\nEnd-of-day balance: \(moneyText)"
+    }
+
+    private func formatCurrency(_ value: Decimal) -> String {
+        let nf = NumberFormatter()
+        nf.locale = Locale.current
+        nf.numberStyle = .currency
+
+        // If the locale has a currency, use it. Otherwise, fall back to a plain number.
+        if let currencyCode = Locale.current.currency?.identifier {
+            nf.currencyCode = currencyCode
+        } else {
+            nf.numberStyle = .decimal
+            nf.minimumFractionDigits = 2
+            nf.maximumFractionDigits = 2
+        }
+
+        return nf.string(from: value as NSDecimalNumber) ?? "\(value)"
     }
     
     private var createTransactionName: String {
@@ -634,6 +852,57 @@ struct TransactionEditorView: View {
                 everyNText = trimmed.isEmpty ? (digitsOnly.isEmpty ? "1" : "0") : String(trimmed)
             }
         )
+    }
+    
+    private var autocompleteSourceType: TransactionSource {
+        switch type {
+        case .oneTime: return .oneTime(id: 0)
+        case .repeating: return .recurring(id: 0)
+        case .saving: return .saving(id: 0)
+        }
+    }
+    private var shouldShowTitleSuggestions: Bool {
+        focusedField == .title && !titleSuggestions.isEmpty
+    }
+    private func applyTitleSuggestion(_ suggestion: String) {
+        title = suggestion
+        titleSuggestions = []
+        focusedField = nil
+    }
+    private func scheduleTitleAutocomplete(for rawQuery: String) {
+        titleSearchTask?.cancel()
+
+        let query = rawQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !query.isEmpty else {
+            titleSuggestions = []
+            return
+        }
+
+        titleSearchTask = Task {
+            try? await Task.sleep(nanoseconds: 180_000_000) // 180ms debounce
+            guard !Task.isCancelled else { return }
+
+            do {
+                let results = try Ledger.shared.searchTransactions(query, type: autocompleteSourceType)
+
+                guard !Task.isCancelled else { return }
+
+                let normalizedQuery = query.lowercased()
+
+                let filtered = results
+                    .filter { $0.lowercased() != normalizedQuery }
+                    .prefix(8)
+
+                await MainActor.run {
+                    titleSuggestions = Array(filtered)
+                }
+            } catch {
+                await MainActor.run {
+                    titleSuggestions = []
+                }
+            }
+        }
     }
 
     private func formattedUKFromDigits(_ digits: String) -> String {
