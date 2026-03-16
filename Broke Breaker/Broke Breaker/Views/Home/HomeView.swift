@@ -16,7 +16,7 @@ struct HomeView: View {
     @State private var values: [Double] = Array(repeating: 0, count: 3)
     @State private var labels: [String] = []
     
-    @State private var savingsNudge = false
+   
     @State private var glassShine: CGFloat = -200
     
     private var isNegativeToday: Bool { balanceToday < 0 }
@@ -165,8 +165,8 @@ struct HomeView: View {
                         )
 
                         .shadow(color: .black.opacity(0.25), radius: 10, y: 6)
-                        .offset(x: savingsNudge ? 12 : -120, y: 14)
-                        .animation(.spring(response: 1.4, dampingFraction: 0.85), value: savingsNudge)
+                        .offset(x: 12, y: 14)
+                       
                     }
                     
                     VStack(alignment: .leading, spacing: 16) {
@@ -231,13 +231,6 @@ struct HomeView: View {
         }
         .task { loadRealData() }
         .onAppear {
-            
-            savingsNudge = false
-            
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
-                savingsNudge = true
-            }
-            
             startGlassShine()
             
             Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { _ in
@@ -248,10 +241,10 @@ struct HomeView: View {
     
     func startGlassShine() {
         
-        glassShine = -200
+        glassShine = -300
         
         withAnimation(.easeInOut(duration: 6)) {
-            glassShine = 300
+            glassShine = 500
         }
     }
 
