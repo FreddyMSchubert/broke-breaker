@@ -7,7 +7,7 @@ struct ListOverviewView: View {
     
     @AppStorage("selectedCurrencyCode") private var currencySelected = "GBP"
     
-    @GestureState private var isWeekDragging = false
+    @State private var isWeekDragging = false
     
     @State private var date: Date = .now
     @State private var weekStart: Date = Calendar.current.date(
@@ -15,19 +15,10 @@ struct ListOverviewView: View {
     ) ?? .now
     
     @State private var weeklyTotals: [Date: DayTotals] = [:]
-    @State private var weekPageIndex = 1
-    @State private var dayChanging: Bool = false
-    @State private var weekChanging: Bool = false
-    @State private var pageIndex = 1
     @State private var selectedItem: DayLineItem?
     @State private var refreshToken = UUID()
     @State private var selectedItemDay: Date = .now
     
-    @State private var lastDaySwitch: Date = .now
-    @State private var lastDayDirection: Int = 1
-    @State private var lastWeekSwitch: Date = .now
-    @State private var lastWeekDirection: Int = 1
-
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             
@@ -59,52 +50,18 @@ struct ListOverviewView: View {
             Divider()
             
             // day swiper
-            TabView(selection: $pageIndex) {
-                ForEach(0..<3) { index in
-                    let offset = index - 1
-                    let day = Calendar.current.date(byAdding: .day, value: offset, to: date)!
-                    dayView(for: day)
-                        .tag(index)
-                }
-            }
-            .tabViewStyle(.page(indexDisplayMode: .never))
-            .onChange(of: pageIndex) { _, newIndex in
-                guard newIndex != 1 else { return }
-                dayChanging = true
-                let delta = newIndex - 1
-                
-                if (lastDaySwitch > (Date.now - 0.25) && lastDayDirection == newIndex) {
-                    if let newDate = Calendar.current.date(byAdding: .day, value: delta, to: date) {
-                        date = newDate
-                    }
-                    var transaction = Transaction()
-                    transaction.disablesAnimations = true
-                    withTransaction(transaction) {
-                        pageIndex = 1
-                    }
-                }
-                else {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-
-                        if let newDate = Calendar.current.date(byAdding: .day, value: delta, to: date) {
-                            date = newDate
-                        }
-                        var transaction = Transaction()
-                        transaction.disablesAnimations = true
-                        withTransaction(transaction) {
-                            pageIndex = 1
-                        }
-                    }
-                }
-                dayChanging = false
-                lastDaySwitch = Date.now
+            SwipePager(
+                onStep: moveDay(by:)
+            ) { offset in
+                let day = Calendar.current.date(byAdding: .day, value: offset, to: date) ?? date
+                dayView(for: day)
             }
         }
         .onAppear {
             refresh()
             loadWeeklyTotals()
         }
-        .onChange(of: date) { _, newDate in
+        .onChange(of: date) { _, _ in
             refresh()
         }
         .sheet(item: $selectedItem) { item in
@@ -126,47 +83,22 @@ extension ListOverviewView {
     
     // calender
     private var weekCalendar: some View {
-        TabView(selection: $weekPageIndex) {
-            ForEach(0..<3) { index in
-                let offset = index - 1
-                let baseWeek = Calendar.current.date(byAdding: .weekOfYear, value: offset, to: weekStart)!
-                HStack {
-                    Divider().opacity(isWeekDragging ? 1 : 0)
-                    weekView(for: baseWeek)
-                    Divider().opacity(isWeekDragging ? 1 : 0)
-                }
-                .tag(index)
+        SwipePager(
+            onStep: moveWeek(by:),
+            onDraggingChanged: { dragging in
+                isWeekDragging = dragging
             }
-        }
-        .tabViewStyle(.page(indexDisplayMode: .never))
-        .frame(height: 70)
-        .simultaneousGesture (
-            DragGesture(minimumDistance: 1)
-                .updating($isWeekDragging) { _, state, _ in
-                    state = true
-                }
-        )
-        .onChange(of: weekPageIndex) { _, newIndex in
-            guard newIndex != 1 else { return }
-            guard !weekChanging else { return }
+        ) { offset in
+            let baseWeek = Calendar.current.date(byAdding: .weekOfYear, value: offset, to: weekStart) ?? weekStart
+            let activeDate = Calendar.current.date(byAdding: .weekOfYear, value: offset, to: date) ?? date
             
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                let delta = newIndex - 1
-                if delta != 0 {
-                    if let newWeekStart = Calendar.current.date(byAdding: .weekOfYear, value: delta, to: weekStart) {
-                        let weekdayOffset = Calendar.current.dateComponents([.day], from: weekStart, to: date).day ?? 0
-                        if let newDate = Calendar.current.date(byAdding: .day, value: weekdayOffset, to: newWeekStart) {
-                            weekStart = newWeekStart
-                            date = newDate
-                        } else {
-                            weekStart = newWeekStart
-                            date = newWeekStart
-                        }
-                    }
-                    weekPageIndex = 1
-                }
+            HStack {
+                Divider().opacity(isWeekDragging ? 1 : 0)
+                weekView(for: baseWeek, activeDate: activeDate)
+                Divider().opacity(isWeekDragging ? 1 : 0)
             }
         }
+        .frame(height: 70)
     }
     
     // day view
@@ -207,11 +139,10 @@ extension ListOverviewView {
                                 iconName: "\(Calendar.current.component(.day, from: day)).calendar",
                                 currency: currencySelected,
                                 day: day,
-                                )
-                            { item in
+                            ) { item in
                                 selectedItemDay = day
                                 selectedItem = item
-                                }
+                            }
                         }
                         
                         if !savingItems.isEmpty {
@@ -402,48 +333,33 @@ extension ListOverviewView {
         ) ?? weekStart
     }
     
+    private func moveDay(by delta: Int) {
+        guard delta != 0 else { return }
+        guard let newDate = Calendar.current.date(byAdding: .day, value: delta, to: date) else { return }
+        date = newDate
+    }
+    
+    private func moveWeek(by delta: Int) {
+        guard delta != 0 else { return }
+        guard let newWeekStart = Calendar.current.date(byAdding: .weekOfYear, value: delta, to: weekStart) else { return }
+        
+        let weekdayOffset = Calendar.current.dateComponents([.day], from: weekStart, to: date).day ?? 0
+        weekStart = newWeekStart
+        date = Calendar.current.date(byAdding: .day, value: weekdayOffset, to: newWeekStart) ?? newWeekStart
+    }
+    
     private func goToToday() {
         let calendar = Calendar.current
         let today = Date()
-        
-        let currentWeek = calendar.date(
-            from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: date)
-        )!
         let targetWeek = calendar.date(
             from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: today)
-        )!
+        ) ?? today
         
-        let diff = calendar.dateComponents([.weekOfYear], from: currentWeek, to: targetWeek).weekOfYear ?? 0
+        guard !calendar.isDate(today, inSameDayAs: date) else { return }
         
-        if calendar.isDate(currentWeek, inSameDayAs: targetWeek) {
-            date = today
-            return
-        }
-        
-        guard diff != 0 else {
-            withAnimation {
-                date = today
-            }
-            return
-        }
-        
-        weekChanging = true
-        
-        withAnimation(.easeInOut(duration: 0.3)) {
-            weekPageIndex = diff > 0 ? 2 : 0
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+        withAnimation(.interactiveSpring(response: 0.25, dampingFraction: 0.9, blendDuration: 0.1)) {
             weekStart = targetWeek
             date = today
-            
-            var transaction = Transaction()
-            transaction.disablesAnimations = true
-            withTransaction(transaction) {
-                weekPageIndex = 1
-            }
-            
-            weekChanging = false
-            loadWeeklyTotals()
         }
     }
     
@@ -458,12 +374,11 @@ extension ListOverviewView {
         }
     }
     
-    private func weekView(for startOfWeek: Date) -> some View {
+    private func weekView(for startOfWeek: Date, activeDate: Date) -> some View {
         let days = (0..<7).compactMap {
             Calendar.current.date(byAdding: .day, value: $0, to: startOfWeek)
         }
         let letters = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-        let activeDate = Calendar.current.date(byAdding: .day, value: pageIndex - 1, to: date) ?? date
         
         return HStack {
             ForEach(Array(days.enumerated()), id: \.offset) { index, day in
@@ -514,8 +429,8 @@ extension ListOverviewView {
     
     private func circleColour(day: Date) -> Color {
         guard let balance = try? ledger.dayTotals(for: day).runningBalanceMainEndOfDay else {
-                return .secondary.opacity(0.3)
-            }
+            return .secondary.opacity(0.3)
+        }
         return balance >= 0 ? .blue : .red
     }
     
@@ -642,5 +557,168 @@ extension ListOverviewView {
             }
         }
     }
+}
+
+private struct SwipePager<Page: View>: View {
     
+    let onStep: (Int) -> Void
+    let onDraggingChanged: ((Bool) -> Void)?
+    let page: (Int) -> Page
+    
+    @GestureState private var dragTranslation: CGSize = .zero
+    
+    @State private var settlingOffset: CGFloat = 0
+    @State private var pendingStep: Int = 0
+    @State private var isAnimating = false
+    @State private var isDragging = false
+    
+    init(
+        onStep: @escaping (Int) -> Void,
+        onDraggingChanged: ((Bool) -> Void)? = nil,
+        @ViewBuilder page: @escaping (Int) -> Page
+    ) {
+        self.onStep = onStep
+        self.onDraggingChanged = onDraggingChanged
+        self.page = page
+    }
+    
+    var body: some View {
+        GeometryReader { proxy in
+            let width = max(proxy.size.width, 1)
+            
+            HStack(spacing: 0) {
+                page(-1)
+                    .frame(width: width)
+                page(0)
+                    .frame(width: width)
+                page(1)
+                    .frame(width: width)
+            }
+            .frame(width: width * 3, alignment: .leading)
+            .offset(x: -width + liveOffset(for: width))
+            .contentShape(Rectangle())
+            .clipped()
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 10, coordinateSpace: .local)
+                    .updating($dragTranslation) { value, state, _ in
+                        guard !isAnimating else { return }
+                        state = value.translation
+                    }
+                    .onChanged { value in
+                        guard !isAnimating else { return }
+                        guard abs(value.translation.width) > abs(value.translation.height) else { return }
+                        
+                        if !isDragging {
+                            isDragging = true
+                            onDraggingChanged?(true)
+                        }
+                    }
+                    .onEnded { value in
+                        guard !isAnimating else { return }
+                        
+                        if isDragging {
+                            isDragging = false
+                            onDraggingChanged?(false)
+                        }
+                        
+                        let horizontal = value.translation.width
+                        let vertical = value.translation.height
+                        
+                        guard abs(horizontal) > abs(vertical) else {
+                            snapBack(from: horizontal)
+                            return
+                        }
+                        
+                        let capturedOffset = clampedDrag(horizontal, width: width)
+                        let threshold = width * 0.24
+                        let predicted = value.predictedEndTranslation.width
+                        
+                        let step: Int
+                        if predicted <= -threshold || horizontal <= -threshold {
+                            step = 1
+                        } else if predicted >= threshold || horizontal >= threshold {
+                            step = -1
+                        } else {
+                            step = 0
+                        }
+                        
+                        settlingOffset = capturedOffset
+                        pendingStep = step
+                        isAnimating = true
+                        
+                        withAnimation(.interactiveSpring(response: 0.24, dampingFraction: 0.88, blendDuration: 0.12)) {
+                            settlingOffset = CGFloat(-step) * width
+                        }
+                    }
+            )
+            .modifier(OffsetAnimationCompletionModifier(observedOffset: settlingOffset) {
+                guard isAnimating else { return }
+                
+                let step = pendingStep
+                
+                var transaction = Transaction()
+                transaction.disablesAnimations = true
+                withTransaction(transaction) {
+                    onStep(step)
+                    settlingOffset = 0
+                }
+                
+                pendingStep = 0
+                isAnimating = false
+            })
+        }
+    }
+    
+    private func liveOffset(for width: CGFloat) -> CGFloat {
+        guard !isAnimating else { return settlingOffset }
+        
+        let horizontal = dragTranslation.width
+        let vertical = dragTranslation.height
+        
+        guard abs(horizontal) > abs(vertical) else { return settlingOffset }
+        return settlingOffset + clampedDrag(horizontal, width: width)
+    }
+    
+    private func clampedDrag(_ value: CGFloat, width: CGFloat) -> CGFloat {
+        let limit = width * 1.05
+        return min(max(value, -limit), limit)
+    }
+    
+    private func snapBack(from currentOffset: CGFloat) {
+        settlingOffset = currentOffset
+        pendingStep = 0
+        isAnimating = true
+        
+        withAnimation(.interactiveSpring(response: 0.24, dampingFraction: 0.9, blendDuration: 0.12)) {
+            settlingOffset = 0
+        }
+    }
+}
+
+private struct OffsetAnimationCompletionModifier: AnimatableModifier {
+    
+    var targetOffset: CGFloat
+    var completion: () -> Void
+    
+    var animatableData: CGFloat {
+        didSet { notifyCompletionIfFinished() }
+    }
+    
+    init(observedOffset: CGFloat, completion: @escaping () -> Void) {
+        self.targetOffset = observedOffset
+        self.animatableData = observedOffset
+        self.completion = completion
+    }
+    
+    func body(content: Content) -> some View {
+        content
+    }
+    
+    private func notifyCompletionIfFinished() {
+        guard abs(animatableData - targetOffset) < 0.5 else { return }
+        
+        DispatchQueue.main.async {
+            completion()
+        }
+    }
 }
