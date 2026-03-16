@@ -18,6 +18,7 @@ struct HomeView: View {
     
    
     @State private var glassShine: CGFloat = -200
+    @State private var shineTimer: Timer?
     
     private var isNegativeToday: Bool { balanceToday < 0 }
     
@@ -133,17 +134,17 @@ struct HomeView: View {
                                 .font(.caption)
                                 .opacity(0.75)
                             
-                            Text("\(savingsToday, specifier: "%.2f")")
+                            Text("\(Locale(identifier: "en_GB@currency=\(currencySelected)").currencySymbol ?? currencySelected)\(savingsToday, specifier: "%.2f")")
                                 .font(.headline.weight(.bold))
                         }
                         .padding(.horizontal, 12)
                         .padding(.vertical, 10)
-
+                        
                         .background(
                             RoundedRectangle(cornerRadius: 14)
                                 .fill(.ultraThinMaterial)
                         )
-
+                        
                         .overlay(
                             RoundedRectangle(cornerRadius: 14)
                                 .fill(
@@ -158,15 +159,15 @@ struct HomeView: View {
                                     )
                                 )
                         )
-
+                        
                         .overlay(
                             RoundedRectangle(cornerRadius: 14)
                                 .stroke(Color.white.opacity(0.15), lineWidth: 1)
                         )
-
+                        
                         .shadow(color: .black.opacity(0.25), radius: 10, y: 6)
                         .offset(x: 12, y: 14)
-                       
+                        
                     }
                     
                     VStack(alignment: .leading, spacing: 16) {
@@ -233,14 +234,20 @@ struct HomeView: View {
         .onAppear {
             startGlassShine()
             
-            Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { _ in
+            shineTimer?.invalidate()
+            
+            shineTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { _ in
                 startGlassShine()
             }
+        }
+        
+        .onDisappear {
+            shineTimer?.invalidate()
+            shineTimer = nil
         }
     }
     
     func startGlassShine() {
-        
         glassShine = -300
         
         withAnimation(.easeInOut(duration: 6)) {
