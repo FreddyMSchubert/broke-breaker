@@ -1,0 +1,66 @@
+name: Compile
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  shared-ledger:
+    name: Build SharedLedger
+    runs-on: macos-latest
+
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Build SharedLedger package
+        working-directory: SharedLedger
+        run: swift build
+
+  ledger-cli:
+    name: Build LedgerCLI
+    runs-on: macos-latest
+
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Build LedgerCLI package
+        working-directory: LedgerCLI
+        run: swift build
+
+  ios-app:
+    name: Build iOS app
+    runs-on: macos-latest
+
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Resolve package dependencies
+        run: |
+          xcodebuild \
+            -project "Broke Breaker/Broke Breaker.xcodeproj" \
+            -scheme "Broke Breaker" \
+            -resolvePackageDependencies
+
+      - name: Build app
+        shell: bash
+        run: |
+          set -eo pipefail
+          xcodebuild \
+            -project "Broke Breaker/Broke Breaker.xcodeproj" \
+            -scheme "Broke Breaker" \
+            -configuration Debug \
+            -destination "generic/platform=iOS Simulator" \
+            CODE_SIGNING_ALLOWED=NO \
+            build
